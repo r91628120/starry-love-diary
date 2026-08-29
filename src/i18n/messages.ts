@@ -1,3 +1,5 @@
+import { clearMilestone4Messages } from './clearMilestone4Messages'
+
 export const supportedLocales = ['zh-TW', 'en', 'ja', 'ko', 'es', 'fr'] as const
 
 export type Locale = (typeof supportedLocales)[number]
@@ -124,6 +126,7 @@ const localizedSettingsMessages=Object.fromEntries(supportedLocales.map(locale=>
 
 export const messages = {
   'zh-TW': {
+    ...clearMilestone4Messages,
     ...localizedSettingsMessages['zh-TW'],
     ...localizedClearMessages['zh-TW'],
     ...localizedOurMessages['zh-TW'],
@@ -209,6 +212,7 @@ export const messages = {
     'page.placeholderBody': '此頁的靜態內容將在後續階段依正式規格建立。',
   },
   en: {
+    ...clearMilestone4Messages,
     ...localizedSettingsMessages.en,
     ...localizedClearMessages.en,
     ...localizedOurMessages.en,
@@ -294,6 +298,7 @@ export const messages = {
     'page.placeholderBody': 'Static content for this page will be added from the approved specification in a later phase.',
   },
   ja: {
+    ...clearMilestone4Messages,
     ...localizedSettingsMessages.ja,
     ...localizedClearMessages.ja,
     ...localizedOurMessages.ja,
@@ -379,6 +384,7 @@ export const messages = {
     'page.placeholderBody': 'このページの静的コンテンツは、承認済みの仕様に沿って後の段階で追加します。',
   },
   ko: {
+    ...clearMilestone4Messages,
     ...localizedSettingsMessages.ko,
     ...localizedClearMessages.ko,
     ...localizedOurMessages.ko,
@@ -464,6 +470,7 @@ export const messages = {
     'page.placeholderBody': '이 페이지의 정적 콘텐츠는 승인된 사양에 따라 이후 단계에서 추가합니다.',
   },
   es: {
+    ...clearMilestone4Messages,
     ...localizedSettingsMessages.es,
     ...localizedClearMessages.es,
     ...localizedOurMessages.es,
@@ -549,6 +556,7 @@ export const messages = {
     'page.placeholderBody': 'El contenido estático de esta página se añadirá en una fase posterior según la especificación aprobada.',
   },
   fr: {
+    ...clearMilestone4Messages,
     ...localizedSettingsMessages.fr,
     ...localizedClearMessages.fr,
     ...localizedOurMessages.fr,

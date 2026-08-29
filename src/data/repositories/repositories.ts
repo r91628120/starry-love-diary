@@ -114,15 +114,15 @@ export class LocalSettingsRepository implements SettingsRepository {
   async ensureDefault(locale: Locale) {
     const existing = await this.getSettings()
     if (existing) {
-      if (existing.schemaVersion !== 3) {
-        const migrated = { ...existing, schemaVersion: 3, updatedAt: now() }
+      if (existing.schemaVersion !== 4) {
+        const migrated = { ...existing, schemaVersion: 4, updatedAt: now() }
         await this.storage.put('settings', migrated)
         return migrated
       }
       return existing
     }
     const timestamp = now()
-    const settings: AppSettings = { id: 'settings', locale, loveQuoteReminderEnabled: true, importantDateReminderEnabled: true, reminderTime: '20:00', schemaVersion: 3, createdAt: timestamp, updatedAt: timestamp }
+    const settings: AppSettings = { id: 'settings', locale, loveQuoteReminderEnabled: true, importantDateReminderEnabled: true, reminderTime: '20:00', schemaVersion: 4, createdAt: timestamp, updatedAt: timestamp }
     await this.storage.put('settings', settings)
     return settings
   }

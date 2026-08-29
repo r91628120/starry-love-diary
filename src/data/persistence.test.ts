@@ -8,9 +8,9 @@ import { SCHEMA_VERSION } from './storage/IndexedDbStorageAdapter'
 import { STORE_NAMES } from './storage/StorageAdapter'
 
 describe('Local persistence repositories', () => {
-  it('keeps prior stores while upgrading schema 3 with the four Our stores', () => {
-    expect(SCHEMA_VERSION).toBe(3)
-    expect(STORE_NAMES).toEqual(expect.arrayContaining(['profiles', 'diaries', 'scoreAwards', 'importantDates', 'memoryMoments', 'messageToYou', 'rememberedYouCards']))
+  it('keeps prior stores while upgrading schema 4 with the four Clear stores', () => {
+    expect(SCHEMA_VERSION).toBe(4)
+    expect(STORE_NAMES).toEqual(expect.arrayContaining(['profiles', 'diaries', 'scoreAwards', 'importantDates', 'memoryMoments', 'messageToYou', 'rememberedYouCards', 'clearRecords', 'loveBoatAssessments', 'loveBrainAssessments', 'likeOrHabitReflections']))
   })
 
   it('awards daily open once per local day and survives reopen', async () => {

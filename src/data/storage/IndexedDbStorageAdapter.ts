@@ -1,7 +1,13 @@
 import { STORE_NAMES, type StorageAdapter, type StoreName } from './StorageAdapter'
 
 export const DATABASE_NAME = 'starry-love-diary'
-export const SCHEMA_VERSION = 3
+export const SCHEMA_VERSION = 4
+
+export function ensureObjectStores(database: Pick<IDBDatabase, 'objectStoreNames' | 'createObjectStore'>) {
+  for (const storeName of STORE_NAMES) {
+    if (!database.objectStoreNames.contains(storeName)) database.createObjectStore(storeName, { keyPath: 'id' })
+  }
+}
 
 export class IndexedDbStorageAdapter implements StorageAdapter {
   private database?: IDBDatabase
@@ -14,9 +20,7 @@ export class IndexedDbStorageAdapter implements StorageAdapter {
       const request = indexedDB.open(this.databaseName, SCHEMA_VERSION)
       request.onupgradeneeded = () => {
         const database = request.result
-        for (const storeName of STORE_NAMES) {
-          if (!database.objectStoreNames.contains(storeName)) database.createObjectStore(storeName, { keyPath: 'id' })
-        }
+        ensureObjectStores(database)
       }
       request.onsuccess = () => {
         this.database = request.result

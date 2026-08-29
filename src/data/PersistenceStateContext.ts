@@ -37,7 +37,8 @@ export interface PersistenceContextValue {
   deleteRememberedYouCard(id: string): Promise<void>
   toggleRememberedYouFavorite(id: string): Promise<RememberedYouCard>
   updateSettings(changes: Partial<Pick<AppSettings, 'locale' | 'loveQuoteReminderEnabled' | 'importantDateReminderEnabled' | 'reminderTime'>>): Promise<AppSettings>
-  repositories: Pick<PersistenceRuntime, 'profiles' | 'moods' | 'diaries' | 'settings' | 'stars' | 'scores' | 'heartPhrases' | 'importantDates' | 'memoryMoments' | 'messageToYou' | 'rememberedYou'>
+  refreshScoreAndStars(): Promise<void>
+  repositories: Pick<PersistenceRuntime, 'profiles' | 'moods' | 'diaries' | 'settings' | 'stars' | 'scores' | 'heartPhrases' | 'importantDates' | 'memoryMoments' | 'messageToYou' | 'rememberedYou' | 'clearRecords' | 'loveBoatAssessments' | 'loveBrainAssessments' | 'likeOrHabitReflections'>
 }
 
 export const PersistenceStateContext = createContext<PersistenceContextValue | null>(null)

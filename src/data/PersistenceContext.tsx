@@ -9,6 +9,7 @@ export function PersistenceProvider({ runtime, children }: { runtime: Persistenc
   const [todayMood, setTodayMoodState] = useState(runtime.initial.todayMood)
   const [todayDiary, setTodayDiary] = useState(runtime.initial.todayDiary)
   const [starHeartTotal, setStarHeartTotal] = useState(runtime.initial.starHeartTotal)
+  const [stars, setStars] = useState(runtime.initial.stars)
   const [heartPhrases, setHeartPhrases] = useState(runtime.initial.heartPhrases)
   const [importantDates, setImportantDates] = useState(runtime.initial.importantDates)
   const [memoryMoments, setMemoryMoments] = useState(runtime.initial.memoryMoments)
@@ -23,7 +24,7 @@ export function PersistenceProvider({ runtime, children }: { runtime: Persistenc
     todayMood,
     todayDiary,
     starHeartTotal,
-    stars: runtime.initial.stars,
+    stars,
     heartPhrases,
     importantDates,
     memoryMoments,
@@ -140,7 +141,12 @@ export function PersistenceProvider({ runtime, children }: { runtime: Persistenc
       setSettings(updated)
       return updated
     },
-  }), [diaryCount, heartPhrases, importantDates, memoryMoments, messageToYou, partnerProfile, rememberedYouCards, runtime, settings, starHeartTotal, todayDiary, todayMood, userProfile])
+    async refreshScoreAndStars() {
+      const [total, persistedStars] = await Promise.all([runtime.scores.getTotal(), runtime.stars.getStars()])
+      setStarHeartTotal(total)
+      setStars(persistedStars)
+    },
+  }), [diaryCount, heartPhrases, importantDates, memoryMoments, messageToYou, partnerProfile, rememberedYouCards, runtime, settings, starHeartTotal, stars, todayDiary, todayMood, userProfile])
 
   return <PersistenceStateContext.Provider value={value}>{children}</PersistenceStateContext.Provider>
 }

@@ -1,6 +1,7 @@
 import type { Locale } from '../i18n/messages'
 import { toLocalDate } from '../services/localDateService'
 import { LocalDiaryRepository, LocalHeartPhraseRepository, LocalImportantDateRepository, LocalMemoryMomentRepository, LocalMessageToYouRepository, LocalMoodRepository, LocalProfileRepository, LocalRememberedYouRepository, LocalScoreRepository, LocalSettingsRepository, LocalStarRepository } from './repositories/repositories'
+import { LocalClearRecordRepository, LocalLikeOrHabitReflectionRepository, LocalLoveBoatAssessmentRepository, LocalLoveBrainAssessmentRepository } from './repositories/clearRepositories'
 import { IndexedDbStorageAdapter } from './storage/IndexedDbStorageAdapter'
 import type { StorageAdapter } from './storage/StorageAdapter'
 import type { AppSettings, DiaryEntry, HeartPhrase, ImportantDate, MemoryMoment, MessageToYou, MoodRecord, Profile, RememberedYouCard, Star } from './types'
@@ -18,6 +19,10 @@ export interface PersistenceRuntime {
   memoryMoments: LocalMemoryMomentRepository
   messageToYou: LocalMessageToYouRepository
   rememberedYou: LocalRememberedYouRepository
+  clearRecords: LocalClearRecordRepository
+  loveBoatAssessments: LocalLoveBoatAssessmentRepository
+  loveBrainAssessments: LocalLoveBrainAssessmentRepository
+  likeOrHabitReflections: LocalLikeOrHabitReflectionRepository
   initial: {
     userProfile: Profile
     partnerProfile: Profile
@@ -49,10 +54,14 @@ export async function initializePersistence(options: { adapter?: StorageAdapter;
   const memoryMoments = new LocalMemoryMomentRepository(adapter)
   const messageToYou = new LocalMessageToYouRepository(adapter)
   const rememberedYou = new LocalRememberedYouRepository(adapter)
+  const clearRecords = new LocalClearRecordRepository(adapter, scores)
+  const loveBoatAssessments = new LocalLoveBoatAssessmentRepository(adapter)
+  const loveBrainAssessments = new LocalLoveBrainAssessmentRepository(adapter)
+  const likeOrHabitReflections = new LocalLikeOrHabitReflectionRepository(adapter)
   const profileDefaults = await profiles.ensureDefaults()
   const appSettings = await settings.ensureDefault(options.defaultLocale)
   const localDate = options.localDate ?? toLocalDate()
   await scores.award('daily_open', { localDate })
   const [todayMood, todayDiary, starHeartTotal, persistedStars, persistedHeartPhrases, persistedImportantDates, persistedMemoryMoments, persistedMessage, persistedRememberedYou, persistedDiaries] = await Promise.all([moods.getMoodByLocalDate(localDate), diaries.getDiaryByLocalDate(localDate), scores.getTotal(), stars.getStars(), heartPhrases.getTopHeartPhrases(3), importantDates.getImportantDates(), memoryMoments.getMemoryMoments(), messageToYou.getMessage(), rememberedYou.getRememberedYouCards(), diaries.getDiaries()])
-  return { adapter, profiles, moods, diaries, settings, stars, scores, heartPhrases, importantDates, memoryMoments, messageToYou, rememberedYou, initial: { userProfile: profileDefaults.user, partnerProfile: profileDefaults.partner, settings: appSettings, todayMood, todayDiary, starHeartTotal, stars: persistedStars, heartPhrases: persistedHeartPhrases, importantDates: persistedImportantDates, memoryMoments: persistedMemoryMoments, messageToYou: persistedMessage, rememberedYouCards: persistedRememberedYou, diaryCount: persistedDiaries.length } }
+  return { adapter, profiles, moods, diaries, settings, stars, scores, heartPhrases, importantDates, memoryMoments, messageToYou, rememberedYou, clearRecords, loveBoatAssessments, loveBrainAssessments, likeOrHabitReflections, initial: { userProfile: profileDefaults.user, partnerProfile: profileDefaults.partner, settings: appSettings, todayMood, todayDiary, starHeartTotal, stars: persistedStars, heartPhrases: persistedHeartPhrases, importantDates: persistedImportantDates, memoryMoments: persistedMemoryMoments, messageToYou: persistedMessage, rememberedYouCards: persistedRememberedYou, diaryCount: persistedDiaries.length } }
 }

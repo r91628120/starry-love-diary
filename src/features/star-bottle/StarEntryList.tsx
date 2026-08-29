@@ -3,6 +3,7 @@ import { starBottleAssets } from '../../assets/uiAssets'
 import { PrimaryButton, SectionHeader } from '../../components'
 import { useI18n } from '../../i18n/I18nContext'
 import type { Star } from '../../data/types'
+import type { TranslationKey } from '../../i18n/messages'
 
 export function StarEntryList({ entries }: { entries: Star[] }) {
   const { t } = useI18n()
@@ -15,12 +16,15 @@ export function StarEntryList({ entries }: { entries: Star[] }) {
         {entries.map((entry) => {
           const isMood = entry.type === 'mood'
           const typeLabel = t(isMood ? 'starBottle.type.mood' : 'starBottle.type.clear')
+          const sourceContent = entry.type === 'clear_mind' && entry.sourceType && ['clear_record', 'love_boat_code', 'love_brain_assessment', 'like_or_habit'].includes(entry.sourceType)
+            ? t(('clear.star.' + entry.sourceType) as TranslationKey)
+            : entry.content
           return (
             <article className={`star-entry star-entry--${isMood ? 'mood' : 'clear'}`} key={entry.id}>
               <img src={isMood ? starBottleAssets.moodStar : starBottleAssets.clearStar} alt="" aria-hidden="true" />
               <div className="star-entry__content">
                 <strong>{typeLabel}</strong>
-                <p>{entry.content}</p>
+                <p>{sourceContent}</p>
                 <div className="star-entry__meta"><time dateTime={entry.localDate}>{entry.localDate}</time><span>{typeLabel}</span></div>
               </div>
               <button className="star-entry__more" type="button" aria-label={t('starBottle.entry.more', { type: typeLabel })}>•••</button>
