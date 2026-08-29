@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 360" role="img">
+  <defs><linearGradient id="sunset" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#9bc9ea"/><stop offset=".55" stop-color="#f7c0b2"/><stop offset="1" stop-color="#f5d9b2"/></linearGradient></defs>
+  <rect width="480" height="360" rx="24" fill="url(#sunset)"/>
+  <circle cx="382" cy="89" r="35" fill="#fff4bd" opacity=".9"/>
+  <path d="M0 264c78-44 154-45 228-7 78 40 160 35 252-16v119H0z" fill="#7695a7" opacity=".7"/>
+  <path d="M0 294c99-27 193-25 282 7 68 25 134 26 198 5v54H0z" fill="#536f7d" opacity=".65"/>
+  <circle cx="202" cy="190" r="34" fill="#4b3e3a"/><path d="M148 319c8-73 25-107 54-107s49 34 60 107" fill="#6d6475"/>
+  <circle cx="288" cy="187" r="36" fill="#443936"/><path d="M248 319c7-75 20-109 40-109 31 0 49 34 55 109" fill="#745b68"/>
+  <path d="M231 230c9 12 19 17 30 17 10 0 20-5 30-17" fill="none" stroke="#f6d1c4" stroke-width="7" stroke-linecap="round"/>
+  <path d="M246 72c-10-12-25-5-22 8 2 12 16 17 22 20 7-3 21-8 23-20 3-13-12-20-23-8z" fill="#fff3d1" opacity=".95"/>
+</svg>

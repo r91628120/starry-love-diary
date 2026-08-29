@@ -1,0 +1,149 @@
+《星星戀愛日記》素材命名建議 v1
+一、命名原則
+
+建議統一使用這個規則：
+
+全部英文小寫
+單字用 - 連接
+不要空格
+不要中文
+不要用太籠統的名字（例如：image1.png、漂亮圖片.png）
+可加數字排序，方便 Codex 判讀順序
+建議格式
+
+頁面-素材類型-主題-版本.png
+
+例如：
+
+today-hero-couple-garden-v1.png
+today-profile-frame-me-pink.png
+star-bottle-empty-glass-v1.png
+二、建議資料夾結構
+
+您可以先放在：
+
+design/
+  ui-reference/
+  ui-assets/
+    today/
+    star-bottle/
+    footprints/
+    common/
+
+如果之後要正式給 Codex 串接前端，也可以再搬進：
+
+public/images/ui/
+三、已做好的頁面參考圖（Mockup / Reference）
+
+這些是整頁參考，不是拆開的小素材。
+
+A. 六大頁面整頁參考圖
+01-page-today-reference.png
+02-page-star-bottle-reference.png
+03-page-footprints-reference.png
+04-page-our-reference.png
+05-page-clear-reference.png
+06-page-settings-reference.png
+
+如果您要保持和目前 ui-reference 一樣的排序，也可以直接用：
+
+01-today.png
+02-star-bottle.png
+03-footprints.png
+04-our.png
+05-clear.png
+06-settings.png
+四、Today 頁素材命名
+1. Today Hero 主視覺
+
+您剛剛做好的首頁大圖建議命名：
+
+today-hero-couple-garden-cat-v1.png
+說明
+情侶＋黑貓＋花園窗邊
+用在 Today 頁最上方 Hero 區
+2. Profile Frames（頭像相框）
+粉色「我」相框
+today-profile-frame-me-pink.png
+淡藍「對方」相框
+today-profile-frame-partner-blue.png
+如果您保留未拆分的雙相框總圖
+today-profile-frames-pink-blue-sheet.png
+3. 星心值愛心
+today-star-heart-empty-pink.png
+說明
+中間留空
+程式之後可把數字疊上去
+不要把 286 畫死
+4. Mood Icons（七個心情圖示）
+心動
+today-mood-heartbeat.png
+開心
+today-mood-happy.png
+安心
+today-mood-safe.png
+想念
+today-mood-miss-you.png
+不安
+today-mood-anxious.png
+難過
+today-mood-sad.png
+內耗
+today-mood-overthinking.png
+如果您保留整組合圖
+today-mood-icons-sheet.png
+5. 小裝飾素材
+
+如果是一整張素材圖：
+
+common-decor-stickers-sheet.png
+
+如果之後拆開，建議可命名：
+
+common-decor-star-gold-01.png
+common-decor-star-pink-01.png
+common-decor-star-blue-01.png
+common-decor-flower-01.png
+common-decor-bow-pink-01.png
+common-decor-sparkle-white-01.png
+common-decor-heart-pink-01.png
+common-decor-shooting-star-01.png
+五、Star Bottle 頁素材命名
+1. 星星瓶頁 Hero 主視覺
+
+您剛剛做好的星星瓶主視覺：
+
+star-bottle-hero-couple-cat-garden-v1.png
+2. 粉色「心情星星」基本款
+star-bottle-mood-star-pink-base.png
+3. 藍色「清醒星星」基本款
+star-bottle-awake-star-blue-base.png
+4. 透明玻璃星星瓶本體
+star-bottle-empty-glass-jar.png
+5. 星光／sparkle 裝飾素材組
+star-bottle-sparkle-decor-sheet.png
+六、粉星 × 3 姿態 命名
+1. 小粉星｜微笑站立款
+pink-star-standing-smile.png
+2. 小粉星｜害羞抱愛心款
+pink-star-shy-holding-heart.png
+3. 小粉星｜開心揮手款
+pink-star-waving-happy.png
+七、藍星 × 3 姿態 命名
+4. 小藍星｜安靜站立款
+blue-star-standing-calm.png
+5. 小藍星｜閉眼安心款
+blue-star-eyes-closed-peaceful.png
+6. 小藍星｜思考提醒款
+blue-star-thinking-reminder.png
+八、Footprints 頁素材命名
+1. 足跡頁 Hero 主視覺
+
+您剛剛補的 Prompt 對應建議檔名：
+
+footprints-hero-couple-writing-diary-cat-v1.png
+說明
+男孩、女孩、黑貓
+桌上寫日記
+背景是花園窗邊
+用在足跡頁頂部 Hero

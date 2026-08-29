@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" role="img">
+  <defs>
+    <linearGradient id="sky2" x1="1" y1="0" x2="0" y2="1"><stop stop-color="#ffe4e8"/><stop offset="1" stop-color="#eee6ff"/></linearGradient>
+    <linearGradient id="dress" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#f1a8b2"/><stop offset="1" stop-color="#d77b8c"/></linearGradient>
+  </defs>
+  <rect width="320" height="320" rx="160" fill="url(#sky2)"/>
+  <circle cx="54" cy="92" r="5" fill="#fff2b9"/><circle cx="263" cy="75" r="4" fill="#fff2b9"/><path d="m53 55 4 10 10 4-10 4-4 10-4-10-10-4 10-4z" fill="#fff5c7"/>
+  <path d="M32 289c31-70 77-105 128-105s97 35 128 105" fill="url(#dress)"/>
+  <ellipse cx="160" cy="139" rx="67" ry="77" fill="#f5c8b0"/>
+  <path d="M90 152c-7-65 15-112 70-112 54 0 78 45 70 112l-18-17c-2-21-7-37-20-51-22 25-51 35-90 35-5 12-7 23-7 34z" fill="#5c463f"/>
+  <path d="M111 82c17-32 84-46 111 9-23-13-48-17-74-9-15 5-27 5-37 0z" fill="#493a36"/>
+  <circle cx="134" cy="145" r="5" fill="#514039"/><circle cx="190" cy="145" r="5" fill="#514039"/>
+  <path d="M145 176c10 8 20 8 30 0" fill="none" stroke="#a76661" stroke-width="4" stroke-linecap="round"/>
+  <path d="M134 45c-19-21-41-12-39 8 2 18 26 24 39 26 13-2 37-8 39-26 2-20-20-29-39-8z" fill="#e97f8f"/>
+  <circle cx="134" cy="58" r="9" fill="#f9bbc2"/>
+</svg>

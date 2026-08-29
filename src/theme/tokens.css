@@ -1,0 +1,77 @@
+:root {
+  /* Colors */
+  --color-cream-50: #fffdf9;
+  --color-cream-100: #fff8f0;
+  --color-cream-200: #f9eee3;
+  --color-surface: rgb(255 253 249 / 92%);
+  --color-surface-strong: #ffffff;
+  --color-pink-100: #ffe8e9;
+  --color-pink-200: #f8cfd3;
+  --color-pink-300: #efa7b0;
+  --color-pink-500: #b64d61;
+  --color-blue-100: #e8f3fb;
+  --color-blue-200: #cfe5f4;
+  --color-blue-400: #78a8c7;
+  --color-purple-100: #f0eafb;
+  --color-purple-200: #ddd2f2;
+  --color-purple-400: #9885bd;
+  --color-green-100: #eaf4e6;
+  --color-green-200: #d5e8ce;
+  --color-green-500: #708c65;
+  --color-yellow-100: #fff3ce;
+  --color-yellow-200: #fbe5a7;
+  --color-yellow-400: #e6b953;
+  --color-ink-900: #4c3834;
+  --color-ink-700: #6f5650;
+  --color-ink-500: #8c756e;
+  --color-border: #ecd8ca;
+  --color-overlay: rgb(76 56 52 / 36%);
+  --color-focus: #9a5d69;
+
+  /* Spacing */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+
+  /* Radius */
+  --radius-sm: 0.75rem;
+  --radius-md: 1rem;
+  --radius-lg: 1.5rem;
+  --radius-xl: 1.75rem;
+  --radius-pill: 999px;
+
+  /* Typography */
+  --font-family-sans: ui-rounded, "SF Pro Rounded", "Noto Sans TC", "Noto Sans JP", "Noto Sans KR", system-ui, sans-serif;
+  --font-size-caption: 0.75rem;
+  --font-size-body: 1rem;
+  --font-size-button: 0.9375rem;
+  --font-size-h2: clamp(1.125rem, 4vw, 1.375rem);
+  --font-size-h1: clamp(1.5rem, 6vw, 2rem);
+  --font-size-display: clamp(2rem, 9vw, 3rem);
+  --line-height-tight: 1.25;
+  --line-height-body: 1.65;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 650;
+  --font-weight-bold: 750;
+
+  /* Shadows */
+  --shadow-card: 0 0.5rem 1.5rem rgb(130 88 70 / 10%);
+  --shadow-highlight: 0 0.75rem 2rem rgb(215 101 114 / 16%);
+  --shadow-floating: 0 0.75rem 2rem rgb(100 68 58 / 18%);
+  --shadow-focus: 0 0 0 0.2rem rgb(154 93 105 / 22%);
+
+  /* Sizes */
+  --size-content-max: 48rem;
+  --size-touch-target: 2.75rem;
+  --size-icon: 1.5rem;
+  --size-bottom-nav: 4.5rem;
+  --size-header-min: 5.25rem;
+  --size-profile-photo: clamp(5.25rem, 28vw, 10rem);
+  --size-star-heart: clamp(5.75rem, 31vw, 10.75rem);
+}
