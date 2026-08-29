@@ -1,7 +1,7 @@
 import type { Locale } from '../../i18n/messages'
 import { getDeviceTimezone, toLocalDate } from '../../services/localDateService'
 import type { StorageAdapter } from '../storage/StorageAdapter'
-import type { AppSettings, AwardType, DiaryEntry, HeartPhrase, MoodKey, MoodRecord, Profile, ProfileKind, ScoreAward, Star, StarType } from '../types'
+import type { AppSettings, AwardType, DiaryEntry, HeartPhrase, ImportantDate, ImportantDateType, MemoryMoment, MessageToYou, MoodKey, MoodRecord, Profile, ProfileKind, RememberedYouCard, ScoreAward, Star, StarType } from '../types'
 
 const DEFAULT_NICKNAME = '星星'
 
@@ -114,15 +114,15 @@ export class LocalSettingsRepository implements SettingsRepository {
   async ensureDefault(locale: Locale) {
     const existing = await this.getSettings()
     if (existing) {
-      if (existing.schemaVersion !== 2) {
-        const migrated = { ...existing, schemaVersion: 2, updatedAt: now() }
+      if (existing.schemaVersion !== 3) {
+        const migrated = { ...existing, schemaVersion: 3, updatedAt: now() }
         await this.storage.put('settings', migrated)
         return migrated
       }
       return existing
     }
     const timestamp = now()
-    const settings: AppSettings = { id: 'settings', locale, loveQuoteReminderEnabled: true, importantDateReminderEnabled: true, reminderTime: '20:00', schemaVersion: 2, createdAt: timestamp, updatedAt: timestamp }
+    const settings: AppSettings = { id: 'settings', locale, loveQuoteReminderEnabled: true, importantDateReminderEnabled: true, reminderTime: '20:00', schemaVersion: 3, createdAt: timestamp, updatedAt: timestamp }
     await this.storage.put('settings', settings)
     return settings
   }
@@ -224,4 +224,157 @@ export class LocalHeartPhraseRepository implements HeartPhraseRepository {
     return updated
   }
   deleteHeartPhrase(phraseId: string) { return this.storage.delete('heartPhrases', phraseId) }
+}
+
+export class OurDataValidationError extends Error {
+  constructor(message: string, readonly code: string) {
+    super(message)
+    this.name = 'OurDataValidationError'
+  }
+}
+
+function requiredText(value: string, field: string) {
+  const normalized = value.trim()
+  if (!normalized) throw new OurDataValidationError(`${field} is required`, `${field.toLowerCase()}_required`)
+  return normalized
+}
+
+function optionalText(value?: string) {
+  const normalized = value?.trim()
+  return normalized || undefined
+}
+
+function validateLocalDate(value: string, field = 'Date') {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new OurDataValidationError(`${field} must use YYYY-MM-DD`, 'invalid_date')
+  return value
+}
+
+export interface ImportantDateRepository {
+  createImportantDate(input: { type: ImportantDateType; title: string; date: string; description?: string; reminderEnabled?: boolean }): Promise<ImportantDate>
+  getImportantDate(id: string): Promise<ImportantDate | undefined>
+  getImportantDates(): Promise<ImportantDate[]>
+  updateImportantDate(id: string, changes: Partial<Pick<ImportantDate, 'type' | 'title' | 'date' | 'description' | 'reminderEnabled'>>): Promise<ImportantDate>
+  deleteImportantDate(id: string): Promise<void>
+}
+
+export class LocalImportantDateRepository implements ImportantDateRepository {
+  constructor(private readonly storage: StorageAdapter) {}
+  async createImportantDate(input: { type: ImportantDateType; title: string; date: string; description?: string; reminderEnabled?: boolean }) {
+    const timestamp = now()
+    const importantDate: ImportantDate = { id: id('important-date'), type: input.type, title: requiredText(input.title, 'Title'), date: validateLocalDate(input.date), description: optionalText(input.description), reminderEnabled: input.reminderEnabled, createdAt: timestamp, updatedAt: timestamp }
+    await this.storage.put('importantDates', importantDate)
+    return importantDate
+  }
+  getImportantDate(importantDateId: string) { return this.storage.get<ImportantDate>('importantDates', importantDateId) }
+  async getImportantDates() { return (await this.storage.getAll<ImportantDate>('importantDates')).sort((a, b) => a.date.localeCompare(b.date) || a.createdAt.localeCompare(b.createdAt)) }
+  async updateImportantDate(importantDateId: string, changes: Partial<Pick<ImportantDate, 'type' | 'title' | 'date' | 'description' | 'reminderEnabled'>>) {
+    const existing = await this.getImportantDate(importantDateId)
+    if (!existing) throw new Error('Important date not found')
+    const updated: ImportantDate = { ...existing, ...changes, title: changes.title === undefined ? existing.title : requiredText(changes.title, 'Title'), date: changes.date === undefined ? existing.date : validateLocalDate(changes.date), description: changes.description === undefined ? existing.description : optionalText(changes.description), updatedAt: now() }
+    await this.storage.put('importantDates', updated)
+    return updated
+  }
+  deleteImportantDate(importantDateId: string) { return this.storage.delete('importantDates', importantDateId) }
+}
+
+export interface MemoryMomentRepository {
+  createMemoryMoment(input: { title?: string; content: string; localDate?: string; photoAssetId?: string | null; order?: number }): Promise<MemoryMoment>
+  getMemoryMoment(id: string): Promise<MemoryMoment | undefined>
+  getMemoryMoments(): Promise<MemoryMoment[]>
+  getRecentMemoryMoments(limit?: number): Promise<MemoryMoment[]>
+  updateMemoryMoment(id: string, changes: Partial<Pick<MemoryMoment, 'title' | 'content' | 'localDate' | 'photoAssetId' | 'order'>>): Promise<MemoryMoment>
+  deleteMemoryMoment(id: string): Promise<void>
+}
+
+export class LocalMemoryMomentRepository implements MemoryMomentRepository {
+  constructor(private readonly storage: StorageAdapter) {}
+  async createMemoryMoment(input: { title?: string; content: string; localDate?: string; photoAssetId?: string | null; order?: number }) {
+    const moments = await this.getMemoryMoments()
+    if (moments.length >= 20) throw new OurDataValidationError('Memory moment limit of 20 reached', 'memory_moment_limit')
+    const timestamp = now()
+    const moment: MemoryMoment = { id: id('memory-moment'), title: optionalText(input.title), content: requiredText(input.content, 'Content'), localDate: validateLocalDate(input.localDate ?? toLocalDate(), 'Local date'), photoAssetId: input.photoAssetId ? optionalText(input.photoAssetId) : null, order: input.order ?? moments.length, createdAt: timestamp, updatedAt: timestamp }
+    await this.storage.put('memoryMoments', moment)
+    return moment
+  }
+  getMemoryMoment(momentId: string) { return this.storage.get<MemoryMoment>('memoryMoments', momentId) }
+  async getMemoryMoments() { return (await this.storage.getAll<MemoryMoment>('memoryMoments')).sort((a, b) => b.localDate.localeCompare(a.localDate) || a.order - b.order || b.createdAt.localeCompare(a.createdAt)) }
+  async getRecentMemoryMoments(limit = 3) { return (await this.getMemoryMoments()).slice(0, limit) }
+  async updateMemoryMoment(momentId: string, changes: Partial<Pick<MemoryMoment, 'title' | 'content' | 'localDate' | 'photoAssetId' | 'order'>>) {
+    const existing = await this.getMemoryMoment(momentId)
+    if (!existing) throw new Error('Memory moment not found')
+    const updated: MemoryMoment = { ...existing, ...changes, title: changes.title === undefined ? existing.title : optionalText(changes.title), content: changes.content === undefined ? existing.content : requiredText(changes.content, 'Content'), localDate: changes.localDate === undefined ? existing.localDate : validateLocalDate(changes.localDate, 'Local date'), photoAssetId: changes.photoAssetId === undefined ? existing.photoAssetId : changes.photoAssetId ? optionalText(changes.photoAssetId) : null, updatedAt: now() }
+    await this.storage.put('memoryMoments', updated)
+    return updated
+  }
+  deleteMemoryMoment(momentId: string) { return this.storage.delete('memoryMoments', momentId) }
+}
+
+export interface MessageToYouRepository {
+  getMessage(): Promise<MessageToYou | undefined>
+  saveMessage(content: string): Promise<MessageToYou>
+  clearMessage(): Promise<void>
+}
+
+export class LocalMessageToYouRepository implements MessageToYouRepository {
+  constructor(private readonly storage: StorageAdapter) {}
+  getMessage() { return this.storage.get<MessageToYou>('messageToYou', 'message-to-you') }
+  async saveMessage(content: string) {
+    const normalized = requiredText(content, 'Message')
+    if ([...normalized].length > 300) throw new OurDataValidationError('Message to you must not exceed 300 characters', 'message_too_long')
+    const existing = await this.getMessage()
+    const timestamp = now()
+    const message: MessageToYou = existing ? { ...existing, content: normalized, updatedAt: timestamp } : { id: 'message-to-you', content: normalized, createdAt: timestamp, updatedAt: timestamp }
+    await this.storage.put('messageToYou', message)
+    return message
+  }
+  clearMessage() { return this.storage.delete('messageToYou', 'message-to-you') }
+}
+
+export interface RememberedYouRepository {
+  createRememberedYouCard(input: { title: string; content: string; localDate?: string; isFavorite?: boolean }): Promise<RememberedYouCard>
+  getRememberedYouCard(id: string): Promise<RememberedYouCard | undefined>
+  getRememberedYouCards(options?: { search?: string; favoritesOnly?: boolean }): Promise<RememberedYouCard[]>
+  updateRememberedYouCard(id: string, changes: Partial<Pick<RememberedYouCard, 'title' | 'content'>>): Promise<RememberedYouCard>
+  deleteRememberedYouCard(id: string): Promise<void>
+  toggleFavorite(id: string): Promise<RememberedYouCard>
+}
+
+function validateRememberedContent(content: string) {
+  const normalized = requiredText(content, 'Content')
+  if ([...normalized].length > 100) throw new OurDataValidationError('Remembered you content must not exceed 100 characters', 'remembered_you_too_long')
+  return normalized
+}
+
+export class LocalRememberedYouRepository implements RememberedYouRepository {
+  constructor(private readonly storage: StorageAdapter) {}
+  async createRememberedYouCard(input: { title: string; content: string; localDate?: string; isFavorite?: boolean }) {
+    const cards = await this.getRememberedYouCards()
+    if (cards.length >= 50) throw new OurDataValidationError('Remembered you card limit of 50 reached', 'remembered_you_limit')
+    const timestamp = now()
+    const card: RememberedYouCard = { id: id('remembered-you'), title: requiredText(input.title, 'Title'), content: validateRememberedContent(input.content), localDate: validateLocalDate(input.localDate ?? toLocalDate(), 'Local date'), isFavorite: input.isFavorite ?? false, createdAt: timestamp, updatedAt: timestamp }
+    await this.storage.put('rememberedYouCards', card)
+    return card
+  }
+  getRememberedYouCard(cardId: string) { return this.storage.get<RememberedYouCard>('rememberedYouCards', cardId) }
+  async getRememberedYouCards(options: { search?: string; favoritesOnly?: boolean } = {}) {
+    const search = options.search?.trim().toLocaleLowerCase() ?? ''
+    return (await this.storage.getAll<RememberedYouCard>('rememberedYouCards'))
+      .filter((card) => (!options.favoritesOnly || card.isFavorite) && (!search || `${card.title} ${card.content}`.toLocaleLowerCase().includes(search)))
+      .sort((a, b) => b.localDate.localeCompare(a.localDate) || b.createdAt.localeCompare(a.createdAt))
+  }
+  async updateRememberedYouCard(cardId: string, changes: Partial<Pick<RememberedYouCard, 'title' | 'content'>>) {
+    const existing = await this.getRememberedYouCard(cardId)
+    if (!existing) throw new Error('Remembered you card not found')
+    const updated: RememberedYouCard = { ...existing, ...changes, title: changes.title === undefined ? existing.title : requiredText(changes.title, 'Title'), content: changes.content === undefined ? existing.content : validateRememberedContent(changes.content), updatedAt: now() }
+    await this.storage.put('rememberedYouCards', updated)
+    return updated
+  }
+  async toggleFavorite(cardId: string) {
+    const existing = await this.getRememberedYouCard(cardId)
+    if (!existing) throw new Error('Remembered you card not found')
+    const updated = { ...existing, isFavorite: !existing.isFavorite, updatedAt: now() }
+    await this.storage.put('rememberedYouCards', updated)
+    return updated
+  }
+  deleteRememberedYouCard(cardId: string) { return this.storage.delete('rememberedYouCards', cardId) }
 }

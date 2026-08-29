@@ -1,7 +1,7 @@
 import { STORE_NAMES, type StorageAdapter, type StoreName } from './StorageAdapter'
 
 export const DATABASE_NAME = 'starry-love-diary'
-export const SCHEMA_VERSION = 2
+export const SCHEMA_VERSION = 3
 
 export class IndexedDbStorageAdapter implements StorageAdapter {
   private database?: IDBDatabase

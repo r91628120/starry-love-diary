@@ -4,6 +4,9 @@ import { MemoryRouter } from 'react-router-dom'
 import { App } from './App'
 import { I18nProvider } from '../i18n/I18nProvider'
 import { supportedLocales, type Locale } from '../i18n/messages'
+import { PersistenceProvider } from '../data/PersistenceContext'
+import { initializePersistence, type PersistenceRuntime } from '../data/persistence'
+import { createMemoryStorageBacking, MemoryStorageAdapter } from '../data/storage/MemoryStorageAdapter'
 
 function renderApp(initialPath = '/today', locale: Locale = 'zh-TW') {
   return render(
@@ -12,6 +15,16 @@ function renderApp(initialPath = '/today', locale: Locale = 'zh-TW') {
         <App />
       </MemoryRouter>
     </I18nProvider>,
+  )
+}
+
+function renderAppWithRuntime(runtime: PersistenceRuntime, initialPath = '/our', locale: Locale = 'zh-TW') {
+  return render(
+    <PersistenceProvider runtime={runtime}>
+      <I18nProvider initialLocale={locale}>
+        <MemoryRouter initialEntries={[initialPath]}><App /></MemoryRouter>
+      </I18nProvider>
+    </PersistenceProvider>,
   )
 }
 
@@ -154,7 +167,7 @@ describe('Footprints Page static UI', () => {
 })
 
 describe('Our Page static UI', () => {
-  it('renders the memory wall, relationship sections, and four remembered cards', () => {
+  it('renders the memory wall, real zero statistics, and empty states without fake user data', () => {
     renderApp('/our')
 
     expect(screen.getByRole('heading', { level: 1, name: '我們' })).toBeInTheDocument()
@@ -165,33 +178,42 @@ describe('Our Page static UI', () => {
     expect(screen.getByRole('heading', { level: 2, name: '我們的時刻' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 2, name: '想對你說' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 2, name: '我記得的你' })).toBeInTheDocument()
-    expect(screen.getAllByRole('button', { name: /加入收藏|取消收藏/ })).toHaveLength(4)
+    const stats = screen.getByRole('region', { name: '關係統計' })
+    expect(within(stats).getAllByText('0')).toHaveLength(4)
+    for (const emptyState of ['還沒有重要日子，新增一筆開始記錄。', '還沒有我們的時刻，新增一段想留下的回憶。', '有些話，留在這裡也很好。', '還沒有記錄，寫下一件你想記得的小事。']) expect(screen.getByText(emptyState)).toBeInTheDocument()
+    for (const fakeText of ['對方生日', '第一次一起看海', '謝謝你出現在我的生活裡。', '喜歡的飲料', '喜歡的音樂']) expect(screen.queryByText(fakeText, { exact: false })).not.toBeInTheDocument()
   })
 
-  it('supports moment navigation, favorite filtering, search, and Settings round trip', () => {
+  it('keeps empty search and favorite filters usable and preserves the Settings round trip', () => {
     renderApp('/our')
-
-    expect(screen.getByText('第一次一起看海')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: '下一個時刻' }))
-    expect(screen.getByText('一起吃晚餐')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: '上一個時刻' }))
-    expect(screen.getByText('第一次一起看海')).toBeInTheDocument()
-
     fireEvent.click(screen.getByRole('button', { name: '只看收藏' }))
-    expect(screen.getAllByRole('button', { name: '取消收藏' })).toHaveLength(2)
-    fireEvent.click(screen.getByRole('button', { name: '全部' }))
-    fireEvent.click(screen.getAllByRole('button', { name: '加入收藏' })[0])
-    expect(screen.getAllByRole('button', { name: '取消收藏' })).toHaveLength(3)
-
     const search = screen.getByRole('searchbox', { name: '搜尋我記得的你' })
     fireEvent.change(search, { target: { value: '音樂' } })
-    expect(screen.getByText('喜歡的音樂')).toBeInTheDocument()
-    expect(screen.queryByText('喜歡的飲料')).not.toBeInTheDocument()
+    expect(screen.getByText('還沒有記錄，寫下一件你想記得的小事。')).toBeInTheDocument()
 
     expect(screen.getByRole('link', { name: '我們' })).toHaveClass('bottom-navigation__item--active')
     fireEvent.click(screen.getByRole('button', { name: '設定' }))
     fireEvent.click(screen.getByRole('button', { name: '返回' }))
     expect(screen.getByRole('heading', { level: 1, name: '我們' })).toBeInTheDocument()
+  })
+
+  it('shows repository data after storage reopen and combines search with favorite filtering', async () => {
+    const backing = createMemoryStorageBacking()
+    const first = await initializePersistence({ adapter: new MemoryStorageAdapter(backing), defaultLocale: 'zh-TW', localDate: '2026-08-29' })
+    await first.importantDates.createImportantDate({ type: 'first_meeting', title: '咖啡店第一次見面', date: '2026-01-02' })
+    await first.memoryMoments.createMemoryMoment({ title: '海邊散步', content: '一起看著海浪。', localDate: '2026-08-20' })
+    await first.messageToYou.saveMessage('重新開啟後仍然記得這句話。')
+    await first.rememberedYou.createRememberedYouCard({ title: '音樂', content: '喜歡安靜的歌', isFavorite: true, localDate: '2026-08-19' })
+    await first.rememberedYou.createRememberedYouCard({ title: '飲料', content: '喜歡無糖茶', localDate: '2026-08-18' })
+    first.adapter.close()
+
+    const reopened = await initializePersistence({ adapter: new MemoryStorageAdapter(backing), defaultLocale: 'zh-TW', localDate: '2026-08-29' })
+    renderAppWithRuntime(reopened)
+    for (const persistedText of ['咖啡店第一次見面', '海邊散步', '一起看著海浪。', '重新開啟後仍然記得這句話。', '喜歡安靜的歌', '喜歡無糖茶']) expect(screen.getByText(persistedText)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '只看收藏' }))
+    fireEvent.change(screen.getByRole('searchbox', { name: '搜尋我記得的你' }), { target: { value: '音樂' } })
+    expect(screen.getByText('喜歡安靜的歌')).toBeInTheDocument()
+    expect(screen.queryByText('喜歡無糖茶')).not.toBeInTheDocument()
   })
 })
 

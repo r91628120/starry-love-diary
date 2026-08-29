@@ -1,11 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import { initializePersistence } from './persistence'
-import { HeartPhraseLimitError, LocalDiaryRepository, LocalHeartPhraseRepository, LocalMoodRepository, LocalScoreRepository, LocalSettingsRepository, LocalStarRepository } from './repositories/repositories'
+import { HeartPhraseLimitError, LocalDiaryRepository, LocalHeartPhraseRepository, LocalImportantDateRepository, LocalMemoryMomentRepository, LocalMessageToYouRepository, LocalMoodRepository, LocalRememberedYouRepository, LocalScoreRepository, LocalSettingsRepository, LocalStarRepository } from './repositories/repositories'
 import { filterStarsByRange } from '../features/star-bottle/filterStars'
 import { advanceHeartPhraseRitual } from '../features/today/heartPhraseRitual'
 import { createMemoryStorageBacking, MemoryStorageAdapter } from './storage/MemoryStorageAdapter'
+import { SCHEMA_VERSION } from './storage/IndexedDbStorageAdapter'
+import { STORE_NAMES } from './storage/StorageAdapter'
 
 describe('Local persistence repositories', () => {
+  it('keeps prior stores while upgrading schema 3 with the four Our stores', () => {
+    expect(SCHEMA_VERSION).toBe(3)
+    expect(STORE_NAMES).toEqual(expect.arrayContaining(['profiles', 'diaries', 'scoreAwards', 'importantDates', 'memoryMoments', 'messageToYou', 'rememberedYouCards']))
+  })
+
   it('awards daily open once per local day and survives reopen', async () => {
     const backing = createMemoryStorageBacking()
     const first = await initializePersistence({ adapter: new MemoryStorageAdapter(backing), defaultLocale: 'zh-TW', localDate: '2026-08-29' })
@@ -146,5 +153,78 @@ describe('Local persistence repositories', () => {
     expect(await stars.getStarsByLocalDate('2026-08-30')).toHaveLength(1)
     await stars.deleteStar(mood.id)
     expect(await stars.getStarsByType('mood')).toEqual([])
+  })
+
+  it('supports important date CRUD, date sorting and reopen persistence', async () => {
+    const backing = createMemoryStorageBacking()
+    const adapter = new MemoryStorageAdapter(backing); await adapter.open()
+    const dates = new LocalImportantDateRepository(adapter)
+    const later = await dates.createImportantDate({ type: 'anniversary', title: '紀念日', date: '2026-12-01', reminderEnabled: true })
+    const earlier = await dates.createImportantDate({ type: 'first_meeting', title: '第一次見面', date: '2026-01-02', description: '咖啡店' })
+    expect((await dates.getImportantDates()).map((record) => record.id)).toEqual([earlier.id, later.id])
+    expect(await dates.getImportantDate(later.id)).toMatchObject({ title: '紀念日', reminderEnabled: true })
+    await dates.updateImportantDate(later.id, { title: '交往紀念日', date: '2025-12-01' })
+    adapter.close()
+    const reopenedAdapter = new MemoryStorageAdapter(backing); await reopenedAdapter.open()
+    const reopened = new LocalImportantDateRepository(reopenedAdapter)
+    expect((await reopened.getImportantDates())[0]).toMatchObject({ id: later.id, title: '交往紀念日' })
+    await reopened.deleteImportantDate(earlier.id)
+    expect(await reopened.getImportantDate(earlier.id)).toBeUndefined()
+  })
+
+  it('supports memory moment create, edit, delete, limit and reopen persistence', async () => {
+    const backing = createMemoryStorageBacking()
+    const adapter = new MemoryStorageAdapter(backing); await adapter.open()
+    const moments = new LocalMemoryMomentRepository(adapter)
+    const older = await moments.createMemoryMoment({ title: '舊時刻', content: '第一段回憶', localDate: '2026-01-01' })
+    const newer = await moments.createMemoryMoment({ content: '最近的回憶', localDate: '2026-08-29' })
+    expect(newer.photoAssetId).toBeNull()
+    expect((await moments.getRecentMemoryMoments(1))[0].id).toBe(newer.id)
+    await moments.updateMemoryMoment(older.id, { title: '更新後', content: '更新內容' })
+    await moments.deleteMemoryMoment(newer.id)
+    adapter.close()
+    const reopenedAdapter = new MemoryStorageAdapter(backing); await reopenedAdapter.open()
+    const reopened = new LocalMemoryMomentRepository(reopenedAdapter)
+    expect(await reopened.getMemoryMoment(older.id)).toMatchObject({ title: '更新後', content: '更新內容' })
+    for (let index = 1; index < 20; index += 1) await reopened.createMemoryMoment({ content: `時刻 ${index}`, localDate: '2026-08-29' })
+    await expect(reopened.createMemoryMoment({ content: '第 21 筆' })).rejects.toMatchObject({ code: 'memory_moment_limit' })
+  })
+
+  it('keeps one message, edits, validates, clears and survives reopen', async () => {
+    const backing = createMemoryStorageBacking()
+    const adapter = new MemoryStorageAdapter(backing); await adapter.open()
+    const messages = new LocalMessageToYouRepository(adapter)
+    const created = await messages.saveMessage('第一段話')
+    const edited = await messages.saveMessage('更新後的話')
+    expect(edited.id).toBe(created.id)
+    expect(await adapter.getAll('messageToYou')).toHaveLength(1)
+    await expect(messages.saveMessage('字'.repeat(301))).rejects.toMatchObject({ code: 'message_too_long' })
+    adapter.close()
+    const reopenedAdapter = new MemoryStorageAdapter(backing); await reopenedAdapter.open()
+    const reopened = new LocalMessageToYouRepository(reopenedAdapter)
+    expect((await reopened.getMessage())?.content).toBe('更新後的話')
+    await reopened.clearMessage()
+    expect(await reopened.getMessage()).toBeUndefined()
+  })
+
+  it('supports remembered-you CRUD, limit, favorite, search combinations and reopen', async () => {
+    const backing = createMemoryStorageBacking()
+    const adapter = new MemoryStorageAdapter(backing); await adapter.open()
+    const cards = new LocalRememberedYouRepository(adapter)
+    const tea = await cards.createRememberedYouCard({ title: '飲料', content: '喜歡無糖茶', localDate: '2026-08-29' })
+    const music = await cards.createRememberedYouCard({ title: '音樂', content: '喜歡安靜的歌', localDate: '2026-08-28', isFavorite: true })
+    expect(await cards.getRememberedYouCards({ search: '喜歡' })).toHaveLength(2)
+    expect(await cards.getRememberedYouCards({ search: '音樂', favoritesOnly: true })).toEqual([music])
+    await cards.toggleFavorite(tea.id)
+    expect((await cards.getRememberedYouCard(tea.id))?.isFavorite).toBe(true)
+    await cards.updateRememberedYouCard(tea.id, { title: '最愛飲料', content: '無糖綠茶' })
+    await expect(cards.updateRememberedYouCard(tea.id, { content: '字'.repeat(101) })).rejects.toMatchObject({ code: 'remembered_you_too_long' })
+    await cards.deleteRememberedYouCard(music.id)
+    adapter.close()
+    const reopenedAdapter = new MemoryStorageAdapter(backing); await reopenedAdapter.open()
+    const reopened = new LocalRememberedYouRepository(reopenedAdapter)
+    expect(await reopened.getRememberedYouCard(tea.id)).toMatchObject({ title: '最愛飲料', content: '無糖綠茶', isFavorite: true, localDate: '2026-08-29' })
+    for (let index = 1; index < 50; index += 1) await reopened.createRememberedYouCard({ title: `卡片 ${index}`, content: '內容' })
+    await expect(reopened.createRememberedYouCard({ title: '第 51 張', content: '超過上限' })).rejects.toMatchObject({ code: 'remembered_you_limit' })
   })
 })
