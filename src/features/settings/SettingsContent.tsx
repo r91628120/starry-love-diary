@@ -41,9 +41,9 @@ export function SettingsContent() {
 
   return <>
     <div className="settings-grid">
-      <SettingsSection title={t('settings.profile.title')} icon={settingsAssets.profileMe}>
-        <SettingsRow icon={settingsAssets.profileMe} label={t('settings.profile.meName')} control={<input className="settings-text-input" aria-label={t('settings.profile.meName')} maxLength={20} value={userNickname} onChange={(event) => setUserNickname(event.target.value)} onBlur={() => void persistNickname('user', userNickname)} />} />
-        <SettingsRow icon={settingsAssets.profilePartner} label={t('settings.profile.partnerName')} control={<input className="settings-text-input" aria-label={t('settings.profile.partnerName')} maxLength={20} value={partnerNickname} onChange={(event) => setPartnerNickname(event.target.value)} onBlur={() => void persistNickname('partner', partnerNickname)} />} />
+      <SettingsSection title={t('settings.profile.title')} icon={settingsAssets.star}>
+        <SettingsRow label={t('settings.profile.meName')} control={<input className="settings-text-input" aria-label={t('settings.profile.meName')} maxLength={20} value={userNickname} onChange={(event) => setUserNickname(event.target.value)} onBlur={() => void persistNickname('user', userNickname)} />} />
+        <SettingsRow label={t('settings.profile.partnerName')} control={<input className="settings-text-input" aria-label={t('settings.profile.partnerName')} maxLength={20} value={partnerNickname} onChange={(event) => setPartnerNickname(event.target.value)} onBlur={() => void persistNickname('partner', partnerNickname)} />} />
         <SettingsRow icon={settingsAssets.photo} label={t('settings.profile.mePhoto')} onClick={mock} />
         <SettingsRow icon={settingsAssets.photo} label={t('settings.profile.partnerPhoto')} onClick={mock} />
       </SettingsSection>
