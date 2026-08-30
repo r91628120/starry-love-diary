@@ -1,4 +1,5 @@
 import { clearMilestone4Messages } from './clearMilestone4Messages'
+import { clearMilestone4LocalizedMessages } from './clearMilestone4LocalizedMessages'
 
 export const supportedLocales = ['zh-TW', 'en', 'ja', 'ko', 'es', 'fr'] as const
 
@@ -117,6 +118,10 @@ const clearMessages={
  }
 } as const
 const clearOverrides:Partial<Record<Locale,Record<string,string>>>={ja:{'clear.title':'気づき','clear.scenarios.title':'今日は、どんな気づきが必要？','clear.records.title':'最近の気づき','clear.quote.title':'気づきの言葉','clear.tip.title':'小さなリマインダー'},ko:{'clear.title':'마음 정리','clear.scenarios.title':'오늘, 어떤 마음 정리가 필요할까?','clear.records.title':'최근 마음 정리 기록','clear.quote.title':'마음 정리 한마디','clear.tip.title':'작은 알림'},es:{'clear.title':'Claridad','clear.scenarios.title':'¿Qué claridad necesito hoy?','clear.records.title':'Registros recientes','clear.quote.title':'Palabras de claridad','clear.tip.title':'Un pequeño recordatorio'},fr:{'clear.title':'Clarté','clear.scenarios.title':'De quelle clarté ai-je besoin aujourd’hui ?','clear.records.title':'Réflexions récentes','clear.quote.title':'Paroles de clarté','clear.tip.title':'Petit rappel'}}
+Object.assign(clearOverrides.ja!, {'clear.scenarios.miss':'相手のことばかり考えてしまう','clear.scenarios.waitingMessage':'メッセージを待っている','clear.scenarios.tooDeep':'夢中になりすぎている気がする','clear.scenarios.unsureFeelings':'まだ好きなのか分からない','clear.scenarios.unsureFit':'この人と合うのか分からない','clear.scenarios.selected':'選択中：{scenario}','clear.tools.label':'気づきのツール','clear.tools.organize.title':'気持ちを整理する','clear.tools.organize.description':'出来事を分けて見ると、少し分かりやすくなるかもしれません。','clear.tools.boatGuide.title':'ときめきガイド','clear.tools.boatGuide.description':'気持ちが先走っている？それとも相手を見誤っている？','clear.tools.loveBrain.title':'恋愛パターンチェック','clear.tools.loveBrain.description':'自分が陥りやすいパターンに気づきましょう。','clear.tools.likeOrHabit.title':'好き？それとも習慣？','clear.tools.likeOrHabit.description':'本当にこの人が好き？それとも、いることに慣れただけ？','clear.latest.title':'最新の振り返り','clear.latest.imageAlt':'黒猫と月の穏やかな振り返りイラスト','clear.latest.summaryLabel':'気づきのまとめ','clear.latest.saved':'保存済み','clear.latest.viewDetails':'詳細を見る','clear.quote.text':'気づくことは、好きをやめることではなく、自分を見失わないこと。','clear.tip.text':'分からないことは、今は分からないままにしておきましょう。'})
+Object.assign(clearOverrides.ko!, {'clear.scenarios.miss':'계속 그 사람이 생각나요','clear.scenarios.waitingMessage':'메시지를 기다리고 있어요','clear.scenarios.tooDeep':'너무 깊이 빠진 것 같아요','clear.scenarios.unsureFeelings':'아직 좋아하는지 모르겠어요','clear.scenarios.unsureFit':'나와 잘 맞는 사람인지 모르겠어요','clear.scenarios.selected':'선택: {scenario}','clear.tools.label':'마음 정리 도구','clear.tools.organize.title':'마음 정리 시작하기','clear.tools.organize.description':'일을 나누어 보면 조금 더 분명해질 수 있어요.','clear.tools.boatGuide.title':'설렘 가이드','clear.tools.boatGuide.description':'내 마음이 너무 앞섰을까요, 아니면 상대를 잘못 보고 있을까요?','clear.tools.loveBrain.title':'연애 패턴 점검','clear.tools.loveBrain.description':'내가 쉽게 빠지는 패턴을 살펴보세요.','clear.tools.likeOrHabit.title':'좋아함? 습관?','clear.tools.likeOrHabit.description':'정말 이 사람이 좋은 걸까요, 곁에 있는 데 익숙한 걸까요?','clear.latest.title':'최근 마음 정리','clear.latest.imageAlt':'검은 고양이와 달이 있는 차분한 마음 정리 그림','clear.latest.summaryLabel':'마음 정리 요약','clear.latest.saved':'저장됨','clear.latest.viewDetails':'자세히 보기','clear.quote.text':'마음을 정리한다는 건 좋아함을 멈추는 게 아니라, 나를 잃지 않는 일이에요.','clear.tip.text':'모르는 일은 지금은 모르는 채로 두어도 괜찮아요.'})
+Object.assign(clearOverrides.es!, {'clear.scenarios.miss':'No dejo de pensar en esa persona','clear.scenarios.waitingMessage':'Estoy esperando un mensaje','clear.scenarios.tooDeep':'Siento que me he implicado demasiado','clear.scenarios.unsureFeelings':'No sé si esa persona aún me gusta','clear.scenarios.unsureFit':'No sé si esta persona encaja conmigo','clear.scenarios.selected':'Selección: {scenario}','clear.tools.label':'Herramientas de claridad','clear.tools.organize.title':'Ordenar mis emociones','clear.tools.organize.description':'Separar cada parte puede ayudar a verlo con más claridad.','clear.tools.boatGuide.title':'Guía de ilusión','clear.tools.boatGuide.description':'¿Mi emoción va demasiado rápido o estoy viendo mal a esta persona?','clear.tools.loveBrain.title':'Revisión de patrones afectivos','clear.tools.loveBrain.description':'Observa el patrón en el que caes con más facilidad.','clear.tools.likeOrHabit.title':'¿Me gusta o es costumbre?','clear.tools.likeOrHabit.description':'¿Me gusta esta persona o me he acostumbrado a su presencia?','clear.latest.title':'Última reflexión','clear.latest.imageAlt':'Ilustración tranquila de un gato negro y la luna','clear.latest.summaryLabel':'Resumen de claridad','clear.latest.saved':'Guardado','clear.latest.viewDetails':'Ver detalles','clear.quote.text':'Tener claridad no es dejar de sentir interés, sino no perderte de vista.','clear.tip.text':'Lo que aún no sabes puede quedarse sin respuesta por ahora.'})
+Object.assign(clearOverrides.fr!, {'clear.scenarios.miss':'Je pense sans cesse à cette personne','clear.scenarios.waitingMessage':'J’attends un message','clear.scenarios.tooDeep':'J’ai l’impression de trop m’investir','clear.scenarios.unsureFeelings':'Je ne sais pas si cette personne me plaît encore','clear.scenarios.unsureFit':'Je ne sais pas si cette personne me convient','clear.scenarios.selected':'Sélection : {scenario}','clear.tools.label':'Outils de clarté','clear.tools.organize.title':'Trier mes émotions','clear.tools.organize.description':'Séparer les éléments peut aider à y voir plus clair.','clear.tools.boatGuide.title':'Guide de l’emballement','clear.tools.boatGuide.description':'Mes sentiments vont-ils trop vite, ou est-ce que je me trompe sur cette personne ?','clear.tools.loveBrain.title':'Bilan des schémas affectifs','clear.tools.loveBrain.description':'Repérez le schéma dans lequel vous tombez le plus facilement.','clear.tools.likeOrHabit.title':'Attirance ou habitude ?','clear.tools.likeOrHabit.description':'Cette personne me plaît-elle vraiment, ou suis-je habitué·e à sa présence ?','clear.latest.title':'Dernière réflexion','clear.latest.imageAlt':'Illustration apaisante d’un chat noir et de la lune','clear.latest.summaryLabel':'Résumé de clarté','clear.latest.saved':'Enregistré','clear.latest.viewDetails':'Voir les détails','clear.quote.text':'La clarté ne consiste pas à cesser de ressentir, mais à ne pas se perdre de vue.','clear.tip.text':'Ce que vous ignorez peut rester inconnu pour l’instant.'})
 const localizedClearMessages=Object.fromEntries(supportedLocales.map(locale=>[locale,{...clearMessages[locale==='zh-TW'?'zh-TW':'en'],...clearOverrides[locale]}])) as Record<Locale,Record<keyof typeof clearMessages.en,string>>
 const settingsMessages={
 'zh-TW':{'settings.mockFeedback':'此項目將在資料功能階段開放','settings.profile.title':'基本資料','settings.profile.meName':'我的暱稱','settings.profile.meValue':'星星','settings.profile.partnerName':'對方暱稱','settings.profile.partnerValue':'星星','settings.profile.mePhoto':'我的照片','settings.profile.partnerPhoto':'對方照片','settings.dates.title':'重要日子','settings.dates.birthday':'對方生日','settings.dates.birthdayValue':'09/12','settings.dates.met':'相識日','settings.dates.metValue':'2024/02/14','settings.dates.anniversary':'紀念日','settings.dates.anniversaryValue':'2024/08/23','settings.memories.title':'照片與回憶','settings.memories.wall':'回憶牆照片管理','settings.memories.moments':'我們的時刻','settings.memories.message':'想對你說','settings.diary.title':'日記與星星','settings.diary.stars':'星星資料','settings.diary.export':'匯出文字資料','settings.diary.backup':'備份','settings.diary.backupNote':'備份僅包含文字，不含照片','settings.clear.title':'清醒','settings.clear.records':'清醒紀錄','settings.clear.loveBrain':'戀愛腦檢測結果','settings.clear.boatGuide':'暈船法典紀錄','settings.clear.likeOrHabit':'喜歡？習慣？','settings.notifications.title':'通知','settings.notifications.quote':'戀愛星語提醒','settings.notifications.dates':'重要日子提醒','settings.notifications.time':'提醒時間','settings.notifications.timeValue':'21:00','settings.language.title':'語言','settings.language.zh':'繁中','settings.language.en':'English','settings.language.ja':'日本語','settings.language.ko':'한국어','settings.language.es':'Español','settings.language.fr':'Français','settings.privacy.title':'隱私與資料','settings.privacy.photos':'相片權限','settings.privacy.notifications':'通知權限','settings.privacy.clearData':'清空目前戀情資料','settings.privacy.clearConfirmTitle':'確定要清空目前戀情資料嗎？','settings.privacy.clearConfirmBody':'這項操作之後會移除目前戀情相關資料。本輪只顯示確認，不會真的刪除。','settings.privacy.clearMocked':'已取消實際清除；本輪沒有刪除任何資料','settings.about.title':'關於','settings.about.version':'版本','settings.about.versionValue':'1.0.0','settings.about.privacyPolicy':'隱私政策','settings.about.terms':'使用條款'},
@@ -212,7 +217,7 @@ export const messages = {
     'page.placeholderBody': '此頁的靜態內容將在後續階段依正式規格建立。',
   },
   en: {
-    ...clearMilestone4Messages,
+    ...clearMilestone4LocalizedMessages.en,
     ...localizedSettingsMessages.en,
     ...localizedClearMessages.en,
     ...localizedOurMessages.en,
@@ -298,7 +303,7 @@ export const messages = {
     'page.placeholderBody': 'Static content for this page will be added from the approved specification in a later phase.',
   },
   ja: {
-    ...clearMilestone4Messages,
+    ...clearMilestone4LocalizedMessages.ja,
     ...localizedSettingsMessages.ja,
     ...localizedClearMessages.ja,
     ...localizedOurMessages.ja,
@@ -384,7 +389,7 @@ export const messages = {
     'page.placeholderBody': 'このページの静的コンテンツは、承認済みの仕様に沿って後の段階で追加します。',
   },
   ko: {
-    ...clearMilestone4Messages,
+    ...clearMilestone4LocalizedMessages.ko,
     ...localizedSettingsMessages.ko,
     ...localizedClearMessages.ko,
     ...localizedOurMessages.ko,
@@ -470,7 +475,7 @@ export const messages = {
     'page.placeholderBody': '이 페이지의 정적 콘텐츠는 승인된 사양에 따라 이후 단계에서 추가합니다.',
   },
   es: {
-    ...clearMilestone4Messages,
+    ...clearMilestone4LocalizedMessages.es,
     ...localizedSettingsMessages.es,
     ...localizedClearMessages.es,
     ...localizedOurMessages.es,
@@ -556,7 +561,7 @@ export const messages = {
     'page.placeholderBody': 'El contenido estático de esta página se añadirá en una fase posterior según la especificación aprobada.',
   },
   fr: {
-    ...clearMilestone4Messages,
+    ...clearMilestone4LocalizedMessages.fr,
     ...localizedSettingsMessages.fr,
     ...localizedClearMessages.fr,
     ...localizedOurMessages.fr,
