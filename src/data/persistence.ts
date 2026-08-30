@@ -27,6 +27,7 @@ export interface PersistenceRuntime {
     userProfile: Profile
     partnerProfile: Profile
     settings: AppSettings
+    currentLocalDate: string
     todayMood?: MoodRecord
     todayDiary?: DiaryEntry
     starHeartTotal: number
@@ -58,10 +59,10 @@ export async function initializePersistence(options: { adapter?: StorageAdapter;
   const loveBoatAssessments = new LocalLoveBoatAssessmentRepository(adapter)
   const loveBrainAssessments = new LocalLoveBrainAssessmentRepository(adapter)
   const likeOrHabitReflections = new LocalLikeOrHabitReflectionRepository(adapter)
-  const profileDefaults = await profiles.ensureDefaults()
-  const appSettings = await settings.ensureDefault(options.defaultLocale)
   const localDate = options.localDate ?? toLocalDate()
+  const profileDefaults = await profiles.ensureDefaults()
+  const appSettings = await settings.ensureDefault(options.defaultLocale, localDate)
   await scores.award('daily_open', { localDate })
   const [todayMood, todayDiary, starHeartTotal, persistedStars, persistedHeartPhrases, persistedImportantDates, persistedMemoryMoments, persistedMessage, persistedRememberedYou, persistedDiaries] = await Promise.all([moods.getMoodByLocalDate(localDate), diaries.getDiaryByLocalDate(localDate), scores.getTotal(), stars.getStars(), heartPhrases.getTopHeartPhrases(3), importantDates.getImportantDates(), memoryMoments.getMemoryMoments(), messageToYou.getMessage(), rememberedYou.getRememberedYouCards(), diaries.getDiaries()])
-  return { adapter, profiles, moods, diaries, settings, stars, scores, heartPhrases, importantDates, memoryMoments, messageToYou, rememberedYou, clearRecords, loveBoatAssessments, loveBrainAssessments, likeOrHabitReflections, initial: { userProfile: profileDefaults.user, partnerProfile: profileDefaults.partner, settings: appSettings, todayMood, todayDiary, starHeartTotal, stars: persistedStars, heartPhrases: persistedHeartPhrases, importantDates: persistedImportantDates, memoryMoments: persistedMemoryMoments, messageToYou: persistedMessage, rememberedYouCards: persistedRememberedYou, diaryCount: persistedDiaries.length } }
+  return { adapter, profiles, moods, diaries, settings, stars, scores, heartPhrases, importantDates, memoryMoments, messageToYou, rememberedYou, clearRecords, loveBoatAssessments, loveBrainAssessments, likeOrHabitReflections, initial: { userProfile: profileDefaults.user, partnerProfile: profileDefaults.partner, settings: appSettings, currentLocalDate: localDate, todayMood, todayDiary, starHeartTotal, stars: persistedStars, heartPhrases: persistedHeartPhrases, importantDates: persistedImportantDates, memoryMoments: persistedMemoryMoments, messageToYou: persistedMessage, rememberedYouCards: persistedRememberedYou, diaryCount: persistedDiaries.length } }
 }

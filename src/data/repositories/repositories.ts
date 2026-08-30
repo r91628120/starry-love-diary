@@ -7,6 +7,10 @@ const DEFAULT_NICKNAME = '星星'
 
 function now() { return new Date().toISOString() }
 function id(prefix: string) { return `${prefix}-${crypto.randomUUID()}` }
+function activationDateFromSettings(settings: AppSettings, fallback: string) {
+  const createdAt = new Date(settings.createdAt)
+  return Number.isNaN(createdAt.getTime()) ? fallback : toLocalDate(createdAt)
+}
 
 const AWARD_POINTS: Record<AwardType, number> = { daily_open: 1, diary_created: 7, mood_selected: 2, clear_completed: 5, quote_shared: 10 }
 
@@ -103,7 +107,7 @@ function validateDiaryContent(content: string) {
 }
 
 export interface SettingsRepository {
-  ensureDefault(locale: Locale): Promise<AppSettings>
+  ensureDefault(locale: Locale, dailyLoveQuoteActivationDate?: string): Promise<AppSettings>
   getSettings(): Promise<AppSettings | undefined>
   updateSettings(changes: Partial<Pick<AppSettings, 'locale' | 'loveQuoteReminderEnabled' | 'importantDateReminderEnabled' | 'reminderTime'>>): Promise<AppSettings>
 }
@@ -111,18 +115,18 @@ export interface SettingsRepository {
 export class LocalSettingsRepository implements SettingsRepository {
   constructor(private readonly storage: StorageAdapter) {}
   getSettings() { return this.storage.get<AppSettings>('settings', 'settings') }
-  async ensureDefault(locale: Locale) {
+  async ensureDefault(locale: Locale, dailyLoveQuoteActivationDate = toLocalDate()) {
     const existing = await this.getSettings()
     if (existing) {
-      if (existing.schemaVersion !== 4) {
-        const migrated = { ...existing, schemaVersion: 4, updatedAt: now() }
+      if (existing.schemaVersion !== 4 || !existing.dailyLoveQuoteActivationDate) {
+        const migrated: AppSettings = { ...existing, dailyLoveQuoteActivationDate: existing.dailyLoveQuoteActivationDate ?? activationDateFromSettings(existing, dailyLoveQuoteActivationDate), schemaVersion: 4, updatedAt: now() }
         await this.storage.put('settings', migrated)
         return migrated
       }
       return existing
     }
     const timestamp = now()
-    const settings: AppSettings = { id: 'settings', locale, loveQuoteReminderEnabled: true, importantDateReminderEnabled: true, reminderTime: '20:00', schemaVersion: 4, createdAt: timestamp, updatedAt: timestamp }
+    const settings: AppSettings = { id: 'settings', locale, dailyLoveQuoteActivationDate, loveQuoteReminderEnabled: true, importantDateReminderEnabled: true, reminderTime: '20:00', schemaVersion: 4, createdAt: timestamp, updatedAt: timestamp }
     await this.storage.put('settings', settings)
     return settings
   }

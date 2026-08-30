@@ -1,5 +1,12 @@
 import { clearMilestone4Messages } from './clearMilestone4Messages'
 import { clearMilestone4LocalizedMessages } from './clearMilestone4LocalizedMessages'
+import { dailyLoveQuotesBatch1 } from './dailyLoveQuotesBatch1'
+import { dailyLoveQuotesBatch2 } from './dailyLoveQuotesBatch2'
+import { dailyLoveQuotesBatch3 } from './dailyLoveQuotesBatch3'
+import { dailyLoveQuotesBatch4 } from './dailyLoveQuotesBatch4'
+import { dailyLoveQuotesBatch5 } from './dailyLoveQuotesBatch5'
+import { dailyLoveQuotesBatch6 } from './dailyLoveQuotesBatch6'
+import { dailyLoveQuotesBatch7 } from './dailyLoveQuotesBatch7'
 
 export const supportedLocales = ['zh-TW', 'en', 'ja', 'ko', 'es', 'fr'] as const
 
@@ -132,6 +139,13 @@ const localizedSettingsMessages=Object.fromEntries(supportedLocales.map(locale=>
 export const messages = {
   'zh-TW': {
     ...clearMilestone4Messages,
+    ...dailyLoveQuotesBatch1['zh-TW'],
+    ...dailyLoveQuotesBatch2['zh-TW'],
+    ...dailyLoveQuotesBatch3['zh-TW'],
+    ...dailyLoveQuotesBatch4['zh-TW'],
+    ...dailyLoveQuotesBatch5['zh-TW'],
+    ...dailyLoveQuotesBatch6['zh-TW'],
+    ...dailyLoveQuotesBatch7['zh-TW'],
     ...localizedSettingsMessages['zh-TW'],
     ...localizedClearMessages['zh-TW'],
     ...localizedOurMessages['zh-TW'],
@@ -218,6 +232,13 @@ export const messages = {
   },
   en: {
     ...clearMilestone4LocalizedMessages.en,
+    ...dailyLoveQuotesBatch1.en,
+    ...dailyLoveQuotesBatch2.en,
+    ...dailyLoveQuotesBatch3.en,
+    ...dailyLoveQuotesBatch4.en,
+    ...dailyLoveQuotesBatch5.en,
+    ...dailyLoveQuotesBatch6.en,
+    ...dailyLoveQuotesBatch7.en,
     ...localizedSettingsMessages.en,
     ...localizedClearMessages.en,
     ...localizedOurMessages.en,
@@ -304,6 +325,13 @@ export const messages = {
   },
   ja: {
     ...clearMilestone4LocalizedMessages.ja,
+    ...dailyLoveQuotesBatch1.ja,
+    ...dailyLoveQuotesBatch2.ja,
+    ...dailyLoveQuotesBatch3.ja,
+    ...dailyLoveQuotesBatch4.ja,
+    ...dailyLoveQuotesBatch5.ja,
+    ...dailyLoveQuotesBatch6.ja,
+    ...dailyLoveQuotesBatch7.ja,
     ...localizedSettingsMessages.ja,
     ...localizedClearMessages.ja,
     ...localizedOurMessages.ja,
@@ -390,6 +418,13 @@ export const messages = {
   },
   ko: {
     ...clearMilestone4LocalizedMessages.ko,
+    ...dailyLoveQuotesBatch1.ko,
+    ...dailyLoveQuotesBatch2.ko,
+    ...dailyLoveQuotesBatch3.ko,
+    ...dailyLoveQuotesBatch4.ko,
+    ...dailyLoveQuotesBatch5.ko,
+    ...dailyLoveQuotesBatch6.ko,
+    ...dailyLoveQuotesBatch7.ko,
     ...localizedSettingsMessages.ko,
     ...localizedClearMessages.ko,
     ...localizedOurMessages.ko,
@@ -476,6 +511,13 @@ export const messages = {
   },
   es: {
     ...clearMilestone4LocalizedMessages.es,
+    ...dailyLoveQuotesBatch1.es,
+    ...dailyLoveQuotesBatch2.es,
+    ...dailyLoveQuotesBatch3.es,
+    ...dailyLoveQuotesBatch4.es,
+    ...dailyLoveQuotesBatch5.es,
+    ...dailyLoveQuotesBatch6.es,
+    ...dailyLoveQuotesBatch7.es,
     ...localizedSettingsMessages.es,
     ...localizedClearMessages.es,
     ...localizedOurMessages.es,
@@ -562,6 +604,13 @@ export const messages = {
   },
   fr: {
     ...clearMilestone4LocalizedMessages.fr,
+    ...dailyLoveQuotesBatch1.fr,
+    ...dailyLoveQuotesBatch2.fr,
+    ...dailyLoveQuotesBatch3.fr,
+    ...dailyLoveQuotesBatch4.fr,
+    ...dailyLoveQuotesBatch5.fr,
+    ...dailyLoveQuotesBatch6.fr,
+    ...dailyLoveQuotesBatch7.fr,
     ...localizedSettingsMessages.fr,
     ...localizedClearMessages.fr,
     ...localizedOurMessages.fr,

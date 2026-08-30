@@ -7,6 +7,7 @@ import { supportedLocales, type Locale } from '../i18n/messages'
 import { PersistenceProvider } from '../data/PersistenceContext'
 import { initializePersistence, type PersistenceRuntime } from '../data/persistence'
 import { createMemoryStorageBacking, MemoryStorageAdapter } from '../data/storage/MemoryStorageAdapter'
+import { getDailyLoveQuote } from '../features/today/dailyLoveQuoteRuntime'
 
 function renderApp(initialPath = '/today', locale: Locale = 'zh-TW') {
   return render(
@@ -72,7 +73,7 @@ describe('Today Page static UI', () => {
     renderApp('/today')
 
     expect(screen.getByRole('heading', { level: 2, name: '戀愛星語｜每日一句' })).toBeInTheDocument()
-    expect(screen.getByText('喜歡一個人，也別忘了把自己的心放回自己身上。')).toBeInTheDocument()
+    expect(screen.getByText(getDailyLoveQuote('zh-TW', 1))).toBeInTheDocument()
 
     const moodGroup = screen.getByRole('group', { name: '今天的心情' })
     expect(within(moodGroup).getAllByRole('button')).toHaveLength(7)

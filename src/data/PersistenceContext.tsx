@@ -21,6 +21,7 @@ export function PersistenceProvider({ runtime, children }: { runtime: Persistenc
     userProfile,
     partnerProfile,
     settings,
+    currentLocalDate: runtime.initial.currentLocalDate,
     todayMood,
     todayDiary,
     starHeartTotal,
@@ -62,7 +63,7 @@ export function PersistenceProvider({ runtime, children }: { runtime: Persistenc
       setTodayDiary(undefined)
     },
     async shareDailyQuote() {
-      const result = await runtime.scores.award('quote_shared')
+      const result = await runtime.scores.award('quote_shared', { localDate: runtime.initial.currentLocalDate })
       setStarHeartTotal(await runtime.scores.getTotal())
       return result.awarded
     },

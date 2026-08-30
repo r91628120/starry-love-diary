@@ -41,6 +41,7 @@ export interface DiaryEntry {
 export interface AppSettings {
   id: 'settings'
   locale: Locale
+  dailyLoveQuoteActivationDate: string
   loveQuoteReminderEnabled: boolean
   importantDateReminderEnabled: boolean
   reminderTime: string

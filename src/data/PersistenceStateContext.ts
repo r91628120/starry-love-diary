@@ -6,6 +6,7 @@ export interface PersistenceContextValue {
   userProfile: Profile
   partnerProfile: Profile
   settings: AppSettings
+  currentLocalDate: string
   todayMood?: MoodRecord
   todayDiary?: DiaryEntry
   starHeartTotal: number
