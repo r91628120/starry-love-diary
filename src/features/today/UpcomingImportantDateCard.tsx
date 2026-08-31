@@ -3,7 +3,7 @@ import { CalendarIcon } from '../../components/icons'
 import { useI18n } from '../../i18n/I18nContext'
 
 export function UpcomingImportantDateCard() {
-  const { t } = useI18n()
+  const { locale, t } = useI18n()
 
   return (
     <SoftCard className="upcoming-date-card">
@@ -11,7 +11,7 @@ export function UpcomingImportantDateCard() {
       <div className="upcoming-date-card__event">
         <time dateTime="2026-08-30">{t('today.upcoming.date')}</time>
         <strong>{t('today.upcoming.event')}</strong>
-        <span>{t('today.upcoming.daysRemaining', { days: 7 })}</span>
+        <span>{t('today.upcoming.daysRemaining', { days: new Intl.NumberFormat(locale).format(7) })}</span>
       </div>
     </SoftCard>
   )

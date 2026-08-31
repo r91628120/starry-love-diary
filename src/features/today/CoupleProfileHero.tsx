@@ -4,15 +4,16 @@ import { useI18n } from '../../i18n/I18nContext'
 import { usePersistence } from '../../data/PersistenceStateContext'
 
 function StarHeartValue() {
-  const { t } = useI18n()
+  const { locale, t } = useI18n()
   const persistence = usePersistence()
   const total = persistence?.starHeartTotal ?? 0
+  const formattedTotal = new Intl.NumberFormat(locale).format(total)
 
   return (
-    <div className="star-heart" aria-label={`${t('today.starHeartValue')} ${total}`}>
+    <div className="star-heart" aria-label={t('today.starHeartAria', { score: formattedTotal })}>
       <img className="star-heart__art" src={todayAssets.starHeart} alt="" aria-hidden="true" />
       <span className="star-heart__label">{t('today.starHeartValue')}</span>
-      <strong>{total}</strong>
+      <strong>{formattedTotal}</strong>
     </div>
   )
 }

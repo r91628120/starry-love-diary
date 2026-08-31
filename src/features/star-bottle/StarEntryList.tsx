@@ -6,12 +6,13 @@ import type { Star } from '../../data/types'
 import type { TranslationKey } from '../../i18n/messages'
 
 export function StarEntryList({ entries }: { entries: Star[] }) {
-  const { t } = useI18n()
+  const { locale, t } = useI18n()
   const [showFeedback, setShowFeedback] = useState(false)
+  const dateFormatter = new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeZone: 'UTC' })
 
   return (
     <section className="star-entry-section">
-      <SectionHeader title={t('starBottle.todayCollected')} icon={<span className="star-entry-section__sparkle" aria-hidden="true">✦</span>} />
+      <SectionHeader title={t('starBottle.recentStars')} icon={<span className="star-entry-section__sparkle" aria-hidden="true">✦</span>} />
       <div className="star-entry-list">
         {entries.map((entry) => {
           const isMood = entry.type === 'mood'
@@ -25,7 +26,7 @@ export function StarEntryList({ entries }: { entries: Star[] }) {
               <div className="star-entry__content">
                 <strong>{typeLabel}</strong>
                 <p>{sourceContent}</p>
-                <div className="star-entry__meta"><time dateTime={entry.localDate}>{entry.localDate}</time><span>{typeLabel}</span></div>
+                <div className="star-entry__meta"><time dateTime={entry.localDate}>{formatLocalDate(entry.localDate, dateFormatter)}</time><span>{typeLabel}</span></div>
               </div>
               <button className="star-entry__more" type="button" aria-label={t('starBottle.entry.more', { type: typeLabel })}>•••</button>
               <span className="star-entry__flower" aria-hidden="true">✿</span>
@@ -38,4 +39,9 @@ export function StarEntryList({ entries }: { entries: Star[] }) {
       <p className="mock-feedback" aria-live="polite">{showFeedback ? t('starBottle.viewAll.feedback') : ''}</p>
     </section>
   )
+}
+
+function formatLocalDate(localDate: string, formatter: Intl.DateTimeFormat) {
+  const [year, month, day] = localDate.split('-').map(Number)
+  return formatter.format(new Date(Date.UTC(year, month - 1, day)))
 }

@@ -26,7 +26,12 @@ export function StarBottlePage() {
         <BottleHeroCard />
         <TimeRangeFilter value={range} onChange={setRange} />
         <StarStats stars={rangedStars} />
-        <SearchBar className="star-bottle-search" placeholder={t('starBottle.searchPlaceholder')} value={search} onChange={(event) => setSearch(event.target.value)} />
+        <SearchBar
+          className="star-bottle-search"
+          placeholder={t('starBottle.searchPlaceholder')}
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
         <StarEntryList entries={visibleStars} />
       </main>
     </div>

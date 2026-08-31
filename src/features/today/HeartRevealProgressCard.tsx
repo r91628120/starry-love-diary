@@ -7,8 +7,9 @@ const CURRENT_PROGRESS = 3
 const TOTAL_PROGRESS = 7
 
 export function HeartRevealProgressCard() {
-  const { t } = useI18n()
+  const { locale, t } = useI18n()
   const [showFeedback, setShowFeedback] = useState(false)
+  const numberFormat = new Intl.NumberFormat(locale)
 
   return (
     <SoftCard className="heart-reveal-card" tone="yellow">
@@ -21,7 +22,7 @@ export function HeartRevealProgressCard() {
           </div>
         </div>
         <div className="heart-reveal-card__status">
-          <strong>{t('today.heartReveal.progress', { current: CURRENT_PROGRESS, total: TOTAL_PROGRESS })}</strong>
+          <strong>{t('today.heartReveal.progress', { current: numberFormat.format(CURRENT_PROGRESS), total: numberFormat.format(TOTAL_PROGRESS) })}</strong>
           <p>{t('today.heartReveal.availableToday')}</p>
           <PrimaryButton onClick={() => setShowFeedback(true)}>{t('today.heartReveal.continue')}</PrimaryButton>
         </div>

@@ -15,7 +15,7 @@ export function BottomNavigation() {
   const { t } = useI18n()
 
   return (
-    <nav className="bottom-navigation" aria-label={t('app.brand')}>
+    <nav className="bottom-navigation" aria-label={t('nav.primary')}>
       <div className="bottom-navigation__inner">
         {navigationItems.map(({ path, labelKey, icon }) => (
           <NavLink key={path} to={path} className={({ isActive }) => `bottom-navigation__item ${isActive ? 'bottom-navigation__item--active' : ''}`}>

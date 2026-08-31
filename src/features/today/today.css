@@ -550,7 +550,7 @@
   white-space: nowrap;
 }
 
-@media (min-width: 24.375rem) {
+@media (min-width: 27rem) {
   .today-page__journal-grid {
     grid-template-columns: minmax(0, 0.84fr) minmax(0, 1.16fr);
   }

@@ -236,8 +236,12 @@
 .star-entry__flower { position: absolute; right: var(--space-3); bottom: var(--space-2); color: var(--color-pink-300); opacity: 0.52; pointer-events: none; }
 .star-entry-section__view-all { justify-self: center; min-width: min(100%, 15rem); }
 
+@media (max-width: 30rem) {
+  .star-bottle-filter { grid-auto-columns: max-content; grid-auto-flow: column; grid-template-columns: none; overflow-x: auto; border-radius: var(--radius-lg); scrollbar-width: thin; }
+  .star-bottle-filter .filter-chip { white-space: nowrap; }
+}
+
 @media (max-width: 22.5rem) {
-  .star-bottle-filter { grid-auto-columns: 4.6rem; grid-auto-flow: column; grid-template-columns: none; overflow-x: auto; border-radius: var(--radius-lg); scrollbar-width: thin; }
   .star-stats { gap: var(--space-1); }
   .star-stat { grid-template-columns: 1fr; gap: 0; padding: var(--space-2) var(--space-1); }
   .star-stat img { width: 2.6rem; justify-self: center; }

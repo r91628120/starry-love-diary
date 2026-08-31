@@ -32,7 +32,7 @@ export function PageHeader({ titleKey, variant = 'main', brandOnly = false }: Pa
       )}
       <h1 className={brandOnly ? 'sr-only' : undefined}>{t(titleKey)}</h1>
       {variant === 'main' ? (
-        <IconButton ariaLabel={t('common.settings')} onClick={openSettings}><SettingsIcon /></IconButton>
+        <IconButton ariaLabel={t('nav.settings')} onClick={openSettings}><SettingsIcon /></IconButton>
       ) : (
         <span className="page-header__balance" aria-hidden="true" />
       )}
