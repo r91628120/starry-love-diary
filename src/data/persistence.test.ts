@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { initializePersistence } from './persistence'
-import { HeartPhraseLimitError, LocalDiaryRepository, LocalHeartPhraseRepository, LocalImportantDateRepository, LocalMemoryMomentRepository, LocalMessageToYouRepository, LocalMoodRepository, LocalRememberedYouRepository, LocalScoreRepository, LocalSettingsRepository, LocalStarRepository } from './repositories/repositories'
+import { LocalDiaryRepository, LocalHeartPhraseRepository, LocalImportantDateRepository, LocalMemoryMomentRepository, LocalMessageToYouRepository, LocalMoodRepository, LocalRememberedYouRepository, LocalScoreRepository, LocalSettingsRepository, LocalStarRepository } from './repositories/repositories'
 import { filterStarsByRange } from '../features/star-bottle/filterStars'
 import { advanceHeartPhraseRitual } from '../features/today/heartPhraseRitual'
 import { createMemoryStorageBacking, MemoryStorageAdapter } from './storage/MemoryStorageAdapter'
@@ -8,8 +8,8 @@ import { SCHEMA_VERSION } from './storage/IndexedDbStorageAdapter'
 import { STORE_NAMES } from './storage/StorageAdapter'
 
 describe('Local persistence repositories', () => {
-  it('keeps prior stores while upgrading schema 4 with the four Clear stores', () => {
-    expect(SCHEMA_VERSION).toBe(4)
+  it('keeps prior stores while upgrading schema 5 with the photo foundation stores', () => {
+    expect(SCHEMA_VERSION).toBe(5)
     expect(STORE_NAMES).toEqual(expect.arrayContaining(['profiles', 'diaries', 'scoreAwards', 'importantDates', 'memoryMoments', 'messageToYou', 'rememberedYouCards', 'clearRecords', 'loveBoatAssessments', 'loveBrainAssessments', 'likeOrHabitReflections']))
   })
 
@@ -47,7 +47,7 @@ describe('Local persistence repositories', () => {
     expect(await scores.getTotal()).toBe(12)
   })
 
-  it('validates, edits, deletes, limits and reopens heart phrases', async () => {
+  it('validates, edits, deletes, keeps an unlimited archive and reopens heart phrases', async () => {
     const backing = createMemoryStorageBacking()
     const adapter = new MemoryStorageAdapter(backing); await adapter.open()
     const phrases = new LocalHeartPhraseRepository(adapter)
@@ -60,8 +60,8 @@ describe('Local persistence repositories', () => {
     expect((await reopened.getHeartPhrases())[0].content).toBe('修改後')
     await reopened.deleteHeartPhrase(created.id)
     expect(await reopened.getHeartPhrases()).toEqual([])
-    for (let index = 0; index < 20; index += 1) await reopened.acceptHeartPhrase(`句子 ${index}`)
-    await expect(reopened.acceptHeartPhrase('超過上限')).rejects.toBeInstanceOf(HeartPhraseLimitError)
+    for (let index = 0; index < 21; index += 1) await reopened.acceptHeartPhrase(`句子 ${index}`)
+    expect(await reopened.getHeartPhrases()).toHaveLength(21)
   })
 
   it('keeps the first six heart presses informal and accepts on the seventh', () => {
@@ -139,6 +139,29 @@ describe('Local persistence repositories', () => {
     await reopenedAdapter.open()
     const reopened = new LocalSettingsRepository(reopenedAdapter)
     expect(await reopened.getSettings()).toMatchObject({ locale: 'fr', loveQuoteReminderEnabled: false, importantDateReminderEnabled: false, reminderTime: '07:45' })
+  })
+
+  it('marks only fresh installs as needing onboarding and keeps legacy users completed', async () => {
+    const freshAdapter = new MemoryStorageAdapter()
+    await freshAdapter.open()
+    const fresh = new LocalSettingsRepository(freshAdapter)
+    expect((await fresh.ensureDefault('zh-TW')).onboardingCompleted).toBe(false)
+
+    const legacyAdapter = new MemoryStorageAdapter()
+    await legacyAdapter.open()
+    await legacyAdapter.put('settings', {
+      id: 'settings',
+      locale: 'zh-TW',
+      dailyLoveQuoteActivationDate: '2026-08-01',
+      loveQuoteReminderEnabled: true,
+      importantDateReminderEnabled: true,
+      reminderTime: '20:00',
+      schemaVersion: 4,
+      createdAt: '2026-08-01T00:00:00.000Z',
+      updatedAt: '2026-08-01T00:00:00.000Z',
+    })
+    const legacy = new LocalSettingsRepository(legacyAdapter)
+    expect((await legacy.ensureDefault('zh-TW')).onboardingCompleted).toBe(true)
   })
 
   it('creates, queries and deletes stars without seeding mock statistics', async () => {

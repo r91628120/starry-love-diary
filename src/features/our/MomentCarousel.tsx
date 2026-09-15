@@ -1,66 +1,57 @@
-import { useState, type FormEvent } from 'react'
-import { footprintsAssets, ourAssets } from '../../assets/uiAssets'
-import { ConfirmDialog, IconButton, PrimaryButton, SecondaryButton, SectionHeader, SoftCard } from '../../components'
+import { useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent } from 'react'
+import { ourAssets } from '../../assets/uiAssets'
+import { ConfirmDialog, IconButton, PhotoPlacementImage, PrimaryButton, SecondaryButton, SectionHeader, SoftCard } from '../../components'
 import { usePersistence } from '../../data/PersistenceStateContext'
-import type { MemoryMoment } from '../../data/types'
+import type { MemoryMoment, PhotoPlacement } from '../../data/types'
 import { useI18n } from '../../i18n/I18nContext'
+import type { TranslationKey } from '../../i18n/messages'
+import { DEFAULT_PHOTO_PLACEMENT, normalizePhotoPlacement } from '../../services/photoPlacement'
+import { applyPointerDeltaToPlacement, measurePhotoPlacementGeometry } from '../../services/photoPlacementGeometry'
+import { usePhotoObjectUrl } from '../../services/usePhotoObjectUrl'
+import { WebPhotoPickerService } from '../../services/photoPickerService'
 import { toLocalDate } from '../../services/localDateService'
+import { formatOurLocalDate, getOurValidationKey } from './ourFormatters'
 
 const emptyForm = () => ({ title: '', content: '', localDate: toLocalDate() })
 
-export function MomentCarousel() {
-  const { locale, t } = useI18n()
-  const persistence = usePersistence()
-  const moments = persistence?.memoryMoments ?? []
-  const [index, setIndex] = useState(0)
-  const [showAll, setShowAll] = useState(false)
-  const [showForm, setShowForm] = useState(false)
-  const [editingId, setEditingId] = useState<string>()
-  const [form, setForm] = useState(emptyForm)
-  const [deleteTarget, setDeleteTarget] = useState<MemoryMoment>()
-  const [error, setError] = useState('')
-  const safeIndex = Math.min(index, Math.max(0, moments.length - 1))
-  const moment = moments[safeIndex]
+function MomentPhoto({ moment, placement, refreshKey, photoManagement, onAdd, onAdjust }: { moment: MemoryMoment; placement: PhotoPlacement; refreshKey: number; photoManagement: boolean; onAdd: () => void; onAdjust: () => void }) {
+  const { t } = useI18n(); const persistence = usePersistence()
+  const url = usePhotoObjectUrl(persistence?.repositories.photos, moment.photoAssetId, 'thumbnail')
+  const [savedPlacement, setSavedPlacement] = useState<PhotoPlacement>(placement)
+  useEffect(() => { void persistence?.repositories.memoryMomentPhotoPlacements.getPlacement(moment.id, moment.photoAssetId).then(setSavedPlacement) }, [moment.id, moment.photoAssetId, persistence, refreshKey])
+  if (!moment.photoAssetId || !url) return photoManagement ? <div className="moment-card__photo moment-card__photo--placeholder"><img src={ourAssets.memoryPlaceholder} alt={t('momentPhoto.alt')} /><p>{t('momentPhoto.later')}</p><button type="button" onClick={onAdd} aria-label={t('momentPhoto.add')}>{t('momentPhoto.add')}</button></div> : null
+  const image = <PhotoPlacementImage src={url} alt={t('momentPhoto.alt')} placement={placement === DEFAULT_PHOTO_PLACEMENT ? savedPlacement : placement} />
+  return photoManagement ? <button type="button" className="moment-card__photo" onClick={onAdjust} aria-label={t('momentPhoto.adjust')}>{image}</button> : <div className="moment-card__photo">{image}</div>
+}
+
+function MomentPhotoEditor({ moment, placement, setPlacement, onDone }: { moment: MemoryMoment; placement: PhotoPlacement; setPlacement: (value: PhotoPlacement) => void; onDone: () => void }) {
+  const { t } = useI18n(); const persistence = usePersistence(); const url = usePhotoObjectUrl(persistence?.repositories.photos, moment.photoAssetId, 'master')
+  const frameRef = useRef<HTMLButtonElement>(null); const drag = useRef<{ x: number; y: number; placement: PhotoPlacement } | undefined>(undefined)
+  const update = (changes: Partial<PhotoPlacement>) => setPlacement(normalizePhotoPlacement({ ...placement, ...changes }))
+  const down = (event: ReactPointerEvent<HTMLButtonElement>) => { event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId); drag.current = { x: event.clientX, y: event.clientY, placement: placement } }
+  const move = (event: ReactPointerEvent<HTMLButtonElement>) => { const state = drag.current; if (!state || !event.currentTarget.hasPointerCapture(event.pointerId)) return; event.preventDefault(); const geometry = measurePhotoPlacementGeometry(frameRef.current, frameRef.current?.querySelector('img') ?? null, state.placement); if (geometry) setPlacement(applyPointerDeltaToPlacement(state.placement, event.clientX - state.x, event.clientY - state.y, geometry)) }
+  const end = (event: ReactPointerEvent<HTMLButtonElement>) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); drag.current = undefined }
+  if (!url) return null
+  return <div className="moment-photo-editor" role="dialog" aria-modal="true"><h3>{t('momentPhoto.adjust')}</h3><button ref={frameRef} type="button" className="moment-photo-editor__frame" aria-label={t('momentPhoto.adjust')} onPointerDown={down} onPointerMove={move} onPointerUp={end} onPointerCancel={end}><PhotoPlacementImage src={url} alt={t('momentPhoto.alt')} placement={placement} /></button><div className="moment-photo-editor__actions"><button type="button" onClick={() => update({ zoom: placement.zoom - .1 })}>{t('memoryWallEditor.zoomOut')}</button><button type="button" onClick={() => update({ zoom: placement.zoom + .1 })}>{t('memoryWallEditor.zoomIn')}</button><button type="button" onClick={() => setPlacement({ ...DEFAULT_PHOTO_PLACEMENT })}>{t('memoryWallEditor.reset')}</button><PrimaryButton onClick={onDone}>{t('memoryWallEditor.doneAdjustment')}</PrimaryButton></div></div>
+}
+
+export function MomentCarousel({ photoManagement = false }: { photoManagement?: boolean }) {
+  const { locale, t } = useI18n(); const persistence = usePersistence(); const moments = persistence?.memoryMoments ?? []; const picker = useMemo(() => new WebPhotoPickerService(), [])
+  const [index, setIndex] = useState(0); const [showAll, setShowAll] = useState(false); const [showForm, setShowForm] = useState(false); const [editingId, setEditingId] = useState<string>(); const [form, setForm] = useState(emptyForm); const [formPhoto, setFormPhoto] = useState<File>(); const [deleteTarget, setDeleteTarget] = useState<MemoryMoment>(); const [removeTarget, setRemoveTarget] = useState<MemoryMoment>(); const [adjusting, setAdjusting] = useState<MemoryMoment>(); const [placement, setPlacement] = useState<PhotoPlacement>(DEFAULT_PHOTO_PLACEMENT); const [placementRevision, setPlacementRevision] = useState(0); const [feedbackKey, setFeedbackKey] = useState<TranslationKey>()
+  const safeIndex = Math.min(index, Math.max(0, moments.length - 1)); const moment = moments[safeIndex]
   const move = (step: number) => { if (moments.length) setIndex((safeIndex + step + moments.length) % moments.length) }
-
-  const beginEdit = (record: MemoryMoment) => {
-    setEditingId(record.id)
-    setForm({ title: record.title ?? '', content: record.content, localDate: record.localDate })
-    setShowForm(true)
-    setError('')
-  }
-
-  const submit = async (event: FormEvent) => {
-    event.preventDefault()
-    if (!persistence) return
-    try {
-      if (editingId) await persistence.updateMemoryMoment(editingId, form)
-      else await persistence.createMemoryMoment(form)
-      setForm(emptyForm())
-      setEditingId(undefined)
-      setShowForm(false)
-      setError('')
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : t('our.validation.generic'))
-    }
-  }
-
+  const beginEdit = (record: MemoryMoment) => { setEditingId(record.id); setForm({ title: record.title ?? '', content: record.content, localDate: record.localDate }); setShowForm(true); setFeedbackKey(undefined) }
+  const pickPhoto = async (record: MemoryMoment) => { if (!persistence) return; const file = await picker.pickOne(); if (!file) return; try { await persistence.replaceMemoryMomentPhoto(record.id, file); setFeedbackKey('our.actions.saved') } catch { setFeedbackKey('momentPhoto.importFailed') } }
+  const beginAdjust = async (record: MemoryMoment) => { if (!persistence || !record.photoAssetId) return; setPlacement(await persistence.repositories.memoryMomentPhotoPlacements.getPlacement(record.id, record.photoAssetId)); setAdjusting(record) }
+  const chooseFormPhoto = async () => { const file = await picker.pickOne(); if (file) setFormPhoto(file) }
+  const submit = async (event: FormEvent) => { event.preventDefault(); if (!persistence) return; let createdMomentId: string | undefined; try { const saved = editingId ? await persistence.updateMemoryMoment(editingId, form) : await persistence.createMemoryMoment(form); if (!editingId) createdMomentId = saved.id; if (formPhoto) await persistence.replaceMemoryMomentPhoto(saved.id, formPhoto); setForm(emptyForm()); setFormPhoto(undefined); setEditingId(undefined); setShowForm(false); setFeedbackKey('our.actions.saved') } catch (caught) { if (createdMomentId) await persistence.deleteMemoryMoment(createdMomentId).catch(() => undefined); setFeedbackKey(getOurValidationKey(caught)) } }
   return <SoftCard className="moment-carousel">
-    <SectionHeader title={t('our.moments.title')} action={<SecondaryButton onClick={() => { setEditingId(undefined); setForm(emptyForm()); setShowForm((value) => !value); setError('') }}>{t('our.actions.add')}</SecondaryButton>} />
-    {showForm ? <form className="our-data-form" onSubmit={(event) => void submit(event)}>
-      <label>{t('our.fields.titleOptional')}<input value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} /></label>
-      <label>{t('our.fields.date')}<input required type="date" value={form.localDate} onChange={(event) => setForm({ ...form, localDate: event.target.value })} /></label>
-      <label className="our-data-form__wide">{t('our.fields.content')}<textarea required value={form.content} onChange={(event) => setForm({ ...form, content: event.target.value })} /></label>
-      <div className="our-data-form__actions"><SecondaryButton onClick={() => setShowForm(false)}>{t('common.cancel')}</SecondaryButton><PrimaryButton type="submit">{t('our.actions.save')}</PrimaryButton></div>
-    </form> : null}
-    {moment ? <><div className="moment-carousel__row">
-      <IconButton ariaLabel={t('our.moments.previous')} onClick={() => move(-1)}><img src={ourAssets.moments.arrowLeft} alt="" /></IconButton>
-      <article className="moment-card"><img src={footprintsAssets.hero} alt={t('our.moments.photoAlt')} /><div><h3>{moment.title || t('our.moments.untitled')}</h3><p>{moment.content}</p><time dateTime={moment.localDate}>{new Date(`${moment.localDate}T00:00:00`).toLocaleDateString(locale)}</time><div className="our-inline-actions"><button type="button" onClick={() => beginEdit(moment)}>{t('our.rememberYou.edit')}</button><button type="button" onClick={() => setDeleteTarget(moment)}>{t('our.rememberYou.delete')}</button></div></div></article>
-      <IconButton ariaLabel={t('our.moments.next')} onClick={() => move(1)}><img src={ourAssets.moments.arrowRight} alt="" /></IconButton>
-    </div><div className="moment-carousel__dots" aria-hidden="true">{moments.map((item, dot) => <span className={dot === safeIndex ? 'is-active' : ''} key={item.id} />)}</div></> : <p className="our-empty-state">{t('our.moments.empty')}</p>}
-    {moments.length ? <SecondaryButton onClick={() => setShowAll((value) => !value)}>{t(showAll ? 'our.actions.showRecent' : 'our.moments.viewAll')}</SecondaryButton> : null}
-    {showAll ? <div className="moment-all-list">{moments.map((item) => <article key={item.id}><strong>{item.title || t('our.moments.untitled')}</strong><span>{item.localDate}</span><p>{item.content}</p></article>)}</div> : null}
-    <p className="mock-feedback" aria-live="polite">{error}</p>
-    <ConfirmDialog open={Boolean(deleteTarget)} title={t('our.actions.deleteConfirmTitle')} description={t('our.actions.deleteConfirmBody')} onCancel={() => setDeleteTarget(undefined)} onConfirm={() => { if (deleteTarget && persistence) void persistence.deleteMemoryMoment(deleteTarget.id); setDeleteTarget(undefined) }} />
+    <SectionHeader title={t('our.moments.title')} action={<SecondaryButton onClick={() => { setEditingId(undefined); setForm(emptyForm()); setFormPhoto(undefined); setShowForm((value) => !value); setFeedbackKey(undefined) }}>{t('our.actions.add')}</SecondaryButton>} />
+    {showForm ? <form className="our-data-form" onSubmit={(event) => void submit(event)}><label>{t('our.fields.titleOptional')}<input value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} /></label><label>{t('our.fields.date')}<input required type="date" value={form.localDate} onChange={(event) => setForm({ ...form, localDate: event.target.value })} /></label><label className="our-data-form__wide">{t('our.fields.content')}<textarea required value={form.content} onChange={(event) => setForm({ ...form, content: event.target.value })} /></label>{photoManagement ? <><p className="moment-form__hint">{t('momentPhoto.later')}</p><SecondaryButton onClick={() => void chooseFormPhoto()}>{t('momentPhoto.add')}</SecondaryButton>{formPhoto ? <p className="moment-form__hint">{formPhoto.name}</p> : null}</> : null}<div className="our-data-form__actions"><SecondaryButton onClick={() => setShowForm(false)}>{t('common.cancel')}</SecondaryButton><PrimaryButton type="submit">{t('momentPhoto.save')}</PrimaryButton></div></form> : null}
+    {moment ? <><div className="moment-carousel__row"><IconButton ariaLabel={t('our.moments.previous')} onClick={() => move(-1)}><img src={ourAssets.moments.arrowLeft} alt="" /></IconButton><article className={`moment-card${moment.photoAssetId ? '' : ' moment-card--text'}`}><MomentPhoto moment={moment} placement={DEFAULT_PHOTO_PLACEMENT} refreshKey={placementRevision} photoManagement={photoManagement} onAdd={() => void pickPhoto(moment)} onAdjust={() => void beginAdjust(moment)} /><div><h3>{moment.title || t('our.moments.untitled')}</h3><p>{moment.content}</p><time dateTime={moment.localDate}>{formatOurLocalDate(moment.localDate, locale)}</time><div className="our-inline-actions"><button type="button" onClick={() => beginEdit(moment)}>{t('our.actions.edit')}</button>{photoManagement && moment.photoAssetId ? <><button type="button" onClick={() => void pickPhoto(moment)}>{t('momentPhoto.change')}</button><button type="button" onClick={() => void beginAdjust(moment)}>{t('momentPhoto.adjust')}</button><button type="button" onClick={() => setRemoveTarget(moment)}>{t('momentPhoto.remove')}</button></> : null}<button type="button" onClick={() => setDeleteTarget(moment)}>{t('our.actions.delete')}</button></div></div></article><IconButton ariaLabel={t('our.moments.next')} onClick={() => move(1)}><img src={ourAssets.moments.arrowRight} alt="" /></IconButton></div><div className="moment-carousel__dots" aria-hidden="true">{moments.map((item, dot) => <span className={dot === safeIndex ? 'is-active' : ''} key={item.id} />)}</div>{showAll ? <div className="moment-all-list">{moments.map((item) => <article key={item.id}><time dateTime={item.localDate}>{formatOurLocalDate(item.localDate, locale)}</time><strong>{item.title || t('our.moments.untitled')}</strong><p>{item.content}</p></article>)}</div> : null}</> : <p className="our-empty-state">{t('our.moments.empty')}</p>}
+    {adjusting?.photoAssetId ? <MomentPhotoEditor moment={adjusting} placement={placement} setPlacement={setPlacement} onDone={() => { void persistence?.saveMemoryMomentPhotoPlacement(adjusting.id, placement).then(() => { setPlacementRevision((value) => value + 1); setAdjusting(undefined) }).catch(() => setFeedbackKey('our.validation.generic')) }} /> : null}
+    {moments.length ? <SecondaryButton onClick={() => setShowAll((value) => !value)}>{t(showAll ? 'our.actions.showRecent' : 'our.moments.viewAll')}</SecondaryButton> : null}<p className="mock-feedback" aria-live="polite">{feedbackKey ? t(feedbackKey) : ''}</p>
+    <ConfirmDialog open={Boolean(deleteTarget)} title={t('our.actions.deleteConfirmTitle')} description={t('our.actions.deleteConfirmBody')} onCancel={() => setDeleteTarget(undefined)} onConfirm={() => { if (deleteTarget && persistence) void persistence.deleteMemoryMoment(deleteTarget.id).catch(() => setFeedbackKey('our.validation.generic')); setDeleteTarget(undefined) }} />
+    <ConfirmDialog open={Boolean(removeTarget)} title={t('momentPhoto.removeTitle')} description={t('momentPhoto.removeBody')} onCancel={() => setRemoveTarget(undefined)} onConfirm={() => { if (removeTarget && persistence) void persistence.removeMemoryMomentPhoto(removeTarget.id).catch(() => setFeedbackKey('our.validation.generic')); setRemoveTarget(undefined) }} />
   </SoftCard>
 }

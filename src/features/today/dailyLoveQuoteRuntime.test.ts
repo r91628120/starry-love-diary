@@ -40,7 +40,7 @@ describe('daily love quote runtime', () => {
     const share = vi.fn().mockResolvedValue(undefined)
     const quote = getDailyLoveQuote('fr', 142)
 
-    await expect(shareDailyLoveQuote(quote, 'Phrase du jour', { share })).resolves.toBe(true)
+    await expect(shareDailyLoveQuote(quote, 'Phrase du jour', { share })).resolves.toBe('shared')
     expect(share).toHaveBeenCalledWith({ title: 'Phrase du jour', text: quote })
   })
 

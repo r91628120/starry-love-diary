@@ -22,7 +22,7 @@ export function FootprintsPage() {
         <MonthlyStats />
         <SearchBar className="footprints-search" icon={<img src={footprintsAssets.searchIcon} alt="" aria-hidden="true" />} placeholder={t('footprints.searchPlaceholder')} value={search} onChange={(event) => setSearch(event.target.value)} />
         <TodayDiaryCard />
-        <RecentFootprints />
+        <RecentFootprints search={search} />
       </main>
     </div>
   )

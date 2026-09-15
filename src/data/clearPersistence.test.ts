@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { BoatInvestmentQuestionKey, BoatResponseQuestionKey, LikeOrHabitAnswers, LoveBrainQuestionKey } from './clearTypes'
 import {
   BOAT_A_KEYS,
@@ -17,7 +17,7 @@ import { LocalScoreRepository } from './repositories/repositories'
 import { initializePersistence } from './persistence'
 import { ensureObjectStores, SCHEMA_VERSION } from './storage/IndexedDbStorageAdapter'
 import { createMemoryStorageBacking, MemoryStorageAdapter } from './storage/MemoryStorageAdapter'
-import { STORE_NAMES } from './storage/StorageAdapter'
+import { LEGACY_V4_STORE_NAMES, PHOTO_V5_STORE_NAMES, STORE_NAMES } from './storage/StorageAdapter'
 
 function answeredA(value: 0 | 1 | 2 | 3) {
   return Object.fromEntries(BOAT_A_KEYS.map((key) => [key, value])) as Record<BoatInvestmentQuestionKey, 0 | 1 | 2 | 3>
@@ -29,25 +29,52 @@ function answeredBrain(value: 0 | 1 | 2 | 3) {
   return Object.fromEntries(LOVE_BRAIN_KEYS.map((key) => [key, value])) as Record<LoveBrainQuestionKey, 0 | 1 | 2 | 3>
 }
 
-describe('IndexedDB v4 migration plan', () => {
+function completedLikeOrHabitAnswers(): LikeOrHabitAnswers {
+  return {
+    realPerson: {
+      real_person_three_real_traits: 'yes',
+      real_person_without_romantic_expectation: 'yes',
+      real_person_present_vs_future_version: 'mostly_present',
+    },
+    habit: {
+      habit_expect_regular_contact: 'rarely',
+      habit_absence_feels_like_missing_routine: 'no',
+      habit_missing_the_routine: 'no',
+    },
+    fearOfLoss: {
+      fear_of_loss_hardest_part: ['lose_this_person'],
+      fear_of_loss_person_vs_feeling: 'mostly_person',
+      fear_of_loss_avoiding_discomfort: 'no',
+    },
+    imaginedRelationship: {
+      imagined_relationship_future_more_than_reality: 'rarely',
+      imagined_relationship_future_fills_present_gap: 'rarely',
+      imagined_relationship_reality_description: '保留對當下的觀察。',
+    },
+  }
+}
+
+afterEach(() => vi.useRealTimers())
+
+describe('IndexedDB v5 migration plan', () => {
   it('creates every store on a fresh install', () => {
     const created: string[] = []
     ensureObjectStores({
       objectStoreNames: { contains: () => false } as unknown as DOMStringList,
       createObjectStore: ((name: string) => { created.push(name); return {} as IDBObjectStore }) as IDBDatabase['createObjectStore'],
     })
-    expect(SCHEMA_VERSION).toBe(4)
+    expect(SCHEMA_VERSION).toBe(5)
     expect(created).toEqual(STORE_NAMES)
   })
 
-  it('adds only four Clear stores to v3 and leaves every existing store untouched', () => {
-    const v3Stores = STORE_NAMES.slice(0, 11)
+  it('retains the v3 to v4 Clear migration path and also creates the v5 photo stores', () => {
+    const v3Stores = LEGACY_V4_STORE_NAMES.slice(0, 11)
     const created: string[] = []
     ensureObjectStores({
       objectStoreNames: { contains: (name: string) => v3Stores.includes(name as typeof v3Stores[number]) } as unknown as DOMStringList,
       createObjectStore: ((name: string) => { created.push(name); return {} as IDBObjectStore }) as IDBDatabase['createObjectStore'],
     })
-    expect(created).toEqual(['clearRecords', 'loveBoatAssessments', 'loveBrainAssessments', 'likeOrHabitReflections'])
+    expect(created).toEqual([...LEGACY_V4_STORE_NAMES.slice(11), ...PHOTO_V5_STORE_NAMES])
     expect(v3Stores).toEqual(['profiles', 'settings', 'moods', 'diaries', 'stars', 'scoreAwards', 'heartPhrases', 'importantDates', 'memoryMoments', 'messageToYou', 'rememberedYouCards'])
   })
 
@@ -73,7 +100,8 @@ describe('IndexedDB v4 migration plan', () => {
 
     const runtime = await initializePersistence({ adapter, defaultLocale: 'zh-TW', localDate: '2026-08-30' })
 
-    expect(runtime.initial.settings.schemaVersion).toBe(4)
+    expect(runtime.initial.settings.schemaVersion).toBe(5)
+    expect(runtime.initial.settings.onboardingCompleted).toBe(true)
     for (const store of Object.keys(legacyRecords) as Array<keyof typeof legacyRecords>) {
       expect(await adapter.get(store, legacyRecords[store].id)).toBeDefined()
     }
@@ -105,6 +133,38 @@ describe('ClearRecord repository', () => {
     expect(await reopened.list()).toEqual([])
     expect(await reopenedAdapter.getAll('stars')).toHaveLength(1)
     expect(await new LocalScoreRepository(reopenedAdapter).getTotal()).toBe(5)
+  })
+})
+
+describe('Clear completion local-date contract', () => {
+  it('writes completion-day localDate for all four tools, including a draft that crosses midnight', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 8, 9, 23, 55))
+    const adapter = new MemoryStorageAdapter(); await adapter.open()
+    const organize = new LocalClearRecordRepository(adapter, new LocalScoreRepository(adapter))
+    const boat = new LocalLoveBoatAssessmentRepository(adapter)
+    const brain = new LocalLoveBrainAssessmentRepository(adapter)
+    const reflection = new LocalLikeOrHabitReflectionRepository(adapter)
+    const boatDraft = await boat.createDraft()
+    const brainDraft = await brain.createDraft()
+    const reflectionDraft = await reflection.createDraft()
+    await boat.updateDraft(boatDraft.id, { aAnswers: answeredA(1), bAnswers: answeredB(1) })
+    await brain.updateDraft(brainDraft.id, { answers: answeredBrain(1) })
+    await reflection.updateDraft(reflectionDraft.id, { answers: completedLikeOrHabitAnswers() })
+    expect(boatDraft.localDate).toBe('2026-09-09')
+
+    vi.setSystemTime(new Date(2026, 8, 10, 0, 5))
+    const organized = await organize.complete({ triggerType: 'waiting_response', facts: '等待回覆', emotions: ['anxious'], emotionIntensity: 3, nextActionType: 'take_a_walk' })
+    const completedBoat = await boat.complete(boatDraft.id)
+    const completedBrain = await brain.complete(brainDraft.id)
+    const completedReflection = await reflection.complete(reflectionDraft.id)
+
+    for (const record of [organized, completedBoat, completedBrain, completedReflection]) {
+      expect(record.localDate).toBe('2026-09-10')
+      expect(record.completedAt).toBe(new Date(2026, 8, 10, 0, 5).toISOString())
+    }
+    const clearStar = await boat.saveAsClearMindStar(completedBoat.id)
+    expect(clearStar.star.localDate).toBe('2026-09-10')
   })
 })
 

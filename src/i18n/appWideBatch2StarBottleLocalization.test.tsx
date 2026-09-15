@@ -17,7 +17,9 @@ const batch2Keys = [
   'starBottle.filter.label', 'starBottle.filter.today', 'starBottle.filter.month', 'starBottle.filter.year', 'starBottle.filter.all',
   'starBottle.stats.label', 'starBottle.totalStars', 'starBottle.moodStars', 'starBottle.clearStars', 'starBottle.statAria',
   'starBottle.searchPlaceholder',
-  'starBottle.recentStars', 'starBottle.viewAll', 'starBottle.viewAll.feedback',
+  'starBottle.recentStars', 'starBottle.viewAll', 'starBottle.fullList', 'starBottle.backToRecent',
+  'starBottle.group.count', 'starBottle.group.expand', 'starBottle.group.collapse',
+  'starBottle.empty.range', 'starBottle.empty.all', 'starBottle.empty.search',
   'starBottle.type.mood', 'starBottle.type.clear', 'starBottle.entry.more', 'starBottle.empty',
 ] as const satisfies readonly TranslationKey[]
 
@@ -96,7 +98,8 @@ describe('Milestone 4C-3 Batch 2 Star Bottle localization', () => {
     expect(screen.getByText('使用者清醒內容')).toBeInTheDocument()
     expect(screen.getByText(formatTestDate('2026-08-01', 'zh-TW'))).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: '查看全部星星' }))
-    expect(screen.getByText('完整星星清單將在下一階段開放')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '全部星星' })).toBeInTheDocument()
+    expect(screen.queryByText('完整星星清單將在下一階段開放')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'switch-locale' }))
     await waitFor(() => expect(screen.getByRole('searchbox', { name: 'Search stars, moods, or keywords' })).toBeInTheDocument())
@@ -107,11 +110,10 @@ describe('Milestone 4C-3 Batch 2 Star Bottle localization', () => {
     expect(screen.getByText('使用者清醒內容')).toBeInTheDocument()
     expect(screen.getByText(formatTestDate('2026-08-01', 'en'))).toBeInTheDocument()
     expect(screen.getByLabelText('Total stars: 2')).toBeInTheDocument()
-    expect(screen.getByText('The full star list will open in a later phase')).toBeInTheDocument()
-    expect(screen.queryByText('完整星星清單將在下一階段開放')).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'All stars' })).toBeInTheDocument()
 
     const stars = await runtime.stars.getStars()
-    expect(stars.map(({ type, title, content, localDate }) => ({ type, title, content, localDate }))).toEqual([
+    expect(stars.map(({ type, title, content, localDate }) => ({ type, title, content, localDate })).sort((left, right) => left.type.localeCompare(right.type))).toEqual([
       { type: 'clear_mind', title: undefined, content: '使用者清醒內容', localDate: '2026-08-02' },
       { type: 'mood', title: '使用者標題', content: '使用者星星內容', localDate: '2026-08-01' },
     ])

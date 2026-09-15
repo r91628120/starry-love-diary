@@ -1,4 +1,5 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { ourAssets } from '../../assets/uiAssets'
 import { ConfirmDialog, PrimaryButton, SecondaryButton, SectionHeader, SoftCard } from '../../components'
 import { usePersistence } from '../../data/PersistenceStateContext'
@@ -6,6 +7,7 @@ import type { ImportantDate, ImportantDateType } from '../../data/types'
 import { useI18n } from '../../i18n/I18nContext'
 import type { TranslationKey } from '../../i18n/messages'
 import { toLocalDate } from '../../services/localDateService'
+import { formatOurLocalDate, getOurValidationKey } from './ourFormatters'
 
 const dateTypes: Array<{ value: ImportantDateType; label: TranslationKey }> = [
   { value: 'first_chat', label: 'our.importantDates.type.firstChat' },
@@ -24,20 +26,36 @@ const emptyForm = () => ({ type: 'custom' as ImportantDateType, title: '', date:
 export function ImportantDatesCard() {
   const { locale, t } = useI18n()
   const persistence = usePersistence()
+  const [searchParams] = useSearchParams()
   const dates = persistence?.importantDates ?? []
+  const section = searchParams.get('section')
+  const focusedRecordId = searchParams.get('recordId')
+  const sectionRef = useRef<HTMLElement>(null)
   const [expanded, setExpanded] = useState(false)
   const [editingId, setEditingId] = useState<string>()
   const [form, setForm] = useState(emptyForm)
   const [showForm, setShowForm] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<ImportantDate>()
-  const [error, setError] = useState('')
+  const [feedbackKey, setFeedbackKey] = useState<TranslationKey>()
   const visibleDates = expanded ? dates : dates.slice(0, 2)
+
+  useEffect(() => {
+    if (section !== 'important-dates') return
+    if (focusedRecordId) setExpanded(true)
+    const timer = globalThis.setTimeout(() => {
+      const record = focusedRecordId ? document.getElementById(`important-date-${focusedRecordId}`) : undefined
+      const target = record ?? sectionRef.current
+      target?.scrollIntoView?.({ block: 'start' })
+      target?.focus?.()
+    }, 0)
+    return () => globalThis.clearTimeout(timer)
+  }, [focusedRecordId, section])
 
   const beginEdit = (record: ImportantDate) => {
     setEditingId(record.id)
     setForm({ type: record.type, title: record.title, date: record.date, description: record.description ?? '', reminderEnabled: record.reminderEnabled ?? false })
     setShowForm(true)
-    setError('')
+    setFeedbackKey(undefined)
   }
 
   const submit = async (event: FormEvent) => {
@@ -49,14 +67,14 @@ export function ImportantDatesCard() {
       setForm(emptyForm())
       setEditingId(undefined)
       setShowForm(false)
-      setError('')
+      setFeedbackKey('our.actions.saved')
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : t('our.validation.generic'))
+      setFeedbackKey(getOurValidationKey(caught))
     }
   }
 
-  return <SoftCard className="important-dates">
-    <SectionHeader title={t('our.importantDates.title')} action={<SecondaryButton onClick={() => { setEditingId(undefined); setForm(emptyForm()); setShowForm((value) => !value); setError('') }}>{t('our.actions.add')}</SecondaryButton>} />
+  return <section className="important-dates-anchor" ref={sectionRef} tabIndex={-1} aria-label={t('our.importantDates.title')}><SoftCard className="important-dates">
+    <SectionHeader title={t('our.importantDates.title')} action={<SecondaryButton onClick={() => { setEditingId(undefined); setForm(emptyForm()); setShowForm((value) => !value); setFeedbackKey(undefined) }}>{t('our.actions.add')}</SecondaryButton>} />
     {showForm ? <form className="our-data-form" onSubmit={(event) => void submit(event)}>
       <label>{t('our.importantDates.typeLabel')}<select value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value as ImportantDateType })}>{dateTypes.map((type) => <option value={type.value} key={type.value}>{t(type.label)}</option>)}</select></label>
       <label>{t('our.fields.title')}<input required value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} /></label>
@@ -65,9 +83,9 @@ export function ImportantDatesCard() {
       <label className="our-data-form__check"><input type="checkbox" checked={form.reminderEnabled} onChange={(event) => setForm({ ...form, reminderEnabled: event.target.checked })} />{t('our.importantDates.reminder')}</label>
       <div className="our-data-form__actions"><SecondaryButton onClick={() => setShowForm(false)}>{t('common.cancel')}</SecondaryButton><PrimaryButton type="submit">{t('our.actions.save')}</PrimaryButton></div>
     </form> : null}
-    {dates.length === 0 ? <p className="our-empty-state">{t('our.importantDates.empty')}</p> : <div className="important-dates__list">{visibleDates.map((item) => <article className="important-date" key={item.id}><img src={item.type === 'birthday' ? ourAssets.importantDates.birthday : ourAssets.importantDates.anniversary} alt="" /><div><strong>{item.title}</strong><time dateTime={item.date}>{new Date(`${item.date}T00:00:00`).toLocaleDateString(locale)}</time><span>{item.description ?? t(dateTypes.find((type) => type.value === item.type)?.label ?? 'our.importantDates.type.custom')}</span><div className="our-inline-actions"><button type="button" onClick={() => beginEdit(item)}>{t('our.rememberYou.edit')}</button><button type="button" onClick={() => setDeleteTarget(item)}>{t('our.rememberYou.delete')}</button></div></div></article>)}</div>}
+    {dates.length === 0 ? <p className="our-empty-state">{t('our.importantDates.empty')}</p> : <div className="important-dates__list">{visibleDates.map((item) => <article className={`important-date${focusedRecordId === item.id ? ' important-date--focused' : ''}`} id={`important-date-${item.id}`} key={item.id} tabIndex={focusedRecordId === item.id ? -1 : undefined}><img src={item.type === 'birthday' ? ourAssets.importantDates.birthday : ourAssets.importantDates.anniversary} alt="" aria-hidden="true" /><div><strong>{item.title}</strong><time dateTime={item.date}>{formatOurLocalDate(item.date, locale)}</time><span>{item.description ?? t(dateTypes.find((type) => type.value === item.type)?.label ?? 'our.importantDates.type.custom')}</span><div className="our-inline-actions"><button type="button" onClick={() => beginEdit(item)}>{t('our.actions.edit')}</button><button type="button" onClick={() => setDeleteTarget(item)}>{t('our.actions.delete')}</button></div></div></article>)}</div>}
     {dates.length > 2 ? <SecondaryButton onClick={() => setExpanded((value) => !value)}>{t(expanded ? 'our.actions.showRecent' : 'our.actions.viewAll')}</SecondaryButton> : null}
-    <p className="mock-feedback" aria-live="polite">{error}</p>
-    <ConfirmDialog open={Boolean(deleteTarget)} title={t('our.actions.deleteConfirmTitle')} description={t('our.actions.deleteConfirmBody')} onCancel={() => setDeleteTarget(undefined)} onConfirm={() => { if (deleteTarget && persistence) void persistence.deleteImportantDate(deleteTarget.id); setDeleteTarget(undefined) }} />
-  </SoftCard>
+    <p className="mock-feedback" aria-live="polite">{feedbackKey ? t(feedbackKey) : ''}</p>
+    <ConfirmDialog open={Boolean(deleteTarget)} title={t('our.actions.deleteConfirmTitle')} description={t('our.actions.deleteConfirmBody')} onCancel={() => setDeleteTarget(undefined)} onConfirm={() => { if (deleteTarget && persistence) void persistence.deleteImportantDate(deleteTarget.id).catch(() => setFeedbackKey('our.validation.generic')); setDeleteTarget(undefined) }} />
+  </SoftCard></section>
 }

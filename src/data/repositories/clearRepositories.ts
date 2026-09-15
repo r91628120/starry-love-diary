@@ -223,8 +223,9 @@ export class LocalLoveBoatAssessmentRepository {
     return draft
   }
   getById(recordId: string) { return this.storage.get<LoveBoatAssessment>('loveBoatAssessments', recordId) }
-  async list() { return (await listNewest<LoveBoatAssessment>(this.storage, 'loveBoatAssessments')).filter((item) => item.status === 'completed') }
-  async getActiveDraft() { return (await listNewest<LoveBoatAssessment>(this.storage, 'loveBoatAssessments')).find((item) => item.status === 'draft') }
+  async listAll() { return listNewest<LoveBoatAssessment>(this.storage, 'loveBoatAssessments') }
+  async list() { return (await this.listAll()).filter((item) => item.status === 'completed') }
+  async getActiveDraft() { return (await this.listAll()).find((item) => item.status === 'draft') }
   async updateDraft(recordId: string, changes: Partial<Pick<LoveBoatAssessment, 'currentSection' | 'currentQuestionIndex' | 'aAnswers' | 'bAnswers'>>) {
     const existing = requireDraft(await this.getById(recordId), 'Love boat assessment')
     const aAnswers = changes.aAnswers ?? existing.aAnswers
@@ -251,7 +252,7 @@ export class LocalLoveBoatAssessmentRepository {
     const result = calculateLoveBoat(existing.aAnswers, existing.bAnswers)
     const sameResultCount = (await this.list()).filter((item) => item.crossResultKey === result.crossResultKey && item.aLevel === result.aLevel && item.bLevel === result.bLevel).length
     const timestamp = now()
-    const completed: LoveBoatAssessment = { ...existing, ...result, status: 'completed', currentSection: 'result', resultVariantIndex: sameResultCount % 3, completedAt: timestamp, updatedAt: timestamp }
+    const completed: LoveBoatAssessment = { ...existing, ...result, status: 'completed', currentSection: 'result', resultVariantIndex: sameResultCount % 3, localDate: toLocalDate(), timezone: getDeviceTimezone(), completedAt: timestamp, updatedAt: timestamp }
     await this.storage.put('loveBoatAssessments', completed)
     return completed
   }
@@ -308,8 +309,9 @@ export class LocalLoveBrainAssessmentRepository {
     return draft
   }
   getById(recordId: string) { return this.storage.get<LoveBrainAssessment>('loveBrainAssessments', recordId) }
-  async list() { return (await listNewest<LoveBrainAssessment>(this.storage, 'loveBrainAssessments')).filter((item) => item.status === 'completed') }
-  async getActiveDraft() { return (await listNewest<LoveBrainAssessment>(this.storage, 'loveBrainAssessments')).find((item) => item.status === 'draft') }
+  async listAll() { return listNewest<LoveBrainAssessment>(this.storage, 'loveBrainAssessments') }
+  async list() { return (await this.listAll()).filter((item) => item.status === 'completed') }
+  async getActiveDraft() { return (await this.listAll()).find((item) => item.status === 'draft') }
   async updateDraft(recordId: string, changes: Partial<Pick<LoveBrainAssessment, 'answers' | 'currentQuestionIndex'>>) {
     const existing = requireDraft(await this.getById(recordId), 'Love brain assessment')
     const answers = changes.answers ?? existing.answers
@@ -339,7 +341,7 @@ export class LocalLoveBrainAssessmentRepository {
       : calculated.primaryPattern
         ? `${calculated.primaryPattern}.v1` as const
         : 'tie.v1' as const
-    const completed: LoveBrainAssessment = { ...existing, ...calculated, status: 'completed', resultVariantIndex: 0, resultVariantKey, completedAt: timestamp, updatedAt: timestamp }
+    const completed: LoveBrainAssessment = { ...existing, ...calculated, status: 'completed', resultVariantIndex: 0, resultVariantKey, localDate: toLocalDate(), timezone: getDeviceTimezone(), completedAt: timestamp, updatedAt: timestamp }
     await this.storage.put('loveBrainAssessments', completed)
     return completed
   }
@@ -459,8 +461,9 @@ export class LocalLikeOrHabitReflectionRepository {
     return draft
   }
   getById(recordId: string) { return this.storage.get<LikeOrHabitReflection>('likeOrHabitReflections', recordId) }
-  async list() { return (await listNewest<LikeOrHabitReflection>(this.storage, 'likeOrHabitReflections')).filter((item) => item.status === 'completed') }
-  async getActiveDraft() { return (await listNewest<LikeOrHabitReflection>(this.storage, 'likeOrHabitReflections')).find((item) => item.status === 'draft') }
+  async listAll() { return listNewest<LikeOrHabitReflection>(this.storage, 'likeOrHabitReflections') }
+  async list() { return (await this.listAll()).filter((item) => item.status === 'completed') }
+  async getActiveDraft() { return (await this.listAll()).find((item) => item.status === 'draft') }
   async updateDraft(recordId: string, changes: { currentSection?: LikeOrHabitSection; answers?: LikeOrHabitAnswers; realPersonNote?: string; habitNote?: string }) {
     const existing = requireDraft(await this.getById(recordId), 'Like or habit reflection')
     const answers = changes.answers ?? existing.answers
@@ -485,7 +488,7 @@ export class LocalLikeOrHabitReflectionRepository {
     const existing = requireDraft(await this.getById(recordId), 'Like or habit reflection')
     const result = await this.preview(recordId)
     const timestamp = now()
-    const completed: LikeOrHabitReflection = { ...existing, ...result, status: 'completed', currentSection: 'result', completedAt: timestamp, updatedAt: timestamp }
+    const completed: LikeOrHabitReflection = { ...existing, ...result, status: 'completed', currentSection: 'result', localDate: toLocalDate(), timezone: getDeviceTimezone(), completedAt: timestamp, updatedAt: timestamp }
     await this.storage.put('likeOrHabitReflections', completed)
     return completed
   }

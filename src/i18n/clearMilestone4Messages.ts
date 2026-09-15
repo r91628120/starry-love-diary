@@ -14,7 +14,7 @@ export const clearMilestone4Messages = {
   'clear.history.likeOrHabit': '喜歡？習慣？',
   'clear.common.previous': '上一題',
   'clear.common.next': '下一題',
-  'clear.common.continueLater': '稍後繼續',
+  'clear.common.continueLater': '← 回到清醒首頁',
   'clear.common.continue': '繼續上次',
   'clear.common.draftProgress': '繼續上次 · {current} / {total}',
   'clear.common.restart': '重新開始',

@@ -5,9 +5,22 @@ import { LOVE_BRAIN_KEYS } from '../data/repositories/clearRepositories'
 import type { LoveBrainQuestionKey } from '../data/clearTypes'
 import { clearMilestone4Messages } from './clearMilestone4Messages'
 import { clearMilestone4LocalizedMessages } from './clearMilestone4LocalizedMessages'
+import { clearScenarioRecommendationMessages } from './clearScenarioRecommendationMessages'
+import { clearHistoryGroupingMessages } from './clearHistoryGroupingMessages'
 import { messages, supportedLocales } from './messages'
 
 describe('Clear six-language localization', () => {
+  it.each([
+    ['zh-TW', '← 回到清醒首頁'],
+    ['en', '← Back to Clarity'],
+    ['ja', '← 気づきのホームへ'],
+    ['ko', '← 마음 정리 홈으로'],
+    ['es', '← Volver a Claridad'],
+    ['fr', '← Retour à Clarté'],
+  ] as const)('uses a natural back-to-Clear draft action in %s', (locale, expected) => {
+    expect(messages[locale]['clear.common.continueLater']).toBe(expected)
+  })
+
   it('has every canonical key and no empty value in all six locales', () => {
     const canonicalKeys = Object.keys(clearMilestone4Messages).sort()
     expect(canonicalKeys).toHaveLength(400)
@@ -21,11 +34,19 @@ describe('Clear six-language localization', () => {
 
   it('has the same complete Clear UI key set for every locale', () => {
     const canonicalClearKeys = Object.keys(messages['zh-TW']).filter((key) => key.startsWith('clear.')).sort()
-    expect(canonicalClearKeys).toHaveLength(445)
+    expect(canonicalClearKeys).toHaveLength(456)
     for (const locale of supportedLocales) {
       const localeKeys = Object.keys(messages[locale]).filter((key) => key.startsWith('clear.')).sort()
       expect(localeKeys, locale).toEqual(canonicalClearKeys)
       expect(localeKeys.filter((key) => !messages[locale][key as keyof typeof messages['zh-TW']].trim()), locale).toEqual([])
+    }
+  })
+
+  it('has every non-empty grouped-history message in all six locales', () => {
+    const canonicalKeys = Object.keys(clearHistoryGroupingMessages['zh-TW']).sort()
+    for (const locale of supportedLocales) {
+      expect(Object.keys(clearHistoryGroupingMessages[locale]).sort(), locale).toEqual(canonicalKeys)
+      expect(Object.values(clearHistoryGroupingMessages[locale]).filter((value) => !value.trim()), locale).toEqual([])
     }
   })
 
@@ -61,6 +82,9 @@ describe('Clear six-language localization', () => {
       'clear.title', 'clear.scenarios.title', 'clear.scenarios.miss', 'clear.scenarios.waitingMessage',
       'clear.scenarios.tooDeep', 'clear.scenarios.unsureFeelings', 'clear.scenarios.unsureFit',
       'clear.scenarios.selected', 'clear.tools.label', 'clear.tools.organize.title',
+      'clear.scenarios.recommendation.label', 'clear.scenarios.recommendation.organize',
+      'clear.scenarios.recommendation.brain', 'clear.scenarios.recommendation.like',
+      'clear.scenarios.recommendation.boat', 'clear.scenarios.recommendation.cta',
       'clear.tools.organize.description', 'clear.tools.boatGuide.title', 'clear.tools.boatGuide.description',
       'clear.tools.loveBrain.title', 'clear.tools.loveBrain.description', 'clear.tools.likeOrHabit.title',
       'clear.tools.likeOrHabit.description', 'clear.latest.title', 'clear.latest.imageAlt',
@@ -69,6 +93,15 @@ describe('Clear six-language localization', () => {
     ] as const
     for (const locale of ['ja', 'ko', 'es', 'fr'] as const) {
       expect(runtimeKeys.filter((key) => messages[locale][key] === messages.en[key]), locale).toEqual([])
+    }
+  })
+
+  it('has every non-empty scenario recommendation message in all six locales', () => {
+    const canonicalKeys = Object.keys(clearScenarioRecommendationMessages['zh-TW']).sort()
+    expect(canonicalKeys).toHaveLength(6)
+    for (const locale of supportedLocales) {
+      expect(Object.keys(clearScenarioRecommendationMessages[locale]).sort(), locale).toEqual(canonicalKeys)
+      expect(Object.values(clearScenarioRecommendationMessages[locale]).filter((value) => !value.trim()), locale).toEqual([])
     }
   })
 

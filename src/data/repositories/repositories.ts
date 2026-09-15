@@ -1,7 +1,8 @@
 import type { Locale } from '../../i18n/messages'
 import { getDeviceTimezone, toLocalDate } from '../../services/localDateService'
 import type { StorageAdapter } from '../storage/StorageAdapter'
-import type { AppSettings, AwardType, DiaryEntry, HeartPhrase, ImportantDate, ImportantDateType, MemoryMoment, MessageToYou, MoodKey, MoodRecord, Profile, ProfileKind, RememberedYouCard, ScoreAward, Star, StarType } from '../types'
+import { MESSAGE_TO_YOU_TYPES, type AppSettings, type AwardType, type DiaryEntry, type HeartPhrase, type ImportantDate, type ImportantDateType, type MemoryMoment, type MessageToYou, type MessageToYouEntry, type MessageToYouType, type MoodKey, type MoodRecord, type Profile, type ProfileKind, type RememberedYouCard, type ScoreAward, type Star, type StarType } from '../types'
+import { SCHEMA_VERSION } from '../storage/IndexedDbStorageAdapter'
 
 const DEFAULT_NICKNAME = '星星'
 
@@ -51,12 +52,18 @@ export class LocalProfileRepository implements ProfileRepository {
 
 export interface MoodRepository {
   getMoodByLocalDate(localDate: string): Promise<MoodRecord | undefined>
+  getMoods(): Promise<MoodRecord[]>
   setMood(mood: MoodKey, localDate?: string): Promise<MoodRecord>
 }
 
+export interface MoodStarWriter {
+  upsertMoodStar(record: MoodRecord): Promise<Star>
+}
+
 export class LocalMoodRepository implements MoodRepository {
-  constructor(private readonly storage: StorageAdapter, private readonly awards?: AwardWriter) {}
+  constructor(private readonly storage: StorageAdapter, private readonly awards?: AwardWriter, private readonly stars?: MoodStarWriter) {}
   getMoodByLocalDate(localDate: string) { return this.storage.get<MoodRecord>('moods', localDate) }
+  async getMoods() { return (await this.storage.getAll<MoodRecord>('moods')).sort((a, b) => b.localDate.localeCompare(a.localDate) || b.updatedAt.localeCompare(a.updatedAt)) }
   async setMood(mood: MoodKey, localDate = toLocalDate()) {
     const existing = await this.getMoodByLocalDate(localDate)
     const timestamp = now()
@@ -65,6 +72,7 @@ export class LocalMoodRepository implements MoodRepository {
       : { id: localDate, localDate, mood, timezone: getDeviceTimezone(), createdAt: timestamp, updatedAt: timestamp }
     await this.storage.put('moods', record)
     await this.awards?.award('mood_selected', { localDate })
+    await this.stars?.upsertMoodStar(record)
     return record
   }
 }
@@ -109,7 +117,7 @@ function validateDiaryContent(content: string) {
 export interface SettingsRepository {
   ensureDefault(locale: Locale, dailyLoveQuoteActivationDate?: string): Promise<AppSettings>
   getSettings(): Promise<AppSettings | undefined>
-  updateSettings(changes: Partial<Pick<AppSettings, 'locale' | 'loveQuoteReminderEnabled' | 'importantDateReminderEnabled' | 'reminderTime'>>): Promise<AppSettings>
+  updateSettings(changes: Partial<Pick<AppSettings, 'locale' | 'onboardingCompleted' | 'dailyLoveQuoteActivationDate' | 'loveQuoteReminderEnabled' | 'importantDateReminderEnabled' | 'reminderTime'>>): Promise<AppSettings>
 }
 
 export class LocalSettingsRepository implements SettingsRepository {
@@ -118,19 +126,25 @@ export class LocalSettingsRepository implements SettingsRepository {
   async ensureDefault(locale: Locale, dailyLoveQuoteActivationDate = toLocalDate()) {
     const existing = await this.getSettings()
     if (existing) {
-      if (existing.schemaVersion !== 4 || !existing.dailyLoveQuoteActivationDate) {
-        const migrated: AppSettings = { ...existing, dailyLoveQuoteActivationDate: existing.dailyLoveQuoteActivationDate ?? activationDateFromSettings(existing, dailyLoveQuoteActivationDate), schemaVersion: 4, updatedAt: now() }
+      if (existing.schemaVersion !== SCHEMA_VERSION || !existing.dailyLoveQuoteActivationDate || existing.onboardingCompleted === undefined) {
+        const migrated: AppSettings = {
+          ...existing,
+          dailyLoveQuoteActivationDate: existing.dailyLoveQuoteActivationDate ?? activationDateFromSettings(existing, dailyLoveQuoteActivationDate),
+          onboardingCompleted: existing.onboardingCompleted ?? true,
+          schemaVersion: SCHEMA_VERSION,
+          updatedAt: now(),
+        }
         await this.storage.put('settings', migrated)
         return migrated
       }
       return existing
     }
     const timestamp = now()
-    const settings: AppSettings = { id: 'settings', locale, dailyLoveQuoteActivationDate, loveQuoteReminderEnabled: true, importantDateReminderEnabled: true, reminderTime: '20:00', schemaVersion: 4, createdAt: timestamp, updatedAt: timestamp }
+    const settings: AppSettings = { id: 'settings', locale, dailyLoveQuoteActivationDate, onboardingCompleted: false, loveQuoteReminderEnabled: true, importantDateReminderEnabled: true, reminderTime: '20:00', schemaVersion: SCHEMA_VERSION, createdAt: timestamp, updatedAt: timestamp }
     await this.storage.put('settings', settings)
     return settings
   }
-  async updateSettings(changes: Partial<Pick<AppSettings, 'locale' | 'loveQuoteReminderEnabled' | 'importantDateReminderEnabled' | 'reminderTime'>>) {
+  async updateSettings(changes: Partial<Pick<AppSettings, 'locale' | 'onboardingCompleted' | 'dailyLoveQuoteActivationDate' | 'loveQuoteReminderEnabled' | 'importantDateReminderEnabled' | 'reminderTime'>>) {
     const existing = await this.getSettings()
     if (!existing) throw new Error('Settings have not been initialized')
     if (changes.reminderTime !== undefined && !/^([01]\d|2[0-3]):[0-5]\d$/.test(changes.reminderTime)) throw new Error('Reminder time must use HH:mm')
@@ -148,7 +162,7 @@ export interface StarRepository {
   deleteStar(id: string): Promise<void>
 }
 
-export class LocalStarRepository implements StarRepository {
+export class LocalStarRepository implements StarRepository, MoodStarWriter {
   constructor(private readonly storage: StorageAdapter) {}
   async createStar(input: Omit<Star, 'id' | 'createdAt' | 'updatedAt' | 'timezone' | 'localDate'> & { localDate?: string }) {
     const timestamp = now()
@@ -160,6 +174,26 @@ export class LocalStarRepository implements StarRepository {
   async getStarsByType(type: StarType) { return (await this.getStars()).filter((star) => star.type === type) }
   async getStarsByLocalDate(localDate: string) { return (await this.getStars()).filter((star) => star.localDate === localDate) }
   deleteStar(id: string) { return this.storage.delete('stars', id) }
+  async upsertMoodStar(record: MoodRecord) {
+    const existing = (await this.getStars()).find((star) => star.type === 'mood' && star.sourceType === 'mood' && star.sourceId === record.localDate)
+    const timestamp = now()
+    const star: Star = existing
+      ? { ...existing, sourceType: 'mood', sourceId: record.localDate, content: record.mood, mood: record.mood, localDate: record.localDate, timezone: record.timezone, updatedAt: timestamp }
+      : { id: `mood-star:${record.localDate}`, type: 'mood', sourceType: 'mood', sourceId: record.localDate, content: record.mood, mood: record.mood, localDate: record.localDate, timezone: record.timezone, createdAt: timestamp, updatedAt: timestamp }
+    await this.storage.put('stars', star)
+    return star
+  }
+  async reconcileMoodStars(records: MoodRecord[]) {
+    let created = 0
+    let updated = 0
+    for (const record of records) {
+      const existing = (await this.getStars()).find((star) => star.type === 'mood' && star.sourceType === 'mood' && star.sourceId === record.localDate)
+      await this.upsertMoodStar(record)
+      if (existing) updated += 1
+      else created += 1
+    }
+    return { created, updated }
+  }
 }
 
 export interface ScoreRepository extends AwardWriter {
@@ -211,12 +245,12 @@ export class LocalHeartPhraseRepository implements HeartPhraseRepository {
   constructor(private readonly storage: StorageAdapter) {}
   async getHeartPhrases() { return (await this.storage.getAll<HeartPhrase>('heartPhrases')).sort((a, b) => a.order - b.order || b.acceptedAt.localeCompare(a.acceptedAt)) }
   async getTopHeartPhrases(limit = 3) { return (await this.getHeartPhrases()).slice(0, limit) }
-  async acceptHeartPhrase(content: string) {
-    const normalized = validateHeartPhrase(content)
-    const phrases = await this.getHeartPhrases()
-    if (phrases.length >= 20) throw new HeartPhraseLimitError('Heart phrase limit reached')
-    const timestamp = now()
-    const phrase: HeartPhrase = { id: id('heart-phrase'), content: normalized, order: phrases.length, acceptedAt: timestamp, createdAt: timestamp, updatedAt: timestamp }
+    async acceptHeartPhrase(content: string) {
+      const normalized = validateHeartPhrase(content)
+      const phrases = await this.getHeartPhrases()
+      const timestamp = now()
+      const nextOrder = phrases.reduce((highest, phrase) => Math.max(highest, phrase.order), -1) + 1
+      const phrase: HeartPhrase = { id: id('heart-phrase'), content: normalized, order: nextOrder, acceptedAt: timestamp, createdAt: timestamp, updatedAt: timestamp }
     await this.storage.put('heartPhrases', phrase)
     return phrase
   }
@@ -317,6 +351,12 @@ export interface MessageToYouRepository {
   getMessage(): Promise<MessageToYou | undefined>
   saveMessage(content: string): Promise<MessageToYou>
   clearMessage(): Promise<void>
+  reconcileLegacy(): Promise<MessageToYouEntry[]>
+  getEntries(): Promise<MessageToYouEntry[]>
+  getEntry(id: string): Promise<MessageToYouEntry | undefined>
+  createEntry(input: { type: MessageToYouType; content: string; localDate?: string }): Promise<MessageToYouEntry>
+  updateEntry(id: string, changes: Partial<Pick<MessageToYouEntry, 'type' | 'content'>>): Promise<MessageToYouEntry>
+  deleteEntry(id: string): Promise<void>
 }
 
 export class LocalMessageToYouRepository implements MessageToYouRepository {
@@ -332,6 +372,38 @@ export class LocalMessageToYouRepository implements MessageToYouRepository {
     return message
   }
   clearMessage() { return this.storage.delete('messageToYou', 'message-to-you') }
+  async reconcileLegacy() {
+    const records = await this.storage.getAll<MessageToYou | MessageToYouEntry>('messageToYou')
+    const legacy = records.find((record) => record.id === 'message-to-you' && !('type' in record)) as MessageToYou | undefined
+    if (legacy) {
+      const created = new Date(legacy.createdAt)
+      const migrated: MessageToYouEntry = { ...legacy, type: 'free_message', localDate: Number.isNaN(created.getTime()) ? toLocalDate() : toLocalDate(created), timezone: getDeviceTimezone() }
+      await this.storage.put('messageToYou', migrated)
+    }
+    return this.getEntries()
+  }
+  async getEntries() {
+    return (await this.storage.getAll<MessageToYouEntry>('messageToYou'))
+      .filter((record) => MESSAGE_TO_YOU_TYPES.includes(record.type) && Boolean(record.localDate))
+      .sort((a, b) => b.localDate.localeCompare(a.localDate) || b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id))
+  }
+  getEntry(entryId: string) { return this.storage.get<MessageToYouEntry>('messageToYou', entryId) }
+  async createEntry(input: { type: MessageToYouType; content: string; localDate?: string }) {
+    const content = this.validateContent(input.content); const timestamp = now()
+    const entry: MessageToYouEntry = { id: id('message-to-you'), type: input.type, content, localDate: validateLocalDate(input.localDate ?? toLocalDate(), 'Local date'), timezone: getDeviceTimezone(), createdAt: timestamp, updatedAt: timestamp }
+    await this.storage.put('messageToYou', entry); return entry
+  }
+  async updateEntry(entryId: string, changes: Partial<Pick<MessageToYouEntry, 'type' | 'content'>>) {
+    const existing = await this.getEntry(entryId); if (!existing) throw new Error('Message to you entry not found')
+    const updated: MessageToYouEntry = { ...existing, ...changes, content: changes.content === undefined ? existing.content : this.validateContent(changes.content), updatedAt: now() }
+    await this.storage.put('messageToYou', updated); return updated
+  }
+  deleteEntry(entryId: string) { return this.storage.delete('messageToYou', entryId) }
+  private validateContent(content: string) {
+    const normalized = requiredText(content, 'Message')
+    if ([...normalized].length > 300) throw new OurDataValidationError('Message to you must not exceed 300 characters', 'message_too_long')
+    return normalized
+  }
 }
 
 export interface RememberedYouRepository {

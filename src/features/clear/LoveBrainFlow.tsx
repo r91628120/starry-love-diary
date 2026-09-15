@@ -40,13 +40,13 @@ export function LoveBrainFlow({ onDone }: { onDone: () => void }) {
     if (!persistence || !draft) return
     const question = LOVE_BRAIN_KEYS[draft.currentQuestionIndex]
     const answers = { ...draft.answers, [question]: answer }
-    const finished = LOVE_BRAIN_KEYS.every((item) => answers[item] !== undefined)
     const updated = await persistence.repositories.loveBrainAssessments.updateDraft(draft.id, {
       answers,
-      currentQuestionIndex: Math.min(draft.currentQuestionIndex + 1, LOVE_BRAIN_KEYS.length - 1),
+      // Keep the user on this question so the persisted answer can visibly
+      // confirm selection and be changed before they choose Next.
+      currentQuestionIndex: draft.currentQuestionIndex,
     })
     setDraft(updated)
-    if (finished) setPreview(true)
   }
   async function move(index: number) {
     if (!persistence || !draft) return
@@ -66,14 +66,16 @@ export function LoveBrainFlow({ onDone }: { onDone: () => void }) {
 
   if (loading) return null
   if (completed) return <SoftCard className="clear-flow clear-result" tone="green"><h2>{t('clear.brain.completed')}</h2><BrainResult record={completed} /><div className="clear-flow__actions"><PrimaryButton onClick={saveStar} disabled={savedStar}>{t(savedStar ? 'clear.common.savedStar' : 'clear.common.saveStar')}</PrimaryButton><SecondaryButton onClick={onDone}>{t('clear.common.finishAndReturn')}</SecondaryButton></div></SoftCard>
-  if (!draft) return <SoftCard className="clear-flow clear-intro" tone="purple"><SecondaryButton onClick={onDone}>{t('clear.home')}</SecondaryButton><h2>{t('clear.tools.loveBrain.title')}</h2><p>{t('clear.brain.intro')}</p><p>{t('clear.brain.duration')}</p><PrimaryButton onClick={start}>{t('clear.brain.start')}</PrimaryButton></SoftCard>
+  if (!draft) return <SoftCard className="clear-flow clear-intro" tone="purple"><SecondaryButton onClick={onDone}>{t('clear.home')}</SecondaryButton><p>{t('clear.brain.intro')}</p><p>{t('clear.brain.duration')}</p><PrimaryButton onClick={start}>{t('clear.brain.start')}</PrimaryButton></SoftCard>
   if (preview) return <section className="clear-flow"><div className="clear-flow__top"><SecondaryButton onClick={() => setPreview(false)}>{t('clear.common.previous')}</SecondaryButton><SecondaryButton onClick={onDone}>{t('clear.common.continueLater')}</SecondaryButton></div><SoftCard className="clear-result" tone="purple"><BrainResult record={draft} /><PrimaryButton onClick={finish}>{t('clear.brain.finish')}</PrimaryButton></SoftCard><p>{t('clear.common.savedDraft')}</p></section>
 
   const question = LOVE_BRAIN_KEYS[draft.currentQuestionIndex]
+  const atEnd = draft.currentQuestionIndex === LOVE_BRAIN_KEYS.length - 1
+  const allAnswered = LOVE_BRAIN_KEYS.every((item) => draft.answers[item] !== undefined)
   return <section className="clear-flow">
     <div className="clear-flow__top"><SecondaryButton onClick={onDone}>{t('clear.common.continueLater')}</SecondaryButton><span>{t('clear.common.progress', { current: draft.currentQuestionIndex + 1, total: 25 })}</span></div>
-    <SoftCard><p className="clear-flow__eyebrow">{t('clear.tools.loveBrain.title')}</p><h2>{t(key('clear.brain.q.' + question))}</h2><div className="clear-answer-list">{([0, 1, 2, 3] as const).map((answer) => <button type="button" key={answer} className={draft.answers[question] === answer ? 'is-active' : ''} aria-pressed={draft.answers[question] === answer} onClick={() => choose(answer)}>{t(key('clear.boat.answer.' + answer))}</button>)}</div></SoftCard>
-    <div className="clear-flow__actions"><SecondaryButton disabled={draft.currentQuestionIndex === 0} onClick={() => move(draft.currentQuestionIndex - 1)}>{t('clear.common.previous')}</SecondaryButton><SecondaryButton onClick={() => setOverview(!overview)}>{t('clear.common.overview')}</SecondaryButton><SecondaryButton disabled={draft.currentQuestionIndex === 24} onClick={() => move(draft.currentQuestionIndex + 1)}>{t('clear.common.next')}</SecondaryButton></div>
+    <SoftCard><p className="clear-flow__eyebrow">{t('clear.tools.loveBrain.title')}</p><h2 id={`love-brain-question-${draft.currentQuestionIndex}`}>{t(key('clear.brain.q.' + question))}</h2><div className="clear-answer-list" role="radiogroup" aria-labelledby={`love-brain-question-${draft.currentQuestionIndex}`}>{([0, 1, 2, 3] as const).map((answer) => <button type="button" role="radio" key={answer} className={draft.answers[question] === answer ? 'is-active' : ''} aria-checked={draft.answers[question] === answer} onClick={() => choose(answer)}>{t(key('clear.boat.answer.' + answer))}</button>)}</div></SoftCard>
+    <div className="clear-flow__actions"><SecondaryButton disabled={draft.currentQuestionIndex === 0} onClick={() => move(draft.currentQuestionIndex - 1)}>{t('clear.common.previous')}</SecondaryButton><SecondaryButton onClick={() => setOverview(!overview)}>{t('clear.common.overview')}</SecondaryButton>{atEnd && allAnswered ? <PrimaryButton onClick={() => setPreview(true)}>{t('clear.history.view')}</PrimaryButton> : <SecondaryButton disabled={atEnd} onClick={() => move(draft.currentQuestionIndex + 1)}>{t('clear.common.next')}</SecondaryButton>}</div>
     {overview ? <SoftCard><div className="clear-question-grid">{LOVE_BRAIN_KEYS.map((item, index) => <button type="button" key={item} className={index === draft.currentQuestionIndex ? 'is-current' : draft.answers[item] !== undefined ? 'is-answered' : ''} onClick={() => move(index)}>{index + 1}</button>)}</div></SoftCard> : null}
     <SecondaryButton onClick={() => setConfirmRestart(true)}>{t('clear.common.restart')}</SecondaryButton><p>{t('clear.common.savedDraft')}</p>
     <ConfirmDialog open={confirmRestart} title={t('clear.common.restartTitle')} description={t('clear.common.restartBody')} onConfirm={restart} onCancel={() => setConfirmRestart(false)} />

@@ -1,9 +1,7 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { IconButton, SectionHeader, SoftCard } from '../../components'
-import { HeartIcon } from '../../components/icons'
 import { useI18n } from '../../i18n/I18nContext'
 import { usePersistence } from '../../data/PersistenceStateContext'
-import { HeartPhraseLimitError } from '../../data/repositories/repositories'
 import { advanceHeartPhraseRitual } from './heartPhraseRitual'
 import type { TranslationKey } from '../../i18n/messages'
 
@@ -15,28 +13,50 @@ export function HeartLineCard() {
   const [pressCount, setPressCount] = useState(0)
   const [feedback, setFeedback] = useState<{ key: TranslationKey; current?: number }>()
   const [editingId, setEditingId] = useState<string>()
+  const [isSaving, setIsSaving] = useState(false)
+  const savingRef = useRef(false)
   const persistence = usePersistence()
 
   async function submit() {
     if (!persistence || !value.trim()) return
-    try {
-      if (editingId) {
+    if (editingId) {
+      if (savingRef.current) return
+      savingRef.current = true
+      setIsSaving(true)
+      try {
         await persistence.updateHeartPhrase(editingId, value)
         setEditingId(undefined)
         setFeedback({ key: 'today.heartLine.feedback' })
-      } else if (!advanceHeartPhraseRitual(pressCount).accepted) {
-        const { nextPresses } = advanceHeartPhraseRitual(pressCount)
-        setPressCount(nextPresses)
-        setFeedback({ key: 'today.heartLine.progress', current: nextPresses })
-        return
-      } else {
+        setValue('')
+      } catch {
+        setFeedback({ key: 'today.heartLine.error' })
+      } finally {
+        savingRef.current = false
+        setIsSaving(false)
+      }
+      return
+    }
+
+    const ritual = advanceHeartPhraseRitual(pressCount)
+    if (!ritual.accepted) {
+      setPressCount(ritual.nextPresses)
+      setFeedback(undefined)
+      return
+    }
+
+    if (savingRef.current) return
+    savingRef.current = true
+    setIsSaving(true)
+    try {
         await persistence.acceptHeartPhrase(value)
         setPressCount(0)
         setFeedback({ key: 'today.heartLine.feedback' })
-      }
       setValue('')
-    } catch (error) {
-      setFeedback({ key: error instanceof HeartPhraseLimitError ? 'today.heartLine.limitReached' : 'today.heartLine.error' })
+    } catch {
+      setFeedback({ key: 'today.heartLine.error' })
+    } finally {
+      savingRef.current = false
+      setIsSaving(false)
     }
   }
 
@@ -47,7 +67,8 @@ export function HeartLineCard() {
       <textarea id="heart-line-input" value={value} maxLength={MAX_HEART_LINE_LENGTH} placeholder={t('today.heartLine.placeholder')} onChange={(event) => setValue(event.target.value.slice(0, MAX_HEART_LINE_LENGTH))} />
       <div className="heart-line-card__footer">
         <span aria-live="polite">{new Intl.NumberFormat(locale).format(value.length)} / {new Intl.NumberFormat(locale).format(MAX_HEART_LINE_LENGTH)}</span>
-        <IconButton className={pressCount > 0 ? 'heart-line-card__heart heart-line-card__heart--active' : 'heart-line-card__heart'} ariaLabel={editingId ? t('today.heartLine.saveEdit') : t('today.heartLine.heart')} onClick={submit}><HeartIcon /></IconButton>
+        <span className="heart-line-card__ritual-progress" data-testid="heart-line-ritual-progress" aria-live="polite">{editingId ? '' : t('today.heartLine.progress', { current: new Intl.NumberFormat(locale).format(pressCount) })}</span>
+        <IconButton className={pressCount > 0 ? 'heart-line-card__heart heart-line-card__heart--active' : 'heart-line-card__heart'} ariaLabel={editingId ? t('today.heartLine.saveEdit') : t('today.heartLine.heart')} data-ritual-progress={pressCount} disabled={isSaving} onClick={submit}><span className="heart-line-card__heart-glyph" data-testid="heart-line-icon" aria-hidden="true">♥</span></IconButton>
       </div>
       <p className="mock-feedback" aria-live="polite">{feedback ? t(feedback.key, feedback.current === undefined ? undefined : { current: new Intl.NumberFormat(locale).format(feedback.current) }) : ''}</p>
       {persistence?.heartPhrases.length ? <ul className="heart-line-card__phrases">

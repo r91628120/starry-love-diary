@@ -19,11 +19,11 @@ const batch1Keys = [
   'today.title',
   'today.profile.meName', 'today.profile.partnerName', 'today.profile.meAlt', 'today.profile.partnerAlt',
   'today.starHeartValue', 'today.starHeartAria',
-  'today.dailyQuote', 'today.dayNumber', 'today.share', 'today.share.feedback',
+  'today.dailyQuote', 'today.dayNumber', 'today.share', 'today.share.feedback', 'today.share.shared', 'today.share.copied', 'today.share.error',
   'today.mood.title', 'today.mood.flutter', 'today.mood.happy', 'today.mood.peaceful', 'today.mood.miss', 'today.mood.uneasy', 'today.mood.sad', 'today.mood.rumination',
   'today.heartLine.title', 'today.heartLine.placeholder', 'today.heartLine.maxLength', 'today.heartLine.heart', 'today.heartLine.feedback', 'today.heartLine.progress', 'today.heartLine.limitReached', 'today.heartLine.error', 'today.heartLine.edit', 'today.heartLine.delete', 'today.heartLine.saveEdit',
-  'today.heartReveal.title', 'today.heartReveal.imageAlt', 'today.heartReveal.progress', 'today.heartReveal.availableToday', 'today.heartReveal.continue', 'today.heartReveal.feedback',
-  'today.upcomingImportantDate', 'today.upcoming.date', 'today.upcoming.event', 'today.upcoming.daysRemaining',
+  'today.heartReveal.title', 'today.heartReveal.description', 'today.heartReveal.imageAlt', 'today.heartReveal.progress', 'today.heartReveal.availableToday', 'today.heartReveal.continue', 'today.heartReveal.feedback',
+  'today.upcomingImportantDate', 'today.upcoming.date', 'today.upcoming.event', 'today.upcoming.daysRemaining', 'today.upcoming.empty', 'today.upcoming.add', 'today.upcoming.open',
 ] as const satisfies readonly TranslationKey[]
 
 const scopedRuntimeFiles = [

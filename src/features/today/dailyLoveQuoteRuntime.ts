@@ -1,4 +1,5 @@
 import { messages, type Locale } from '../../i18n/messages'
+import { shareText, type ShareTextResult, type ShareTextTarget } from '../../services/shareText'
 
 const DAYS_IN_CYCLE = 365
 const LOCAL_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/
@@ -36,19 +37,10 @@ export function formatDailyLoveQuoteDate(localDate: string, locale: Locale): str
   )
 }
 
-interface ShareTarget {
-  share?: (data: ShareData) => Promise<void>
-  clipboard?: { writeText(text: string): Promise<void> }
-}
-
-export async function shareDailyLoveQuote(text: string, title: string, target: ShareTarget = globalThis.navigator): Promise<boolean> {
-  if (target.share) {
-    await target.share({ title, text })
-    return true
-  }
-  if (target.clipboard) {
-    await target.clipboard.writeText(text)
-    return true
-  }
-  return false
+export async function shareDailyLoveQuote(text: string, title: string, target: ShareTextTarget = globalThis.navigator): Promise<ShareTextResult> {
+  // A Web Share failure is not a clipboard success. Clipboard is the fallback
+  // only when Web Share is unavailable, so a failed/cancelled native share
+  // cannot accidentally earn the daily award.
+  const quoteTarget = target.share ? { share: target.share } : target
+  return shareText(text, title, quoteTarget)
 }

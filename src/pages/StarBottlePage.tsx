@@ -14,9 +14,9 @@ export function StarBottlePage() {
   const { t } = useI18n()
   const [range, setRange] = useState<TimeRange>('today')
   const [search, setSearch] = useState('')
+  const [showAll, setShowAll] = useState(false)
   const persistence = usePersistence()
   const rangedStars = filterStarsByRange(persistence?.stars ?? [], range, toLocalDate())
-  const visibleStars = rangedStars.filter((star) => `${star.title ?? ''} ${star.content}`.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()))
 
   return (
     <div className="page star-bottle-page">
@@ -32,7 +32,17 @@ export function StarBottlePage() {
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
-        <StarEntryList entries={visibleStars} />
+        <StarEntryList
+          entries={rangedStars}
+          range={range}
+          search={search}
+          showAll={showAll}
+          onShowAll={() => {
+            setRange('all')
+            setShowAll(true)
+          }}
+          onShowRecent={() => setShowAll(false)}
+        />
       </main>
     </div>
   )

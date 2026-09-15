@@ -43,29 +43,38 @@ export function LoveBoatFlow({ onDone }: { onDone: () => void }) {
     if (draft.currentSection === 'A') {
       const questionKey = BOAT_A_KEYS[draft.currentQuestionIndex]
       const answers = { ...draft.aAnswers, [questionKey]: answer as BoatInvestmentAnswer }
-      const sectionDone = BOAT_A_KEYS.every((item) => answers[item] !== undefined)
-      const atEnd = draft.currentQuestionIndex === BOAT_A_KEYS.length - 1
       setDraft(await persistence.repositories.loveBoatAssessments.updateDraft(draft.id, {
         aAnswers: answers,
-        currentSection: atEnd && sectionDone ? 'B' : 'A',
-        currentQuestionIndex: atEnd && sectionDone ? 0 : Math.min(draft.currentQuestionIndex + 1, BOAT_A_KEYS.length - 1),
+        // Selecting an answer only saves that answer. Navigation always comes
+        // from the explicit Previous / Next controls below.
+        currentSection: 'A',
+        currentQuestionIndex: draft.currentQuestionIndex,
       }))
     } else if (draft.currentSection === 'B') {
       const questionKey = BOAT_B_KEYS[draft.currentQuestionIndex]
       const answers = { ...draft.bAnswers, [questionKey]: answer as BoatResponseAnswer }
-      const sectionDone = BOAT_B_KEYS.every((item) => answers[item] !== undefined)
-      const atEnd = draft.currentQuestionIndex === BOAT_B_KEYS.length - 1
       setDraft(await persistence.repositories.loveBoatAssessments.updateDraft(draft.id, {
         bAnswers: answers,
-        currentSection: atEnd && sectionDone ? 'result' : 'B',
-        currentQuestionIndex: atEnd ? draft.currentQuestionIndex : draft.currentQuestionIndex + 1,
+        currentSection: 'B',
+        currentQuestionIndex: draft.currentQuestionIndex,
       }))
     }
   }
 
   async function move(delta: number) {
     if (!persistence || !draft || draft.currentSection === 'result') return
-    const total = draft.currentSection === 'A' ? BOAT_A_KEYS.length : BOAT_B_KEYS.length
+    const isA = draft.currentSection === 'A'
+    const keys = isA ? BOAT_A_KEYS : BOAT_B_KEYS
+    const sectionComplete = keys.every((item) => (isA ? draft.aAnswers[item as typeof BOAT_A_KEYS[number]] : draft.bAnswers[item as typeof BOAT_B_KEYS[number]]) !== undefined)
+    const atEnd = draft.currentQuestionIndex === keys.length - 1
+    if (delta > 0 && atEnd) {
+      if (!sectionComplete) return
+      setDraft(await persistence.repositories.loveBoatAssessments.updateDraft(draft.id, isA
+        ? { currentSection: 'B', currentQuestionIndex: 0 }
+        : { currentSection: 'result', currentQuestionIndex: draft.currentQuestionIndex }))
+      return
+    }
+    const total = keys.length
     setDraft(await persistence.repositories.loveBoatAssessments.updateDraft(draft.id, { currentQuestionIndex: Math.max(0, Math.min(total - 1, draft.currentQuestionIndex + delta)) }))
   }
 
@@ -95,7 +104,7 @@ export function LoveBoatFlow({ onDone }: { onDone: () => void }) {
   </SoftCard>
   if (!draft) return <SoftCard className="clear-flow clear-intro" tone="blue">
     <SecondaryButton onClick={onDone}>{t('clear.home')}</SecondaryButton>
-    <h2>{t('clear.tools.boatGuide.title')}</h2><p>{t('clear.boat.intro')}</p>
+    <p>{t('clear.boat.intro')}</p>
     <PrimaryButton onClick={start}>{t('clear.boat.start')}</PrimaryButton>
   </SoftCard>
 
@@ -114,14 +123,14 @@ export function LoveBoatFlow({ onDone }: { onDone: () => void }) {
     <div className="clear-flow__top"><SecondaryButton onClick={onDone}>{t('clear.common.continueLater')}</SecondaryButton><span>{t('clear.common.progress', { current: draft.currentQuestionIndex + 1, total: questions.length })}</span></div>
     <SoftCard>
       <p className="clear-flow__eyebrow">{t(isA ? 'clear.boat.sectionA' : 'clear.boat.sectionB')}</p>
-      <h2>{t(key('clear.boat.q.' + question))}</h2>
+      <h2 id={`love-boat-question-${draft.currentSection}-${draft.currentQuestionIndex}`}>{t(key('clear.boat.q.' + question))}</h2>
       {!isA ? <p>{t('clear.boat.unknownHelp')}</p> : null}
-      <div className="clear-answer-list">{answerOptions.map((answer) => {
+      <div className="clear-answer-list" role="radiogroup" aria-labelledby={`love-boat-question-${draft.currentSection}-${draft.currentQuestionIndex}`}>{answerOptions.map((answer) => {
         const answerKey = isA ? 'clear.boat.answer.' + answer : 'clear.boat.response.' + answer
-        return <button type="button" key={answer} className={currentAnswer === answer ? 'is-active' : ''} aria-pressed={currentAnswer === answer} onClick={() => choose(answer)}>{t(key(answerKey))}</button>
+        return <button type="button" role="radio" key={answer} className={currentAnswer === answer ? 'is-active' : ''} aria-checked={currentAnswer === answer} onClick={() => choose(answer)}>{t(key(answerKey))}</button>
       })}</div>
     </SoftCard>
-    <div className="clear-flow__actions"><SecondaryButton onClick={() => move(-1)} disabled={draft.currentQuestionIndex === 0}>{t('clear.common.previous')}</SecondaryButton><SecondaryButton onClick={() => setOverview(!overview)}>{t('clear.common.overview')}</SecondaryButton><SecondaryButton onClick={() => move(1)} disabled={draft.currentQuestionIndex === questions.length - 1}>{t('clear.common.next')}</SecondaryButton></div>
+    <div className="clear-flow__actions"><SecondaryButton onClick={() => move(-1)} disabled={draft.currentQuestionIndex === 0}>{t('clear.common.previous')}</SecondaryButton><SecondaryButton onClick={() => setOverview(!overview)}>{t('clear.common.overview')}</SecondaryButton><SecondaryButton onClick={() => move(1)} disabled={draft.currentQuestionIndex === questions.length - 1 && !questions.every((item) => (isA ? draft.aAnswers[item as typeof BOAT_A_KEYS[number]] : draft.bAnswers[item as typeof BOAT_B_KEYS[number]]) !== undefined)}>{t('clear.common.next')}</SecondaryButton></div>
     {overview ? <SoftCard className="clear-overview"><h3>{t('clear.boat.sectionA')}</h3><QuestionGrid count={12} current={isA ? draft.currentQuestionIndex : -1} answered={(index) => draft.aAnswers[BOAT_A_KEYS[index]] !== undefined} onClick={(index) => jump('A', index)} /><h3>{t('clear.boat.sectionB')}</h3><QuestionGrid count={10} current={!isA ? draft.currentQuestionIndex : -1} answered={(index) => draft.bAnswers[BOAT_B_KEYS[index]] !== undefined} onClick={(index) => jump('B', index)} /></SoftCard> : null}
     <SecondaryButton onClick={() => setConfirmRestart(true)}>{t('clear.common.restart')}</SecondaryButton>
     <p>{t('clear.common.savedDraft')}</p>

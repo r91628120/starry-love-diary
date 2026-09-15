@@ -55,6 +55,7 @@ export const footprintsAssets = {
 
 export const ourAssets = {
   memoryWall: '/images/ui/our/our-memory-wall-v1.png',
+  memoryPlaceholder: '/images/ui/today/today-hero-couple-garden-cat-v1.png',
   frames: {
     vertical: '/images/ui/our/our-polaroid-vertical.png',
     horizontal: '/images/ui/our/our-polaroid-horizontal.png',
@@ -88,9 +89,9 @@ export const settingsAssets = {
   birthdayCake:'/images/ui/our/our-birthday-cake.png', metDate:'/images/ui/settings/settings-met-date-heart-calendar.png', anniversary:'/images/ui/settings/settings-anniversary-ribbon.png',
   camera:'/images/ui/settings/settings-camera-icon.png', memoryWall:'/images/ui/our/our-polaroid-square.png', moment:'/images/ui/settings/settings-our-moment-clock-heart.png', message:'/images/ui/our/our-message-edit-pencil.png',
   star:'/images/ui/settings/settings-diary-star.png', exportData:'/images/ui/settings/settings-export-document-download.png', backup:'/images/ui/settings/settings-backup-cloud-upload.png',
-  clearRecord:'/images/ui/settings/settings-clear-record-scroll.png', notification:'/images/ui/settings/settings-notification-bell.png', loveQuoteReminder:'/images/ui/settings/settings-love-quote-reminder.png', reminderClock:'/images/ui/settings/settings-reminder-time-clock.png',
+  clearRecord:'/images/ui/settings/settings-clear-record-scroll.png',
   language:'/images/ui/settings/settings-language-globe.png', privacy:'/images/ui/settings/settings-privacy-lock.png', photoPermission:'/images/ui/settings/settings-photo-permission-lock.png', notificationPermission:'/images/ui/settings/settings-notification-permission-lock.png', trash:'/images/ui/settings/settings-clear-relationship-trash.png',
-  info:'/images/ui/settings/settings-about-info.png', privacyPolicy:'/images/ui/settings/settings-privacy-policy-shield.png', terms:'/images/ui/settings/settings-terms-document.png', decorations:'/images/ui/settings/settings-bottom-decorations.png',
+  info:'/images/ui/settings/settings-about-info.png', privacyPolicy:'/images/ui/settings/settings-privacy-policy-shield.png', terms:'/images/ui/settings/settings-terms-document.png',
 } as const
 
 export const navigationAssets = {

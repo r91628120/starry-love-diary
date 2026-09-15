@@ -5,6 +5,7 @@ import { useI18n } from '../../i18n/I18nContext'
 import { usePersistence } from '../../data/PersistenceStateContext'
 import { toLocalDate } from '../../services/localDateService'
 import { formatDailyLoveQuoteDate, getDailyLoveQuote, getDailyLoveQuoteDayIndex, shareDailyLoveQuote } from './dailyLoveQuoteRuntime'
+import type { TranslationKey } from '../../i18n/messages'
 
 function useCurrentLocalDate(initialLocalDate: string) {
   const [currentLocalDate, setCurrentLocalDate] = useState(initialLocalDate)
@@ -28,7 +29,8 @@ function useCurrentLocalDate(initialLocalDate: string) {
 
 export function DailyLoveQuoteCard() {
   const { locale, t } = useI18n()
-  const [showFeedback, setShowFeedback] = useState(false)
+  const [feedbackKey, setFeedbackKey] = useState<TranslationKey>()
+  const [sharing, setSharing] = useState(false)
   const persistence = usePersistence()
   const currentLocalDate = useCurrentLocalDate(persistence?.currentLocalDate ?? toLocalDate())
   const activationDate = persistence?.settings.dailyLoveQuoteActivationDate ?? currentLocalDate
@@ -36,13 +38,21 @@ export function DailyLoveQuoteCard() {
   const quote = getDailyLoveQuote(locale, dayIndex)
 
   async function handleShare() {
+    if (sharing) return
+    setSharing(true)
+    setFeedbackKey(undefined)
     try {
-      const shared = await shareDailyLoveQuote(quote, t('today.dailyQuote'))
-      if (!shared) return
-      await persistence?.shareDailyQuote()
-      setShowFeedback(true)
+      const result = await shareDailyLoveQuote(`${quote}\n\n${t('app.brand')}`, t('today.dailyQuote'))
+      if (result === 'shared' || result === 'copied') {
+        await persistence?.shareDailyQuote()
+        setFeedbackKey(result === 'shared' ? 'today.share.shared' : 'today.share.copied')
+      } else if (result === 'error' || result === 'pending') {
+        setFeedbackKey('today.share.error')
+      }
     } catch {
-      // Closing the system share sheet is not an application error.
+      setFeedbackKey('today.share.error')
+    } finally {
+      setSharing(false)
     }
   }
 
@@ -55,8 +65,8 @@ export function DailyLoveQuoteCard() {
         <span>{t('today.dayNumber', { day: dayIndex })}</span>
       </div>
       <blockquote>{quote}</blockquote>
-      <PrimaryButton className="daily-love-quote__share" onClick={handleShare}><ShareIcon />{t('today.share')}</PrimaryButton>
-      <p className="mock-feedback" aria-live="polite">{showFeedback ? t('today.share.feedback') : ''}</p>
+      <PrimaryButton className="daily-love-quote__share" onClick={() => void handleShare()} disabled={sharing} aria-busy={sharing}><ShareIcon />{t('today.share')}</PrimaryButton>
+      <p className="mock-feedback" aria-live="polite">{feedbackKey ? t(feedbackKey) : ''}</p>
     </SoftCard>
   )
 }

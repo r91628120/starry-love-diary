@@ -83,7 +83,7 @@ export function OrganizeFeelingsFlow({ initialTrigger, onDone }: { initialTrigge
     <div className="clear-flow__top"><SecondaryButton onClick={onDone}>{t('clear.home')}</SecondaryButton><span>{t('clear.common.progress', { current: step, total: 6 })}</span></div>
     {step === 1 ? <SoftCard>
       <h2>{t('clear.organize.step1')}</h2><p>{t('clear.organize.step1Help')}</p>
-      <div className="clear-choice-grid">{triggerTypes.map((item) => <button type="button" key={item} className={form.triggerType === item ? 'is-active' : ''} aria-pressed={form.triggerType === item} onClick={() => setForm({ ...form, triggerType: item })}>{t(key('clear.organize.trigger.' + item))}</button>)}</div>
+      <div className="clear-choice-grid" role="radiogroup" aria-label={t('clear.organize.step1')}>{triggerTypes.map((item) => <button type="button" role="radio" key={item} className={form.triggerType === item ? 'is-active' : ''} aria-checked={form.triggerType === item} onClick={() => setForm({ ...form, triggerType: item })}>{t(key('clear.organize.trigger.' + item))}</button>)}</div>
       <label>{t('clear.organize.triggerText')}<textarea maxLength={300} value={form.triggerText} onChange={(event) => setForm({ ...form, triggerText: event.target.value })} /><span>{form.triggerText.length} / 300</span></label>
     </SoftCard> : null}
     {step === 2 ? <SoftCard>
@@ -95,18 +95,18 @@ export function OrganizeFeelingsFlow({ initialTrigger, onDone }: { initialTrigge
     {step === 3 ? <SoftCard>
       <h2>{t('clear.organize.step3')}</h2>
       <div className="clear-choice-grid">{emotions.map((item) => <button type="button" key={item} className={form.emotions.includes(item) ? 'is-active' : ''} aria-pressed={form.emotions.includes(item)} onClick={() => setForm({ ...form, emotions: toggle(form.emotions, item) })}>{t(key('clear.organize.emotion.' + item))}</button>)}</div>
-      <fieldset><legend>{t('clear.organize.intensity')}</legend><div className="clear-scale">{([1, 2, 3, 4, 5] as const).map((value) => <button type="button" key={value} className={form.emotionIntensity === value ? 'is-active' : ''} aria-pressed={form.emotionIntensity === value} onClick={() => setForm({ ...form, emotionIntensity: value })}>{value}</button>)}</div></fieldset>
+      <fieldset><legend>{t('clear.organize.intensity')}</legend><div className="clear-scale" role="radiogroup">{([1, 2, 3, 4, 5] as const).map((value) => <button type="button" role="radio" key={value} className={form.emotionIntensity === value ? 'is-active' : ''} aria-checked={form.emotionIntensity === value} onClick={() => setForm({ ...form, emotionIntensity: value })}>{value}</button>)}</div></fieldset>
       <h3>{t('clear.organize.body')}</h3><div className="clear-choice-grid">{bodySensations.map((item) => <button type="button" key={item} className={form.bodySensations.includes(item) ? 'is-active' : ''} aria-pressed={form.bodySensations.includes(item)} onClick={() => setForm({ ...form, bodySensations: toggle(form.bodySensations, item) })}>{t(key('clear.organize.body.' + item))}</button>)}</div>
     </SoftCard> : null}
     {step === 4 ? <SoftCard>
       <h2>{t('clear.organize.step4')}</h2><p>{t('clear.organize.step4Help')}</p>
-      <div className="clear-observations">{observationKeys.map((item) => <label key={item}>{t(key('clear.organize.observation.' + item))}<select value={form.observations[item] ?? ''} onChange={(event) => setForm({ ...form, observations: { ...form.observations, [item]: event.target.value || undefined } })}><option value="" /><option value="yes">{t('clear.organize.answer.yes')}</option><option value="no">{t('clear.organize.answer.no')}</option><option value="unknown">{t('clear.organize.answer.unknown')}</option></select></label>)}</div>
+      <div className="clear-observations">{observationKeys.map((item) => <label key={item}>{t(key('clear.organize.observation.' + item))}<span className="clear-select-control"><select className={form.observations[item] ? 'is-selected' : ''} value={form.observations[item] ?? ''} onChange={(event) => setForm({ ...form, observations: { ...form.observations, [item]: event.target.value || undefined } })}><option value="" /><option value="yes">{t('clear.organize.answer.yes')}</option><option value="no">{t('clear.organize.answer.no')}</option><option value="unknown">{t('clear.organize.answer.unknown')}</option></select>{form.observations[item] ? <span className="clear-select-control__indicator" aria-hidden="true">✓</span> : null}</span></label>)}</div>
     </SoftCard> : null}
     {step === 5 ? <SoftCard>
       <h2>{t('clear.organize.step5')}</h2><h3>{t('clear.organize.needs')}</h3>
       <div className="clear-choice-grid">{needs.map((item) => <button type="button" key={item} className={form.needs.includes(item) ? 'is-active' : ''} aria-pressed={form.needs.includes(item)} onClick={() => setForm({ ...form, needs: toggle(form.needs, item) })}>{t(key('clear.organize.need.' + item))}</button>)}</div>
       <h3>{t('clear.organize.action')}</h3>
-      <div className="clear-choice-grid">{actions.map((item) => <button type="button" key={item} className={form.nextActionType === item ? 'is-active' : ''} aria-pressed={form.nextActionType === item} onClick={() => setForm({ ...form, nextActionType: item })}>{t(key('clear.organize.action.' + item))}</button>)}</div>
+      <div className="clear-choice-grid" role="radiogroup" aria-label={t('clear.organize.action')}>{actions.map((item) => <button type="button" role="radio" key={item} className={form.nextActionType === item ? 'is-active' : ''} aria-checked={form.nextActionType === item} onClick={() => setForm({ ...form, nextActionType: item })}>{t(key('clear.organize.action.' + item))}</button>)}</div>
       {form.nextActionType === 'custom' ? <label>{t('clear.organize.customAction')}<textarea maxLength={150} value={form.nextActionText} onChange={(event) => setForm({ ...form, nextActionText: event.target.value })} /><span>{form.nextActionText.length} / 150</span></label> : null}
     </SoftCard> : null}
     {step === 6 ? <SoftCard tone="blue">

@@ -1,39 +1,47 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ourAssets } from '../../assets/uiAssets'
 import { ConfirmDialog, PrimaryButton, SecondaryButton, SectionHeader, SoftCard } from '../../components'
+import { MESSAGE_TO_YOU_TYPES, type MessageToYouEntry, type MessageToYouType } from '../../data/types'
 import { usePersistence } from '../../data/PersistenceStateContext'
 import { useI18n } from '../../i18n/I18nContext'
+import type { TranslationKey } from '../../i18n/messages'
+import { HEART_CARD_MAX_CHARS, renderHeartCardPng } from '../../services/heartCardRenderer'
+import { downloadHeartCardImage, shareHeartCardImage } from '../../services/heartCardShare'
+import { formatOurNumber, getOurValidationKey } from './ourFormatters'
+import './messageCard.css'
 
-export function MessageCard() {
-  const { t } = useI18n()
-  const persistence = usePersistence()
-  const persistedContent = persistence?.messageToYou?.content ?? ''
-  const [draft, setDraft] = useState(persistedContent)
-  const [editing, setEditing] = useState(false)
-  const [confirming, setConfirming] = useState(false)
-  const [feedback, setFeedback] = useState('')
+const icons: Record<MessageToYouType,string> = { miss_you:'💗', thank_you:'🌷', sorry:'🥺', dont_be_mad:'😂', tell_you:'💬', invite_out:'💌', free_message:'✨' }
+type Range = 'month'|'year'|'all'
+const count=(value:string)=>[...value].length
+const typeKey=(type:MessageToYouType)=>`messageV1.type.${type}` as TranslationKey
+const hintKey=(type:MessageToYouType)=>`messageV1.hint.${type}` as TranslationKey
+function dateText(value:string,locale:string,monthOnly=false){const [y,m,d]=value.split('-').map(Number);return new Intl.DateTimeFormat(locale,monthOnly?{year:'numeric',month:'long',timeZone:'UTC'}:{year:'numeric',month:'2-digit',day:'2-digit',timeZone:'UTC'}).format(new Date(Date.UTC(y,m-1,d||1)))}
 
-  useEffect(() => { setDraft(persistedContent) }, [persistedContent])
+export function MessageCard(){
+ const {locale,t}=useI18n(), persistence=usePersistence()
+ const entries=persistence?.messageToYouEntries
+ const [view,setView]=useState<'compose'|'saved'|'history'|'detail'|'card'>('compose'),[type,setType]=useState<MessageToYouType>('free_message'),[draft,setDraft]=useState(''),[selected,setSelected]=useState<MessageToYouEntry>(),[range,setRange]=useState<Range>('all'),[typeFilter,setTypeFilter]=useState<MessageToYouType>(),[confirming,setConfirming]=useState(false),[preview,setPreview]=useState<Blob>(),[previewUrl,setPreviewUrl]=useState<string>(),[feedback,setFeedback]=useState<TranslationKey>(),[busy,setBusy]=useState(false)
+ useEffect(()=>{if(!preview){setPreviewUrl(undefined);return}const url=URL.createObjectURL(preview);setPreviewUrl(url);return()=>URL.revokeObjectURL(url)},[preview])
+ const dated=useMemo(()=> (entries??[]).filter(e=>range==='all'||(range==='year'?e.localDate.slice(0,4)===persistence?.currentLocalDate.slice(0,4):e.localDate.slice(0,7)===persistence?.currentLocalDate.slice(0,7))),[entries,range,persistence?.currentLocalDate])
+ const filtered=useMemo(()=>dated.filter(e=>!typeFilter||e.type===typeFilter),[dated,typeFilter]); const counts=useMemo(()=>Object.fromEntries(MESSAGE_TO_YOU_TYPES.map(key=>[key,dated.filter(e=>e.type===key).length])) as Record<MessageToYouType,number>,[dated])
+ const clearComposerEmptyError=()=>setFeedback(current=>current==='our.message.emptyRequired'?undefined:current)
+ const save=async()=>{if(!persistence||!draft.trim()){setFeedback('our.message.emptyRequired');return}clearComposerEmptyError();try{const entry=selected?await persistence.updateMessageToYouEntry(selected.id,{type,content:draft}):await persistence.createMessageToYouEntry({type,content:draft});setSelected(entry);setDraft(entry.content);setView('saved');setFeedback(undefined)}catch(error){setFeedback(getOurValidationKey(error))}}
+ const open=(entry:MessageToYouEntry)=>{clearComposerEmptyError();setSelected(entry);setType(entry.type);setDraft(entry.content);setView('detail')}
+ const makeCard=async()=>{if(!selected)return;setBusy(true);try{setPreview(await renderHeartCardPng([...selected.content].slice(0,HEART_CARD_MAX_CHARS).join(''),{title:`${icons[selected.type]} ${t(typeKey(selected.type))}`,brand:t('app.brand'),locale}));setView('card')}catch{setFeedback('heartCard.generateError')}finally{setBusy(false)}}
+ const share=async()=>{if(!preview)return;setBusy(true);const result=await shareHeartCardImage(preview);if(result==='unsupported')downloadHeartCardImage(preview);else if(result==='error')setFeedback('heartCard.shareError');setBusy(false)}
+ return <SoftCard className="our-message"><SectionHeader title={t('our.message.title')} icon={<img src={ourAssets.message.edit} alt=""/>}/>
+ {view==='compose'?<section className="message-v1-editor"><h3>{t('messageV1.prompt')}</h3><div className="message-v1-types" role="radiogroup" aria-label={t('messageV1.choose')}>{MESSAGE_TO_YOU_TYPES.map(key=><button type="button" role="radio" aria-checked={type===key} className={type===key?'is-selected':''} key={key} onClick={()=>setType(key)}><span aria-hidden="true">{icons[key]}</span><span>{t(typeKey(key))}</span></button>)}</div><p className="message-v1-hint">{t(hintKey(type))}</p><label className="sr-only" htmlFor="message-to-you-editor">{t('messageV1.content')}</label><textarea id="message-to-you-editor" maxLength={300} value={draft} onChange={e=>{setDraft(e.target.value);if(e.target.value.trim())clearComposerEmptyError()}} placeholder={t('messageV1.content')}/><span className="our-message__count">{t('our.message.characterCount',{current:formatOurNumber(count(draft),locale),max:formatOurNumber(300,locale)})}</span><div className="our-message__actions"><PrimaryButton onClick={()=>void save()}>{selected?t('messageV1.saveEdit'):t('messageV1.save')}</PrimaryButton><SecondaryButton onClick={()=>{clearComposerEmptyError();setView('history')}}>{t('messageV1.history')}</SecondaryButton></div></section>:null}
+ {view==='saved'&&selected?<section className="message-v1-result"><p>{t('messageV1.saved')}</p><article><strong>{icons[selected.type]} {t(typeKey(selected.type))}</strong><p>{selected.content}</p></article><div className="our-message__actions"><PrimaryButton onClick={()=>void makeCard()}>{t('messageV1.card')}</PrimaryButton><SecondaryButton onClick={()=>{setSelected(undefined);setDraft('');clearComposerEmptyError();setView('compose')}}>{t('messageV1.done')}</SecondaryButton><SecondaryButton onClick={()=>{clearComposerEmptyError();setView('history')}}>{t('messageV1.history')}</SecondaryButton></div></section>:null}
+ {view==='history'?<section className="message-v1-history"><h3>{t('messageV1.historyTitle',{count:formatOurNumber(dated.length,locale)})}</h3><div className="message-v1-filters">{(['month','year','all'] as Range[]).map(key=><button type="button" aria-pressed={range===key} onClick={()=>setRange(key)} key={key}>{t(`messageV1.${key}` as TranslationKey)}</button>)}</div><div className="message-v1-stats"><button type="button" aria-pressed={!typeFilter} onClick={()=>setTypeFilter(undefined)}>{t('messageV1.all')} <strong>{dated.length}</strong></button>{MESSAGE_TO_YOU_TYPES.map(key=><button type="button" aria-pressed={typeFilter===key} onClick={()=>setTypeFilter(typeFilter===key?undefined:key)} key={key}>{icons[key]} {t(typeKey(key))} <strong>{counts[key]}</strong></button>)}</div><p className="message-v1-note">{t('messageV1.note')}</p><HistoryByYear entries={filtered} locale={locale} t={t} onOpen={open}/>{!filtered.length?<p>{t('messageV1.empty')}</p>:null}<SecondaryButton onClick={()=>{setSelected(undefined);setDraft('');clearComposerEmptyError();setView('compose')}}>{t('messageV1.back')}</SecondaryButton></section>:null}
+ {view==='detail'&&selected?<section className="message-v1-detail"><strong>{icons[selected.type]} {t(typeKey(selected.type))}</strong><time>{dateText(selected.localDate,locale)}</time><p>{selected.content}</p><div className="our-message__actions"><SecondaryButton onClick={()=>setView('history')}>{t('common.back')}</SecondaryButton><SecondaryButton onClick={()=>setView('compose')}>{t('messageV1.edit')}</SecondaryButton><PrimaryButton onClick={()=>void makeCard()}>{t('messageV1.card')}</PrimaryButton><SecondaryButton onClick={()=>setConfirming(true)}>{t('messageV1.delete')}</SecondaryButton></div></section>:null}
+ {view==='card'&&selected?<section className="heart-card-composer" aria-label={t('messageV1.card')}>{previewUrl?<img className="heart-card-composer__preview" src={previewUrl} alt={t('heartCard.previewLabel')}/>:null}<div className="heart-card-composer__actions"><SecondaryButton onClick={()=>setView('detail')}>{t('common.back')}</SecondaryButton><SecondaryButton onClick={()=>preview&&downloadHeartCardImage(preview)}>{t('heartCard.saveImage')}</SecondaryButton><PrimaryButton disabled={busy} onClick={()=>void share()}>{t('heartCard.shareImage')}</PrimaryButton></div></section>:null}
+ {feedback?<p className="mock-feedback" aria-live="polite">{t(feedback)}</p>:null}<ConfirmDialog open={confirming} title={t('messageV1.deleteTitle')} description={t('messageV1.deleteBody')} onCancel={()=>setConfirming(false)} onConfirm={()=>{if(selected&&persistence)void persistence.deleteMessageToYouEntry(selected.id).then(()=>{setSelected(undefined);setView('history')});setConfirming(false)}}/></SoftCard>
+}
 
-  const save = async () => {
-    if (!persistence) return
-    try {
-      await persistence.saveMessageToYou(draft)
-      setEditing(false)
-      setFeedback(t('our.actions.saved'))
-    } catch (caught) {
-      setFeedback(caught instanceof Error ? caught.message : t('our.validation.generic'))
-    }
-  }
-
-  return <SoftCard className="our-message"><SectionHeader title={t('our.message.title')} icon={<img src={ourAssets.message.edit} alt="" />} />
-    {editing ? <textarea aria-label={t('our.message.editLabel')} aria-invalid={[...draft].length > 300} value={draft} onChange={(event) => setDraft(event.target.value)} /> : <p>{persistedContent || t('our.message.empty')}</p>}
-    <span className="our-message__count">{t('our.message.characterCount', { current: [...draft].length, max: 300 })}</span>
-    <div className="our-message__actions">
-      {editing ? <><SecondaryButton onClick={() => { setDraft(persistedContent); setEditing(false); setFeedback('') }}>{t('common.cancel')}</SecondaryButton><PrimaryButton onClick={() => void save()}>{t('our.actions.save')}</PrimaryButton></> : <SecondaryButton onClick={() => { setDraft(persistedContent); setEditing(true); setFeedback('') }}>{t(persistedContent ? 'our.message.edit' : 'our.actions.add')}</SecondaryButton>}
-      {persistedContent ? <SecondaryButton onClick={() => setConfirming(true)}>{t('our.message.clear')}</SecondaryButton> : null}
-      <PrimaryButton onClick={() => setFeedback(t('our.message.shareFeedback'))}>{t('our.message.share')}</PrimaryButton>
-    </div><p className="mock-feedback" aria-live="polite">{feedback}</p>
-    <ConfirmDialog open={confirming} title={t('our.message.clearConfirmTitle')} description={t('our.message.clearConfirmBody')} onCancel={() => setConfirming(false)} onConfirm={() => { if (persistence) void persistence.clearMessageToYou(); setConfirming(false); setEditing(false); setFeedback('') }} />
-  </SoftCard>
+function HistoryByYear({entries,locale,t,onOpen}:{entries:MessageToYouEntry[];locale:string;t:(key:TranslationKey,values?:Record<string,string|number>)=>string;onOpen:(entry:MessageToYouEntry)=>void}){
+ const groups=useMemo(()=>entries.reduce<Record<string,Record<string,MessageToYouEntry[]>>>((years,entry)=>{const year=entry.localDate.slice(0,4),month=entry.localDate.slice(0,7);(years[year]??={})[month]??=[];years[year][month].push(entry);return years},{}),[entries])
+ const newestYear=Object.keys(groups).sort().reverse()[0],newestMonth=newestYear?Object.keys(groups[newestYear]).sort().reverse()[0]:undefined
+ const [openYears,setOpenYears]=useState(()=>new Set(newestYear?[newestYear]:[])),[openMonths,setOpenMonths]=useState(()=>new Set(newestMonth?[newestMonth]:[]))
+ const toggle=(setter:React.Dispatch<React.SetStateAction<Set<string>>>,id:string)=>setter(current=>{const next=new Set(current);if(next.has(id)) next.delete(id);else next.add(id);return next})
+ return <div className="message-v1-groups">{Object.keys(groups).sort().reverse().map(year=>{const yearOpen=openYears.has(year),months=groups[year],yearCount=Object.values(months).flat().length;return <section className="message-v1-year" key={year}><button type="button" className="message-v1-year__toggle" aria-expanded={yearOpen} aria-controls={`message-year-${year}`} onClick={()=>toggle(setOpenYears,year)}><span>{year}</span><span>{t('messageV1.entryCount',{count:yearCount})}</span><span aria-hidden="true">⌄</span></button>{yearOpen?<div className="message-v1-year__months" id={`message-year-${year}`}>{Object.keys(months).sort().reverse().map(month=>{const expanded=openMonths.has(month);return <section key={month}><button type="button" className="message-v1-month" aria-expanded={expanded} aria-controls={`message-${month}`} onClick={()=>toggle(setOpenMonths,month)}>{dateText(`${month}-01`,locale,true)} · {months[month].length}</button>{expanded?<div id={`message-${month}`}>{months[month].map(entry=><button type="button" className="message-v1-row" onClick={()=>onOpen(entry)} key={entry.id}><span>{icons[entry.type]} {t(typeKey(entry.type))}</span><time>{dateText(entry.localDate,locale)}</time><small>{entry.content}</small></button>)}</div>:null}</section>})}</div>:null}</section>})}</div>
 }

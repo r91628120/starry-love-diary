@@ -1,0 +1,79 @@
+.heart-reveal-photo-page__content {
+  width: min(100%, 720px);
+  margin-inline: auto;
+}
+
+.heart-reveal-photo-editor {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+  padding: clamp(18px, 4vw, 28px);
+  border: 2px solid rgba(229, 179, 91, .42);
+  border-radius: 26px;
+  background: rgba(255, 253, 244, .94);
+  box-shadow: 0 14px 34px rgba(106, 79, 44, .1);
+}
+
+.heart-reveal-photo-editor header,
+.heart-reveal-photo-editor header p { min-width: 0; margin: 0; }
+.heart-reveal-photo-editor header { display: grid; gap: 8px; }
+.heart-reveal-photo-editor header h2 { margin: 0; color: #715735; overflow-wrap: anywhere; }
+.heart-reveal-photo-editor header p { color: #786b5c; line-height: 1.65; overflow-wrap: anywhere; }
+
+.heart-reveal-photo-editor__empty {
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+  padding: 34px 16px;
+  border: 2px dashed rgba(210, 172, 104, .48);
+  border-radius: 20px;
+  color: #88745b;
+  text-align: center;
+}
+
+.heart-reveal-photo-editor__preview {
+  display: block;
+  width: min(100%, 520px);
+  min-width: 0;
+  margin-inline: auto;
+  padding: 8px;
+  border: 3px solid transparent;
+  border-radius: 24px;
+  background: rgba(255, 247, 221, .8);
+  touch-action: auto;
+}
+
+.heart-reveal-photo-editor__preview.is-editing {
+  border-color: #d69a44;
+  box-shadow: 0 0 0 4px rgba(240, 191, 104, .23);
+  cursor: grab;
+  touch-action: none;
+}
+.heart-reveal-photo-editor__preview.is-editing:active { cursor: grabbing; }
+
+.heart-reveal-photo-editor__actions,
+.heart-reveal-photo-editor__controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.heart-reveal-photo-editor__actions .button,
+.heart-reveal-photo-editor__controls .button {
+  min-width: 0;
+  white-space: normal;
+}
+
+.heart-reveal-photo-editor .button--danger {
+  border: 1px solid #d9938d;
+  background: #fff5f3;
+  color: #9b4d4a;
+}
+
+@media (max-width: 432px) {
+  .heart-reveal-photo-editor { padding: 16px; border-radius: 20px; }
+  .heart-reveal-photo-editor__actions .button,
+  .heart-reveal-photo-editor__controls .button { flex: 1 1 128px; }
+}

@@ -8,20 +8,21 @@ interface PageHeaderProps {
   titleKey: TranslationKey
   variant?: 'main' | 'secondary'
   brandOnly?: boolean
+  backFallback?: string
 }
 
 interface SettingsLocationState {
   from?: string
 }
 
-export function PageHeader({ titleKey, variant = 'main', brandOnly = false }: PageHeaderProps) {
+export function PageHeader({ titleKey, variant = 'main', brandOnly = false, backFallback = '/today' }: PageHeaderProps) {
   const { t } = useI18n()
   const location = useLocation()
   const navigate = useNavigate()
   const settingsState = location.state as SettingsLocationState | null
 
   const openSettings = () => navigate('/settings', { state: { from: location.pathname } })
-  const goBack = () => navigate(settingsState?.from ?? '/today', { replace: true })
+  const goBack = () => navigate(settingsState?.from ?? backFallback, { replace: true })
 
   return (
     <header className={`page-header page-header--${variant} ${brandOnly ? 'page-header--brand-only' : ''}`.trim()}>
