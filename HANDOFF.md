@@ -4,7 +4,7 @@
 
 Version: 0.1.1
 Platform: iOS / Android
-Stage: PRE-CAPACITOR MOBILE PREPARATION / REAL DEVICE QA PENDING
+Stage: CAPACITOR NATIVE BOOTSTRAP COMPLETE / REAL DEVICE QA PENDING
 
 ## Completed
 
@@ -27,6 +27,15 @@ Migration: No new migration for 0.1.1
 - Store links: empty URLs do not open a link; the notice keeps only the defer action.
 - Fetch/config failure: ignored safely, so app startup continues.
 - Policy: soft update only; users can defer for the current app session.
+
+## Capacitor Native Bootstrap
+
+- Capacitor: core, CLI, Android, and iOS are all `8.5.2`.
+- App identity: `com.miracle.starrylovediary` / `星星戀愛日記`.
+- Bundled web directory: `dist`; no localhost or remote development server is configured.
+- Android: project generated and `npx cap sync` passed. A debug build was not run because this Windows environment has no configured Android SDK path.
+- iOS: project generated and `npx cap sync` passed. Xcode, CocoaPods/SPM runtime validation, simulator, and device builds require macOS.
+- Native permissions: no additional native permissions or plugins were added. Photo picker, share/download, import/export, safe-area, Android back behavior, and update notice require real-device QA before product release.
 
 ## REAL DEVICE QA — iOS
 
@@ -52,7 +61,8 @@ Migration: No new migration for 0.1.1
 
 ## Known Risks
 
-- This repository does not yet contain Capacitor configuration or generated iOS/Android projects, so native version fields, store-link execution, and native builds still require platform setup.
+- Android SDK tooling is not configured in this Windows environment, so an Android debug build remains pending.
+- iOS build and runtime validation require macOS/Xcode.
 - Store URLs are intentionally empty until official listings exist.
 - Real-device visual, permission, share-sheet, and safe-area validation remains outstanding.
 

@@ -39,3 +39,15 @@ ios/DerivedData/
 ios/App/build/
 *.xcuserstate
 xcuserdata/
+
+# Native signing credentials
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.p8
+*.mobileprovision
+*.cer
+*.crt
+*.pem
+*.key
