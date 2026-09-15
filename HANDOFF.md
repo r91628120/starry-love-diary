@@ -2,7 +2,9 @@
 
 ## Current Release Candidate
 
-Version: 0.1.1
+Web/package version: 0.1.1
+iOS candidate marketing version: 1.0.0
+iOS candidate build: 1
 Platform: iOS / Android
 Stage: CAPACITOR NATIVE BOOTSTRAP COMPLETE / REAL DEVICE QA PENDING
 
@@ -39,7 +41,7 @@ Migration: No new migration for 0.1.1
 
 ## App Icon Native Integration V1
 
-- Official master: `assets/branding/app-icon/starry-love-diary-app-icon-ios-1024.png` (checkpoint candidate; not yet staged or committed).
+- Official master: `assets/branding/app-icon/starry-love-diary-app-icon-ios-1024.png` (tracked in checkpoint `a95f8911b3da0a7278d62805dd1b01296847b30e`).
 - Master SHA-256: `08948834af2d3d2175654874a892773039fd69143b5bcc02585621cf95a2640e`; identical before and after integration. Original pixels and metadata are preserved.
 - Master format: 1024 x 1024, 8-bit RGB PNG, fully opaque, no visible text.
 - iOS: replaced the existing universal 1024 AppIcon image; retained the existing Contents.json schema and filename. Output is pixel-identical to the master, fully opaque, with no added rounding.
@@ -50,7 +52,23 @@ Migration: No new migration for 0.1.1
 - Validation: 62 test files / 542 tests passed; build and lint passed (build reports a chunk-size warning). Both Capacitor sync commands passed; all 16 native PNG hashes were unchanged by sync. Static PNG dimensions, iOS opacity, resource references and Android safe-zone checks passed.
 - Xcode runtime validation: PENDING macOS CI.
 - Android real-device icon validation: PENDING, including launcher masks, scaling and icon caching. iOS home-screen small-size/mask QA is also pending.
-- TestFlight upload: NOT performed. No workflow, signing, version or app identity changes. Commit and push have not been performed.
+- Icon checkpoint: `a95f8911b3da0a7278d62805dd1b01296847b30e`. No workflow, signing, version or app identity changes were included in that checkpoint. Push and TestFlight upload have not been performed.
+
+## iOS 1.0.0 Build 1 Release Identity
+
+- First iOS/TestFlight candidate: `MARKETING_VERSION = 1.0.0` and `CURRENT_PROJECT_VERSION = 1` in both App target Debug and Release configurations. Xcode build settings remain the source of truth.
+- Info.plist resolves `CFBundleIdentifier` from `$(PRODUCT_BUNDLE_IDENTIFIER)`, `CFBundleShortVersionString` from `$(MARKETING_VERSION)`, and `CFBundleVersion` from `$(CURRENT_PROJECT_VERSION)`; no duplicate version literals are added.
+- Display name remains `星星戀愛日記`. `CFBundleName` uses `$(PRODUCT_NAME)`, and `PRODUCT_NAME` uses `$(TARGET_NAME)`; target and product remain `App`.
+- Web/package and package-lock versions remain `0.1.1`; IndexedDB remains schema v5. Android versions and all icon artwork remain unchanged.
+- Expected scheme: `App`. No explicit .xcscheme is present; scheme availability and resolved build settings must be verified with Xcode on macOS CI. This Windows preparation does not validate an archive or IPA.
+
+### Future TestFlight Workflow Identity Gates
+
+- Required project: `ios/App/App.xcodeproj`; scheme: `App`; configuration: `Release`.
+- Required bundle ID: `com.miracle.starrylovediary`; marketing version: `1.0.0`; build: `1`.
+- Before building, verify the project/scheme exists and resolved Release build settings match these exact values. Fail on missing or mismatched values.
+- Before any upload, validate both the archived app Info.plist and the exported IPA app Info.plist: `CFBundleIdentifier = com.miracle.starrylovediary`, `CFBundleShortVersionString = 1.0.0`, and `CFBundleVersion = 1`. Missing metadata or any mismatch MUST fail before upload.
+- No GitHub Actions workflow or Secrets are created in this phase. No staging, commit, push or TestFlight upload is performed for this identity preparation. Native runtime and real-device QA remain pending.
 
 ## REAL DEVICE QA — iOS
 
@@ -83,4 +101,4 @@ Migration: No new migration for 0.1.1
 
 ## Release Rule
 
-Consider 1.0.0 only after the primary iOS and Android real-device flows are complete.
+The iOS 1.0.0 (1) identity is reserved for the first TestFlight candidate; it does not indicate completed QA or public-release approval. Public release remains gated on completion of the primary iOS and Android real-device flows.
