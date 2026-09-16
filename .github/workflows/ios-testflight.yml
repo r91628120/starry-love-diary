@@ -1,0 +1,356 @@
+name: Starry Love Diary iOS TestFlight
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Source ref or immutable commit to build
+        required: true
+        default: main
+        type: string
+      upload_to_testflight:
+        description: Explicitly authorize the final TestFlight upload
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: starry-ios-testflight-${{ inputs.ref }}
+  cancel-in-progress: false
+
+jobs:
+  testflight:
+    runs-on: macos-15
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    env:
+      IOS_BUNDLE_ID: ${{ vars.IOS_BUNDLE_ID }}
+      IOS_SCHEME: ${{ vars.IOS_SCHEME }}
+      APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+    steps:
+      - name: Checkout requested ref
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+
+      - name: Validate variables and prepare temporary directory
+        run: |
+          set -euo pipefail
+          export CI_DIR="$RUNNER_TEMP/starry-ios-testflight"
+          echo "CI_DIR=$CI_DIR" >> "$GITHUB_ENV"
+          for key in IOS_BUNDLE_ID IOS_SCHEME APPLE_TEAM_ID; do
+            if [[ -z "${!key}" ]]; then echo "Missing variable: $key"; exit 1; fi
+          done
+          [[ "$IOS_BUNDLE_ID" == com.miracle.starrylovediary ]]
+          [[ "$IOS_SCHEME" == App ]]
+          [[ "$APPLE_TEAM_ID" == DJC6HMC9D5 ]]
+          [[ "$(git rev-parse HEAD)" == "${{ inputs.ref }}" || "${{ inputs.ref }}" == main ]]
+          umask 077
+          mkdir -p "$CI_DIR"
+
+      - name: Discover and select installed stable Xcode 26
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import pathlib, plistlib, re, subprocess
+          candidates = []
+          for app in sorted(pathlib.Path('/Applications').glob('Xcode*.app')):
+              with (app / 'Contents/version.plist').open('rb') as f:
+                  version = plistlib.load(f).get('CFBundleShortVersionString', '')
+              print(f'Installed: {app.name} ({version})')
+              if re.fullmatch(r'26(?:\.\d+){1,2}', version) and not re.search(r'beta|rc', app.name, re.I):
+                  candidates.append((tuple(map(int, version.split('.'))), str(app / 'Contents/Developer')))
+          if not candidates:
+              raise SystemExit('No supported stable Xcode 26.x installed')
+          subprocess.run(['sudo', 'xcode-select', '-s', max(candidates)[1]], check=True)
+          PY
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+          swift --version
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate web and Capacitor source
+        run: |
+          set -euo pipefail
+          node --input-type=module - <<'JS'
+          import fs from 'node:fs';
+          import assert from 'node:assert/strict';
+          const read = p => JSON.parse(fs.readFileSync(p, 'utf8'));
+          assert.equal(read('package.json').version, '0.1.1');
+          for (const name of ['core', 'cli', 'ios', 'android']) {
+            assert.equal(read(`node_modules/@capacitor/${name}/package.json`).version, '8.5.2');
+          }
+          JS
+          npm test
+          npm run build
+          npm run lint
+          test -f dist/index.html
+          npx --no-install cap sync ios
+          python3 - <<'PY'
+          import hashlib, json, pathlib, plistlib
+          root = pathlib.Path('.')
+          config = json.loads((root / 'ios/App/App/capacitor.config.json').read_text())
+          assert config['appId'] == 'com.miracle.starrylovediary'
+          assert config['webDir'] == 'dist' and not config.get('server')
+          assert (root / 'ios/App/App.xcodeproj/project.pbxproj').is_file()
+          master = root / 'assets/branding/app-icon/starry-love-diary-app-icon-ios-1024.png'
+          assert hashlib.sha256(master.read_bytes()).hexdigest() == '08948834af2d3d2175654874a892773039fd69143b5bcc02585621cf95a2640e'
+          info = plistlib.loads((root / 'ios/App/App/Info.plist').read_bytes())
+          assert info['CFBundleShortVersionString'] == '$(MARKETING_VERSION)'
+          assert info['CFBundleVersion'] == '$(CURRENT_PROJECT_VERSION)'
+          PY
+          git diff --exit-code -- ios/App/App/Assets.xcassets ios/App/App.xcodeproj/project.pbxproj ios/App/App/Info.plist
+
+      - name: Discover scheme and validate resolved Release settings
+        run: |
+          set -euo pipefail
+          xcodebuild -list -json -project ios/App/App.xcodeproj > "$CI_DIR/project.json"
+          xcodebuild archive -project ios/App/App.xcodeproj -scheme "$IOS_SCHEME" \
+            -configuration Release -destination 'generic/platform=iOS' \
+            -showBuildSettings -json > "$CI_DIR/settings.json"
+          python3 - <<'PY'
+          import json, os, pathlib
+          work = pathlib.Path(os.environ['CI_DIR'])
+          project = json.loads((work / 'project.json').read_text())['project']
+          assert 'App' in project.get('schemes', []) and 'App' in project.get('targets', [])
+          rows = json.loads((work / 'settings.json').read_text())
+          settings = [r['buildSettings'] for r in rows if r.get('target') == 'App']
+          assert len(settings) == 1
+          expected = {'PRODUCT_BUNDLE_IDENTIFIER': 'com.miracle.starrylovediary',
+                      'MARKETING_VERSION': '1.0.0', 'CURRENT_PROJECT_VERSION': '1',
+                      'PRODUCT_NAME': 'App', 'CONFIGURATION': 'Release',
+                      'WRAPPER_EXTENSION': 'app', 'SKIP_INSTALL': 'NO'}
+          for key, value in expected.items():
+              assert settings[0].get(key) == value, f'Resolved setting mismatch: {key}'
+          print('Resolved Release identity and installable App target: PASS')
+          PY
+
+      - name: Validate and install temporary signing materials
+        env:
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+          IOS_DISTRIBUTION_CERTIFICATE_BASE64: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_BASE64 }}
+          IOS_DISTRIBUTION_CERTIFICATE_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_PASSWORD }}
+          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          set -euo pipefail
+          umask 077
+          missing=0
+          for key in KEYCHAIN_PASSWORD IOS_DISTRIBUTION_CERTIFICATE_BASE64 IOS_DISTRIBUTION_CERTIFICATE_PASSWORD IOS_PROVISIONING_PROFILE_BASE64; do
+            if [[ -n "${!key}" ]]; then echo "$key: present"; else echo "$key: missing"; missing=1; fi
+          done
+          [[ "$missing" == 0 ]]
+          python3 - <<'PY'
+          import base64, os, pathlib
+          work = pathlib.Path(os.environ['CI_DIR'])
+          for key, name in [('IOS_DISTRIBUTION_CERTIFICATE_BASE64', 'distribution.p12'), ('IOS_PROVISIONING_PROFILE_BASE64', 'distribution.mobileprovision')]:
+              try:
+                  data = base64.b64decode(''.join(os.environ[key].split()), validate=True)
+                  if not data: raise ValueError()
+              except ValueError:
+                  raise SystemExit(f'Invalid signing data: {key}') from None
+              (work / name).write_bytes(data)
+          PY
+          security cms -D -i "$CI_DIR/distribution.mobileprovision" > "$CI_DIR/profile.plist" 2> "$CI_DIR/profile-error.log"
+          python3 - <<'PY'
+          import datetime, hashlib, json, os, pathlib, plistlib
+          work = pathlib.Path(os.environ['CI_DIR'])
+          profile = plistlib.loads((work / 'profile.plist').read_bytes())
+          ent = profile.get('Entitlements', {})
+          assert profile.get('Name') == 'StarryLove_AppStore'
+          assert profile.get('UUID') == '47c5dbe5-b684-4c7e-96e6-65749886f16f'
+          assert profile.get('TeamIdentifier') == ['DJC6HMC9D5']
+          assert ent.get('application-identifier') == 'DJC6HMC9D5.com.miracle.starrylovediary'
+          assert ent.get('com.apple.developer.team-identifier') == 'DJC6HMC9D5'
+          assert ent.get('get-task-allow') is False and ent.get('beta-reports-active') is True
+          assert 'ProvisionedDevices' not in profile and not profile.get('ProvisionsAllDevices')
+          assert 'iOS' in profile.get('Platform', [])
+          assert profile['ExpirationDate'] > datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+          certs = [hashlib.sha1(c).hexdigest().upper() for c in profile.get('DeveloperCertificates', [])]
+          assert certs == ['6A6BA832F05BDA8F53FA68E32251C50EFE5B6FB5']
+          (work / 'signing.json').write_text(json.dumps({'uuid': profile['UUID'], 'certs': certs, 'app_id': ent['application-identifier']}))
+          print('Profile bundle, team, expiry and App Store type: PASS')
+          PY
+          security list-keychains -d user > "$CI_DIR/original-keychains.txt"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$CI_DIR/signing.keychain-db" > "$CI_DIR/keychain.log" 2>&1
+          security set-keychain-settings -lut 3600 "$CI_DIR/signing.keychain-db"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$CI_DIR/signing.keychain-db"
+          security import "$CI_DIR/distribution.p12" -P "$IOS_DISTRIBUTION_CERTIFICATE_PASSWORD" -k "$CI_DIR/signing.keychain-db" -T /usr/bin/codesign -T /usr/bin/security > "$CI_DIR/import.log" 2>&1
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$CI_DIR/signing.keychain-db" > "$CI_DIR/partition.log" 2>&1
+          python3 - <<'PY'
+          import json, os, pathlib, re, shutil, shlex, subprocess
+          work = pathlib.Path(os.environ['CI_DIR'])
+          previous = shlex.split((work / 'original-keychains.txt').read_text())
+          subprocess.run(['security', 'list-keychains', '-d', 'user', '-s', str(work / 'signing.keychain-db'), *previous], check=True)
+          result = subprocess.run(['security', 'find-identity', '-v', '-p', 'codesigning', str(work / 'signing.keychain-db')], check=True, capture_output=True, text=True)
+          data = json.loads((work / 'signing.json').read_text())
+          identities = re.findall(r'\b([A-Fa-f0-9]{40})\s+"Apple Distribution:[^"]+"', result.stdout)
+          assert identities == ['6A6BA832F05BDA8F53FA68E32251C50EFE5B6FB5']
+          data['certificate'] = identities[0]
+          (work / 'signing.json').write_text(json.dumps(data))
+          installed = []
+          for folder in [pathlib.Path.home() / 'Library/Developer/Xcode/UserData/Provisioning Profiles', pathlib.Path.home() / 'Library/MobileDevice/Provisioning Profiles']:
+              folder.mkdir(parents=True, exist_ok=True)
+              target = folder / (data['uuid'] + '.mobileprovision')
+              assert not target.exists(), 'Refusing to replace an existing runner profile'
+              installed.append(str(target))
+              shutil.copyfile(work / 'distribution.mobileprovision', target)
+          (work / 'installed-profiles.json').write_text(json.dumps(installed))
+          print('Valid matching Apple Distribution identity installed: PASS')
+          PY
+
+      - name: Archive with manual signing
+        run: |
+          set -euo pipefail
+          PROFILE_UUID="$(python3 -c 'import json,os; print(json.load(open(os.environ["CI_DIR"]+"/signing.json"))["uuid"])')"
+          CERTIFICATE="$(python3 -c 'import json,os; print(json.load(open(os.environ["CI_DIR"]+"/signing.json"))["certificate"])')"
+          if ! xcodebuild archive -quiet -project ios/App/App.xcodeproj -scheme "$IOS_SCHEME" \
+            -configuration Release -destination 'generic/platform=iOS' \
+            -archivePath "$CI_DIR/StarryLoveDiary.xcarchive" -derivedDataPath "$CI_DIR/DerivedData" \
+            CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CODE_SIGN_IDENTITY="$CERTIFICATE" PROVISIONING_PROFILE_SPECIFIER="$PROFILE_UUID" \
+            > "$CI_DIR/archive.log" 2>&1; then
+            echo 'Archive failed; signing/build logs retained only in temporary runner storage until cleanup.'
+            exit 1
+          fi
+
+      - name: Validate archive and generate export options
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, pathlib, plistlib
+          work = pathlib.Path(os.environ['CI_DIR'])
+          apps = list((work / 'StarryLoveDiary.xcarchive/Products/Applications').glob('*.app'))
+          assert len(apps) == 1 and apps[0].name == 'App.app'
+          info = plistlib.loads((apps[0] / 'Info.plist').read_bytes())
+          for key, value in {'CFBundleIdentifier': 'com.miracle.starrylovediary', 'CFBundleShortVersionString': '1.0.0', 'CFBundleVersion': '1'}.items():
+              assert info.get(key) == value, f'Archive mismatch: {key}'
+          signing = json.loads((work / 'signing.json').read_text())
+          options = {'method': 'app-store-connect', 'destination': 'export', 'signingStyle': 'manual', 'teamID': 'DJC6HMC9D5',
+                     'signingCertificate': signing['certificate'], 'provisioningProfiles': {'com.miracle.starrylovediary': signing['uuid']},
+                     'manageAppVersionAndBuildNumber': False, 'stripSwiftSymbols': True, 'uploadSymbols': False}
+          (work / 'ExportOptions.plist').write_bytes(plistlib.dumps(options))
+          print('Archive identity: com.miracle.starrylovediary 1.0.0 (1): PASS')
+          PY
+
+      - name: Export IPA locally
+        run: |
+          set -euo pipefail
+          if ! xcodebuild -exportArchive -archivePath "$CI_DIR/StarryLoveDiary.xcarchive" -exportPath "$CI_DIR/exported" -exportOptionsPlist "$CI_DIR/ExportOptions.plist" > "$CI_DIR/export.log" 2>&1; then
+            echo 'IPA export failed; distribution logs are not published.'
+            exit 1
+          fi
+
+      - name: Validate IPA payload identity and signature
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, pathlib, plistlib, subprocess, zipfile
+          work = pathlib.Path(os.environ['CI_DIR'])
+          ipas = list((work / 'exported').glob('*.ipa'))
+          assert len(ipas) == 1, 'Expected exactly one IPA'
+          dest = work / 'ipa-check'
+          with zipfile.ZipFile(ipas[0]) as ipa:
+              for name in ipa.namelist():
+                  assert (dest / name).resolve().is_relative_to(dest.resolve()), 'Unsafe IPA path'
+          subprocess.run(['ditto', '-x', '-k', str(ipas[0]), str(dest)], check=True)
+          apps = list((dest / 'Payload').glob('*.app'))
+          assert len(apps) == 1 and apps[0].name == 'App.app'
+          info = plistlib.loads((apps[0] / 'Info.plist').read_bytes())
+          for key, value in {'CFBundleIdentifier': 'com.miracle.starrylovediary', 'CFBundleShortVersionString': '1.0.0', 'CFBundleVersion': '1'}.items():
+              assert info.get(key) == value, f'IPA mismatch: {key}'
+          subprocess.run(['codesign', '--verify', '--deep', '--strict', str(apps[0])], check=True, capture_output=True)
+          decoded = subprocess.run(['security', 'cms', '-D', '-i', str(apps[0] / 'embedded.mobileprovision')], check=True, capture_output=True)
+          profile = plistlib.loads(decoded.stdout)
+          signing = json.loads((work / 'signing.json').read_text())
+          assert profile['UUID'] == signing['uuid'] and profile['Entitlements']['application-identifier'] == signing['app_id']
+          assert profile['Entitlements']['get-task-allow'] is False
+          (work / 'upload.json').write_text(json.dumps({'ipa': str(ipas[0].resolve())}))
+          print('IPA identity, payload, signature and embedded profile: PASS')
+          PY
+
+      - name: Preflight App Store Connect upload credentials
+        if: ${{ inputs.upload_to_testflight == true }}
+        env:
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          for key in APP_STORE_CONNECT_ISSUER_ID APP_STORE_CONNECT_KEY_ID APP_STORE_CONNECT_PRIVATE_KEY; do
+            [[ -n "${!key}" ]] || { echo "Missing required upload secret: $key"; exit 1; }
+          done
+          python3 - <<'PY'
+          import json, os, pathlib
+          work = pathlib.Path(os.environ['CI_DIR']).resolve()
+          ipa = pathlib.Path(json.loads((work / 'upload.json').read_text())['ipa']).resolve()
+          assert ipa.parent == (work / 'exported').resolve() and ipa.suffix == '.ipa' and ipa.is_file()
+          print('Pre-upload identity, IPA location, and upload-secret presence: PASS')
+          PY
+
+      - name: Prepare App Store Connect API key
+        if: ${{ inputs.upload_to_testflight == true }}
+        env:
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          KEY_DIR="$HOME/.appstoreconnect/private_keys"
+          mkdir -p "$KEY_DIR"
+          chmod 700 "$HOME/.appstoreconnect" "$KEY_DIR"
+          printf '%s' "$APP_STORE_CONNECT_PRIVATE_KEY" > "$KEY_DIR/AuthKey_$APP_STORE_CONNECT_KEY_ID.p8"
+          chmod 600 "$KEY_DIR/AuthKey_$APP_STORE_CONNECT_KEY_ID.p8"
+
+      - name: Upload IPA to TestFlight
+        if: ${{ inputs.upload_to_testflight == true }}
+        env:
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+        run: |
+          set -euo pipefail
+          IPA_PATH="$(python3 -c 'import json,os; print(json.load(open(os.environ["CI_DIR"]+"/upload.json"))["ipa"])')"
+          xcrun altool --upload-app --type ios --file "$IPA_PATH" --apiKey "$APP_STORE_CONNECT_KEY_ID" --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+          echo 'UPLOAD ACCEPTED BY APPLE; processing and TestFlight availability are not yet confirmed.'
+
+      - name: Remove temporary signing, upload, and build data
+        if: always()
+        run: |
+          set -euo pipefail
+          rm -f "$HOME/.appstoreconnect/private_keys/AuthKey_"*.p8
+          python3 - <<'PY'
+          import json, os, pathlib, shlex, shutil, subprocess
+          work = (pathlib.Path(os.environ['RUNNER_TEMP']) / 'starry-ios-testflight').resolve()
+          assert work.parent == pathlib.Path(os.environ['RUNNER_TEMP']).resolve() and work.name == 'starry-ios-testflight'
+          errors = []
+          saved = work / 'original-keychains.txt'
+          if saved.exists():
+              keys = shlex.split(saved.read_text())
+              if subprocess.run(['security', 'list-keychains', '-d', 'user', '-s', *keys], capture_output=True).returncode:
+                  errors.append('keychain search list restore')
+          keychain = work / 'signing.keychain-db'
+          if keychain.exists() and subprocess.run(['security', 'delete-keychain', str(keychain)], capture_output=True).returncode:
+              errors.append('temporary keychain removal')
+          installed = work / 'installed-profiles.json'
+          if installed.exists():
+              allowed = {pathlib.Path.home() / 'Library/Developer/Xcode/UserData/Provisioning Profiles', pathlib.Path.home() / 'Library/MobileDevice/Provisioning Profiles'}
+              for name in json.loads(installed.read_text()):
+                  p = pathlib.Path(name)
+                  assert p.parent in allowed and p.suffix == '.mobileprovision'
+                  p.unlink(missing_ok=True)
+          if work.exists(): shutil.rmtree(work)
+          if errors: raise SystemExit('Cleanup failed: ' + ', '.join(errors))
+          print('Temporary signing materials, App Store Connect key, archive, IPA and logs removed')
+          PY

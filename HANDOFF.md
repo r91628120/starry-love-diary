@@ -120,3 +120,10 @@ Migration: No new migration for 0.1.1
 ## Release Rule
 
 The iOS 1.0.0 (1) identity is reserved for the first TestFlight candidate; it does not indicate completed QA or public-release approval. Public release remains gated on completion of the primary iOS and Android real-device flows.
+
+## TestFlight Upload Workflow V1 — Local Review Candidate
+
+- First iOS Dry Run passed in GitHub Actions run `35058735770`: signing, archive, IPA export, identity gates, codesign and embedded-profile validation all passed.
+- Added local `.github/workflows/ios-testflight.yml`, a manual-only workflow that preserves the proven Starry signing/archive/export pipeline and uploads only when `upload_to_testflight` is explicitly `true`.
+- The new workflow requires three future App Store Connect secrets: `APP_STORE_CONNECT_ISSUER_ID`, `APP_STORE_CONNECT_KEY_ID`, and `APP_STORE_CONNECT_PRIVATE_KEY`. They are intentionally not configured by this change.
+- This workflow is not staged, committed, pushed, or executed. No TestFlight upload occurred.
