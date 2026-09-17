@@ -102,7 +102,7 @@ export function LoveBoatFlow({ onDone }: { onDone: () => void }) {
     <BoatResult record={completed} />
     <div className="clear-flow__actions"><PrimaryButton onClick={saveStar} disabled={savedStar}>{t(savedStar ? 'clear.common.savedStar' : 'clear.common.saveStar')}</PrimaryButton><SecondaryButton onClick={onDone}>{t('clear.common.finishAndReturn')}</SecondaryButton></div>
   </SoftCard>
-  if (!draft) return <SoftCard className="clear-flow clear-intro" tone="blue">
+  if (!draft) return <SoftCard className="clear-flow clear-intro clear-tool-intro" tone="blue">
     <SecondaryButton onClick={onDone}>{t('clear.home')}</SecondaryButton>
     <p>{t('clear.boat.intro')}</p>
     <PrimaryButton onClick={start}>{t('clear.boat.start')}</PrimaryButton>

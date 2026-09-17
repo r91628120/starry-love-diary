@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PersistenceProvider } from '../../data/PersistenceContext'
 import { usePersistence } from '../../data/PersistenceStateContext'
 import { initializePersistence, type PersistenceRuntime } from '../../data/persistence'
@@ -7,6 +7,19 @@ import { createMemoryStorageBacking, MemoryStorageAdapter } from '../../data/sto
 import { I18nProvider } from '../../i18n/I18nProvider'
 import { useI18n } from '../../i18n/I18nContext'
 import { HeartRevealProgressCard } from './HeartRevealProgressCard'
+
+const mocks = vi.hoisted(() => ({
+  renderHeartRevealCardPng: vi.fn(),
+  saveHeartCardImage: vi.fn(),
+  shareHeartCardImage: vi.fn(),
+}))
+
+vi.mock('../../services/heartRevealCardRenderer', () => ({ renderHeartRevealCardPng: mocks.renderHeartRevealCardPng }))
+vi.mock('../../services/heartCardShare', () => ({
+  downloadHeartCardImage: vi.fn(),
+  saveHeartCardImage: mocks.saveHeartCardImage,
+  shareHeartCardImage: mocks.shareHeartCardImage,
+}))
 
 function Controls() {
   const persistence = usePersistence()
@@ -44,7 +57,18 @@ async function seed(runtime: PersistenceRuntime, count: number) {
   runtime.initial.activeHeartRevealProject = await runtime.heartRevealPhotos.getCycleState(phrases)
 }
 
-afterEach(cleanup)
+beforeEach(() => { vi.stubGlobal('URL', { createObjectURL: vi.fn(() => 'blob:heart-card'), revokeObjectURL: vi.fn() }) })
+afterEach(() => { cleanup(); vi.clearAllMocks(); vi.unstubAllGlobals() })
+
+async function openGeneratedCard(runtime: PersistenceRuntime) {
+  mocks.renderHeartRevealCardPng.mockResolvedValue(new Blob(['png'], { type: 'image/png' }))
+  renderCard(runtime)
+  fireEvent.click(screen.getByRole('button', { name: '選一句心話做成心意卡' }))
+  fireEvent.click(screen.getByRole('radio', { name: '心話 1' }))
+  fireEvent.click(screen.getByRole('button', { name: '確認' }))
+  fireEvent.click(await screen.findByRole('button', { name: '生成心意卡' }))
+  await screen.findByRole('button', { name: '儲存心意卡' })
+}
 
 describe('Heart reveal persistence-driven progress', () => {
   it('starts at 0 / 7 with all seven photo segments covered', async () => {
@@ -131,5 +155,41 @@ describe('Heart reveal persistence-driven progress', () => {
     expect(screen.getByText('3 / 7')).toBeInTheDocument()
     expectRevealState(view.container, 3)
     expect((await runtime.heartPhrases.getHeartPhrases())).toHaveLength(3)
+  })
+
+  it('saves the generated PNG and reports a browser download start', async () => {
+    const runtime = await createRuntime(); await seed(runtime, 7)
+    mocks.saveHeartCardImage.mockResolvedValueOnce('downloaded')
+    await openGeneratedCard(runtime)
+    fireEvent.click(screen.getByRole('button', { name: '儲存心意卡' }))
+    await screen.findByText('已開始下載心意卡。')
+    expect(mocks.saveHeartCardImage).toHaveBeenCalledOnce()
+    expect(mocks.saveHeartCardImage.mock.calls[0][0]).toBeInstanceOf(Blob)
+  })
+
+  it('reports a native save-sheet result and keeps sharing separate', async () => {
+    const runtime = await createRuntime(); await seed(runtime, 7)
+    mocks.saveHeartCardImage.mockResolvedValueOnce('save-sheet-opened')
+    mocks.shareHeartCardImage.mockResolvedValueOnce('shared')
+    await openGeneratedCard(runtime)
+    fireEvent.click(screen.getByRole('button', { name: '儲存心意卡' }))
+    await screen.findByText('已開啟系統分享面板，請選擇「儲存影像」。')
+    fireEvent.click(screen.getByRole('button', { name: '分享圖片' }))
+    await waitFor(() => expect(mocks.shareHeartCardImage).toHaveBeenCalledOnce())
+    expect(mocks.saveHeartCardImage).toHaveBeenCalledOnce()
+  })
+
+  it('reports save failures and ignores repeated save clicks while one is in flight', async () => {
+    const runtime = await createRuntime(); await seed(runtime, 7)
+    let resolveSave: ((result: 'error') => void) | undefined
+    mocks.saveHeartCardImage.mockImplementationOnce(() => new Promise((resolve) => { resolveSave = resolve }))
+    await openGeneratedCard(runtime)
+    const saveButton = screen.getByRole('button', { name: '儲存心意卡' })
+    fireEvent.click(saveButton); fireEvent.click(saveButton)
+    expect(mocks.saveHeartCardImage).toHaveBeenCalledOnce()
+    expect(saveButton).toBeDisabled()
+    resolveSave?.('error')
+    await screen.findByText('無法儲存心意卡，請再試一次。')
+    expect(saveButton).not.toBeDisabled()
   })
 })

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { HEART_CARD_SHARE_PENDING_SAFETY_TIMEOUT_MS, shareHeartCardImage } from './heartCardShare'
+import { getHeartCardNativePlatform, HEART_CARD_SHARE_PENDING_SAFETY_TIMEOUT_MS, saveHeartCardImage, shareHeartCardImage } from './heartCardShare'
 
 describe('shareHeartCardImage', () => {
   const png = new Blob(['heart-card'], { type: 'image/png' })
@@ -33,5 +33,32 @@ describe('shareHeartCardImage', () => {
     await vi.advanceTimersByTimeAsync(HEART_CARD_SHARE_PENDING_SAFETY_TIMEOUT_MS)
     await expect(result).resolves.toBe('pending')
     vi.useRealTimers()
+  })
+
+  it('uses the browser download path outside Capacitor', async () => {
+    const download = vi.fn()
+    await expect(saveHeartCardImage(png, { capacitorHost: {}, download })).resolves.toBe('downloaded')
+    expect(download).toHaveBeenCalledWith(png)
+  })
+
+  it('reports browser download failures instead of failing silently', async () => {
+    await expect(saveHeartCardImage(png, { capacitorHost: {}, download: () => { throw new Error('download failed') } })).resolves.toBe('error')
+  })
+
+  it('uses the native share sheet for a Capacitor iOS save request', async () => {
+    const share = vi.fn().mockResolvedValue(undefined)
+    await expect(saveHeartCardImage(png, { capacitorHost: { Capacitor: { getPlatform: () => 'ios' } }, target: { canShare: () => true, share } })).resolves.toBe('save-sheet-opened')
+    expect(share).toHaveBeenCalledOnce()
+  })
+
+  it('keeps native cancellation and unsupported outcomes distinct from success', async () => {
+    await expect(saveHeartCardImage(png, { capacitorHost: { Capacitor: { getPlatform: () => 'android' } }, target: { canShare: () => false, share: vi.fn() } })).resolves.toBe('unsupported')
+    await expect(saveHeartCardImage(png, { capacitorHost: { Capacitor: { getPlatform: () => 'ios' } }, target: { canShare: () => true, share: vi.fn().mockRejectedValue(new DOMException('dismissed', 'AbortError')) } })).resolves.toBe('cancelled')
+  })
+
+  it('identifies only Capacitor iOS and Android as native save platforms', () => {
+    expect(getHeartCardNativePlatform({ Capacitor: { getPlatform: () => 'ios' } })).toBe('ios')
+    expect(getHeartCardNativePlatform({ Capacitor: { getPlatform: () => 'android' } })).toBe('android')
+    expect(getHeartCardNativePlatform({ Capacitor: { getPlatform: () => 'web' } })).toBeUndefined()
   })
 })

@@ -30,8 +30,11 @@ body {
 }
 
 button,
-input {
+input,
+textarea,
+select {
   font: inherit;
+  font-size: var(--font-size-body) !important;
 }
 
 button,

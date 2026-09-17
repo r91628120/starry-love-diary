@@ -1,4 +1,6 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { todayAssets } from '../../assets/uiAssets'
 import { PersistenceProvider } from '../../data/PersistenceContext'
@@ -69,5 +71,20 @@ describe('CoupleProfileHero localized star-heart label', () => {
     expect(score).toHaveAttribute('aria-label', messages.en['today.starHeartAria'].replace('{score}', '105'))
     expect(score).toHaveTextContent(messages.en['today.starHeartValue'])
     expect(score).toHaveTextContent('105')
+  })
+
+  it('keeps the localized label and score in separate stable layout elements', async () => {
+    const runtime = await createRuntime()
+    const { container } = renderHero(runtime, 'fr')
+    const score = container.querySelector('.star-heart')!
+    const label = score.querySelector('.star-heart__label')
+    const value = score.querySelector('strong')
+    const css = readFileSync(resolve(process.cwd(), 'src/features/today/today.css'), 'utf8')
+
+    expect(label).not.toBeNull()
+    expect(value).not.toBeNull()
+    expect(label?.nextElementSibling).toBe(value)
+    expect(css).toMatch(/\.star-heart__label\s*\{[^}]*min-height:\s*2\.24em[^}]*align-content:\s*center[^}]*overflow-wrap:\s*normal[^}]*word-break:\s*normal/)
+    expect(css).not.toMatch(/\.star-heart__label\s*\{[^}]*transform:/)
   })
 })

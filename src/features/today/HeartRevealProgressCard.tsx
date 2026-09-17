@@ -5,7 +5,7 @@ import { useI18n } from '../../i18n/I18nContext'
 import { usePersistence } from '../../data/PersistenceStateContext'
 import { DEFAULT_PHOTO_PLACEMENT } from '../../services/photoPlacement'
 import { usePhotoObjectUrl } from '../../services/usePhotoObjectUrl'
-import { downloadHeartCardImage, shareHeartCardImage } from '../../services/heartCardShare'
+import { downloadHeartCardImage, saveHeartCardImage, shareHeartCardImage, type HeartCardSaveResult } from '../../services/heartCardShare'
 import { renderHeartRevealCardPng } from '../../services/heartRevealCardRenderer'
 import type { TranslationKey } from '../../i18n/messages'
 import type { HeartRevealTextPlacement } from '../../data/types'
@@ -27,6 +27,7 @@ export function HeartRevealProgressCard() {
   const [feedbackKey, setFeedbackKey] = useState<TranslationKey>()
   const [textPlacement, setTextPlacement] = useState<HeartRevealTextPlacement>(DEFAULT_TEXT_PLACEMENT)
   const renderedCardSignature = useRef<string | undefined>(undefined)
+  const saveInFlight = useRef(false)
   const numberFormat = new Intl.NumberFormat(locale)
   const project = persistence?.activeHeartRevealProject
   const currentProgress = Math.max(0, Math.min(TOTAL_PROGRESS, project?.progressCount ?? 0))
@@ -63,6 +64,23 @@ export function HeartRevealProgressCard() {
     try { const result = await shareHeartCardImage(card); if (result === 'unsupported') { downloadHeartCardImage(card); setFeedbackKey('heartRevealCycle.shareUnsupported') } else if (result === 'error') setFeedbackKey('heartRevealCycle.shareError') }
     catch { setFeedbackKey('heartRevealCycle.shareError') } finally { setBusy(false) }
   }
+  const save = async () => {
+    if (!card || busy || saveInFlight.current) return
+    saveInFlight.current = true
+    setBusy(true); setFeedbackKey(undefined)
+    try {
+      const result = await saveHeartCardImage(card)
+      const feedbackByResult: Record<HeartCardSaveResult, TranslationKey> = {
+        downloaded: 'heartCard.saveDownloaded',
+        'save-sheet-opened': 'heartCard.saveSheetOpened',
+        cancelled: 'heartCard.saveCancelled',
+        unsupported: 'heartCard.saveUnsupported',
+        error: 'heartCard.saveError',
+        pending: 'heartCard.savePending',
+      }
+      setFeedbackKey(feedbackByResult[result])
+    } catch { setFeedbackKey('heartCard.saveError') } finally { saveInFlight.current = false; setBusy(false) }
+  }
   const finishCycle = async () => {
     if (!persistence || busy) return
     setBusy(true); setConfirmReset(false)
@@ -82,7 +100,7 @@ export function HeartRevealProgressCard() {
     <div className="heart-reveal-card__body"><div className="heart-reveal-card__photo"><HeartRevealPhotoVisual photoUrl={photoUrl} placeholderSrc="/images/heart-reveal-placeholder.svg" placement={project?.photoPlacement ?? DEFAULT_PHOTO_PLACEMENT} alt={t('today.heartReveal.imageAlt')} /><div className="heart-reveal-card__mask" aria-hidden="true">{Array.from({ length: TOTAL_PROGRESS }, (_, index) => <span className={index < currentProgress ? 'is-revealed' : ''} key={index} />)}</div></div><div className="heart-reveal-card__status"><strong>{t('today.heartReveal.progress', { current: numberFormat.format(currentProgress), total: numberFormat.format(TOTAL_PROGRESS) })}</strong>{currentProgress === TOTAL_PROGRESS ? <p>{t('heartRevealCycle.ready')}</p> : <p>{t('heartRevealCycle.writeNext')}</p>}{!project?.photoAssetId ? <a className="button button--secondary" href="/settings/heart-reveal-photo">{t('heartRevealCycle.setNextPhoto')}</a> : null}{currentProgress === TOTAL_PROGRESS && stage === 'idle' ? <PrimaryButton onClick={() => { setStage('select'); setFeedbackKey(undefined) }}>{t('heartRevealCycle.choose')}</PrimaryButton> : null}</div></div>
     {stage === 'select' ? <section className="heart-reveal-cycle" aria-labelledby="heart-reveal-select-title"><h3 id="heart-reveal-select-title">{t('heartRevealCycle.chooseTitle')}</h3><p>{t('heartRevealCycle.chooseHint')}</p><div className="heart-reveal-cycle__phrases" role="radiogroup" aria-label={t('heartRevealCycle.chooseTitle')}>{persistence?.heartPhrases.map((phrase) => <button type="button" key={phrase.id} role="radio" aria-checked={phrase.id === selectedPhraseId} className={phrase.id === selectedPhraseId ? 'is-selected' : ''} onClick={() => setSelectedPhraseId(phrase.id)}>{phrase.content}<span aria-hidden="true">✓</span></button>)}</div><div className="heart-reveal-cycle__actions"><SecondaryButton onClick={() => setStage('idle')}>{t('heartRevealCycle.back')}</SecondaryButton><PrimaryButton disabled={!selectedPhrase} onClick={() => setStage('confirm')}>{t('common.confirm')}</PrimaryButton></div></section> : null}
     {stage === 'confirm' && selectedPhrase ? <section className="heart-reveal-cycle" aria-labelledby="heart-reveal-confirm-title"><h3 id="heart-reveal-confirm-title">{t('heartRevealCycle.confirmTitle')}</h3><blockquote>{selectedPhrase.content}</blockquote>{cardUrl ? <img className="heart-reveal-cycle__preview" src={cardUrl} alt={t('heartCard.previewLabel')} /> : null}{placementPicker}<div className="heart-reveal-cycle__actions"><SecondaryButton onClick={() => setStage('select')}>{t('heartRevealCycle.back')}</SecondaryButton><PrimaryButton disabled={busy} onClick={() => void generate()}>{t('heartRevealCycle.generate')}</PrimaryButton></div></section> : null}
-    {stage === 'generated' && cardUrl ? <section className="heart-reveal-cycle heart-reveal-cycle--generated" aria-live="polite"><h3>{t('heartRevealCycle.generated')}</h3><img className="heart-reveal-cycle__preview" src={cardUrl} alt={t('heartCard.previewLabel')} />{placementPicker}<div className="heart-reveal-cycle__actions"><SecondaryButton onClick={() => { setCard(undefined); setStage('confirm') }}>{t('heartCard.backToEdit')}</SecondaryButton><SecondaryButton onClick={() => card && downloadHeartCardImage(card)}>{t('heartCard.saveImage')}</SecondaryButton><PrimaryButton disabled={busy} onClick={() => void share()}>{t('heartCard.shareImage')}</PrimaryButton><PrimaryButton disabled={busy} onClick={() => setConfirmReset(true)}>{t('heartRevealCycle.finish')}</PrimaryButton></div></section> : null}
+    {stage === 'generated' && cardUrl ? <section className="heart-reveal-cycle heart-reveal-cycle--generated" aria-live="polite"><h3>{t('heartRevealCycle.generated')}</h3><img className="heart-reveal-cycle__preview" src={cardUrl} alt={t('heartCard.previewLabel')} />{placementPicker}<div className="heart-reveal-cycle__actions"><SecondaryButton onClick={() => { setCard(undefined); setStage('confirm') }}>{t('heartCard.backToEdit')}</SecondaryButton><SecondaryButton disabled={busy} aria-busy={busy} onClick={() => void save()}>{t('heartCard.saveImage')}</SecondaryButton><PrimaryButton disabled={busy} onClick={() => void share()}>{t('heartCard.shareImage')}</PrimaryButton><PrimaryButton disabled={busy} onClick={() => setConfirmReset(true)}>{t('heartRevealCycle.finish')}</PrimaryButton></div></section> : null}
     {feedbackKey ? <p className="mock-feedback" aria-live="polite">{t(feedbackKey)}</p> : null}
     <ConfirmDialog open={confirmReset} title={t('heartRevealCycle.resetTitle')} description={t('heartRevealCycle.resetBody')} confirmLabel={t('heartRevealCycle.startNext')} onCancel={() => setConfirmReset(false)} onConfirm={() => void finishCycle()} />
   </SoftCard>

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { HEART_REVEAL_CARD_HEIGHT, HEART_REVEAL_CARD_WIDTH, getHeartRevealCardTextLayout, getHeartRevealOrientation, getHeartRevealOverlayLayout, renderHeartRevealCardPng } from './heartRevealCardRenderer'
+import { HEART_REVEAL_CARD_HEIGHT, HEART_REVEAL_CARD_WIDTH, getHeartRevealCardTextLayout, getHeartRevealOrientation, getHeartRevealOverlayLayout, getHeartRevealPanelLayout, renderHeartRevealCardPng } from './heartRevealCardRenderer'
 import type { HeartRevealTextPlacement } from '../data/types'
 
 function installCanvas() {
@@ -54,6 +54,37 @@ describe('heart reveal card renderer', () => {
     expect(english.lines.join(' ')).toContain('Thank you')
     expect(spanish.lines.join(' ')).toContain('Gracias por')
     expect(french.lines.join(' ')).toContain('Merci de')
+  })
+
+  it('sizes the panel from wrapped line height instead of its former fixed overlay height', () => {
+    const measure = (value: string, size: number) => [...value].length * size * .58
+    const overlay = getHeartRevealOverlayLayout(900, 1600, 'bottom-center')
+    const oneLine = getHeartRevealCardTextLayout('想你', measure, overlay.width - 84, 'zh-TW', overlay.maxLines)
+    const multiLine = getHeartRevealCardTextLayout('你在我心目中是最好的，謝謝你一直陪著我', measure, 180, 'zh-TW', overlay.maxLines)
+    const onePanel = getHeartRevealPanelLayout(overlay, oneLine)
+    const multiPanel = getHeartRevealPanelLayout(overlay, multiLine)
+    expect(oneLine.lines).toHaveLength(1)
+    expect(multiLine.lines.length).toBeGreaterThanOrEqual(2)
+    expect(onePanel.height).toBe(onePanel.textHeight + 76)
+    expect(multiPanel.height).toBe(multiPanel.textHeight + 76)
+    expect(onePanel.height).toBeLessThan(overlay.height)
+    expect(multiPanel.height).toBeGreaterThan(onePanel.height)
+  })
+
+  it.each([
+    ['top-left', 'zh-TW', '想你'], ['top-center', 'en', 'Thank you for always being here with me'], ['top-right', 'ja', 'いつもそばにいてくれてありがとう'],
+    ['bottom-left', 'ko', '언제나 내 곁에 있어 줘서 고마워'], ['bottom-center', 'es', 'Gracias por acompañarme siempre en cada momento'], ['bottom-right', 'fr', 'Merci de rester près de moi chaque jour'],
+  ] as const)('keeps %s safely positioned for wrapped %s text', (placement, locale, text) => {
+    const measure = (value: string, size: number) => [...value].length * size * .58
+    const overlay = getHeartRevealOverlayLayout(900, 1600, placement as HeartRevealTextPlacement)
+    const textLayout = getHeartRevealCardTextLayout(text, measure, overlay.width - 84, locale, overlay.maxLines)
+    const panel = getHeartRevealPanelLayout(overlay, textLayout)
+    expect(panel.x).toBeGreaterThanOrEqual(0)
+    expect(panel.x + panel.width).toBeLessThanOrEqual(HEART_REVEAL_CARD_WIDTH)
+    expect(panel.y).toBeGreaterThanOrEqual(54)
+    expect(panel.y + panel.height).toBeLessThanOrEqual(HEART_REVEAL_CARD_HEIGHT - 54)
+    if (placement.startsWith('bottom')) expect(panel.y + panel.height).toBe(HEART_REVEAL_CARD_HEIGHT - 54)
+    else expect(panel.y).toBe(54)
   })
 
   it('draws a real photo first, then only a compact dynamic overlay with no artwork dependency', async () => {

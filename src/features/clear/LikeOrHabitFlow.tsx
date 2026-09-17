@@ -130,9 +130,9 @@ export function LikeOrHabitFlow({ onDone }: { onDone: () => void }) {
   }
 
   if (loading) return null
-  if (completed) return <SoftCard className="clear-flow clear-result" tone="green"><h2>{t('clear.like.completed')}</h2><LikeResult modules={completed.activeResultModules ?? []} variantKey={completed.resultVariantKey ?? 'unclear.v1'} /><div className="clear-flow__actions"><PrimaryButton onClick={saveStar} disabled={savedStar || Boolean(completed.clearMindStarId)}>{t(savedStar || completed.clearMindStarId ? 'clear.common.savedStar' : 'clear.common.saveStar')}</PrimaryButton><SecondaryButton onClick={onDone}>{t('clear.common.finishAndReturn')}</SecondaryButton></div></SoftCard>
-  if (!draft) return <SoftCard className="clear-flow clear-intro" tone="green"><SecondaryButton onClick={onDone}>{t('clear.home')}</SecondaryButton><p>{t('clear.like.intro')}</p><PrimaryButton onClick={start}>{t('clear.like.start')}</PrimaryButton></SoftCard>
-  if (preview) return <section className="clear-flow"><div className="clear-flow__top"><SecondaryButton onClick={() => move(3)}>{t('clear.common.previous')}</SecondaryButton><SecondaryButton onClick={onDone}>{t('clear.common.continueLater')}</SecondaryButton></div><SoftCard className="clear-result" tone="green"><LikeResult modules={preview.activeResultModules} variantKey={preview.resultVariantKey} /><PrimaryButton onClick={finish}>{t('clear.like.finish')}</PrimaryButton></SoftCard><p>{t('clear.common.savedDraft')}</p></section>
+  if (completed) return <SoftCard className="clear-flow clear-result clear-like-result-page" tone="green"><h2>{t('clear.like.completed')}</h2><LikeResult modules={completed.activeResultModules ?? []} variantKey={completed.resultVariantKey ?? 'unclear.v1'} /><div className="clear-flow__actions"><PrimaryButton onClick={saveStar} disabled={savedStar || Boolean(completed.clearMindStarId)}>{t(savedStar || completed.clearMindStarId ? 'clear.common.savedStar' : 'clear.common.saveStar')}</PrimaryButton><SecondaryButton onClick={onDone}>{t('clear.common.finishAndReturn')}</SecondaryButton></div></SoftCard>
+  if (!draft) return <SoftCard className="clear-flow clear-intro clear-tool-intro" tone="green"><SecondaryButton onClick={onDone}>{t('clear.home')}</SecondaryButton><p>{t('clear.like.intro')}</p><PrimaryButton onClick={start}>{t('clear.like.start')}</PrimaryButton></SoftCard>
+  if (preview) return <section className="clear-flow"><div className="clear-flow__top"><SecondaryButton onClick={() => move(3)}>{t('clear.common.previous')}</SecondaryButton><SecondaryButton onClick={onDone}>{t('clear.common.continueLater')}</SecondaryButton></div><SoftCard className="clear-result clear-like-result-page" tone="green"><LikeResult modules={preview.activeResultModules} variantKey={preview.resultVariantKey} /><PrimaryButton onClick={finish}>{t('clear.like.finish')}</PrimaryButton></SoftCard><p>{t('clear.common.savedDraft')}</p></section>
 
   const section = draft.currentSection === 'result' ? 'imagined_relationship' : draft.currentSection
   const index = sections.indexOf(section)
@@ -165,9 +165,9 @@ function TextField({ label, value, onChange }: { label: string; value: string; o
   return <label>{label}<textarea maxLength={300} value={value} onChange={(event) => onChange(event.target.value)} /><span>{value.length} / 300</span></label>
 }
 
-function LikeResult({ modules, variantKey }: { modules: LikeOrHabitDimension[]; variantKey: LikeOrHabitResultVariantKey }) {
+export function LikeResult({ modules, variantKey }: { modules: LikeOrHabitDimension[]; variantKey: LikeOrHabitResultVariantKey }) {
   const { t } = useI18n()
   const key = (value: string) => value as TranslationKey
   const root = 'clear.like.result.' + variantKey
-  return <div><p className="clear-flow__eyebrow">{t('clear.common.result')}</p><h2>{t(key(root + '.title'))}</h2><p>{t(key(root + '.body'))}</p>{modules.map((module) => <SoftCard key={module} tone="blue"><h3>{t(key('clear.like.module.' + module + '.title'))}</h3><p>{t(key('clear.like.module.' + module + '.body'))}</p></SoftCard>)}<p><strong>{t(key(root + '.reflection'))}</strong></p><p>{t('clear.like.closing')}</p></div>
+  return <div className="clear-like-result"><div className="clear-like-result__summary"><p className="clear-flow__eyebrow">{t('clear.common.result')}</p><h2>{t(key(root + '.title'))}</h2><p>{t(key(root + '.body'))}</p></div>{modules.length > 0 ? <div className="clear-like-result__modules">{modules.map((module) => <SoftCard className="clear-like-result__module" key={module} tone="blue"><h3>{t(key('clear.like.module.' + module + '.title'))}</h3><p>{t(key('clear.like.module.' + module + '.body'))}</p></SoftCard>)}</div> : null}<div className="clear-like-result__closing"><p><strong>{t(key(root + '.reflection'))}</strong></p><p>{t('clear.like.closing')}</p></div></div>
 }

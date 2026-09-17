@@ -23,7 +23,42 @@ const mappings = [
   ['我不知道這個人適不適合我', '暈船法典'],
 ] as const
 
+const locales = ['zh-TW', 'en', 'ja', 'ko', 'es', 'fr'] as const
+
 describe('Clear scenario recommendations', () => {
+  it.each(locales)('renders five selectable scenario cards in %s', (locale) => {
+    const { container } = render(<I18nProvider initialLocale={locale}><ClearContent /></I18nProvider>)
+    const scenarioButtons = Array.from(container.querySelectorAll<HTMLButtonElement>('.clear-scenarios__rail > button'))
+
+    expect(scenarioButtons).toHaveLength(5)
+    fireEvent.click(scenarioButtons[0])
+    expect(scenarioButtons[0]).toHaveAttribute('aria-pressed', 'true')
+    scenarioButtons.slice(1).forEach((scenario) => expect(scenario).toHaveAttribute('aria-pressed', 'false'))
+  })
+
+  it('renders five selectable scenarios and transfers the selected state without a visual indicator element', () => {
+    renderClear()
+    const group = screen.getByRole('group', { name: '今天，我需要哪一種清醒？' })
+    const [first, second, ...remaining] = within(group).getAllByRole('button')
+
+    const scenarios = [first, second, ...remaining]
+    expect(scenarios).toHaveLength(5)
+    scenarios.forEach((scenario) => expect(scenario).toHaveAttribute('aria-pressed', 'false'))
+    expect(first).toHaveAttribute('aria-pressed', 'false')
+    expect(first).not.toHaveClass('is-active')
+
+    fireEvent.click(first)
+    expect(first).toHaveAttribute('aria-pressed', 'true')
+    expect(first).toHaveClass('is-active')
+    expect(first.querySelector('[aria-hidden="true"]')).toBeNull()
+
+    fireEvent.click(second)
+    expect(first).toHaveAttribute('aria-pressed', 'false')
+    expect(first).not.toHaveClass('is-active')
+    expect(second).toHaveAttribute('aria-pressed', 'true')
+    expect(second).toHaveClass('is-active')
+  })
+
   it.each(mappings)('maps %s to %s without entering the tool immediately', (scenario, tool) => {
     renderClear()
     const scenarioButton = screen.getByRole('button', { name: scenario })

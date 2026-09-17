@@ -1,0 +1,58 @@
+.remember-you__groups,
+.remember-you__year-content,
+.remember-you__month-group {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-2);
+}
+
+.remember-you__year-group {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-2);
+}
+
+.remember-you__year-toggle,
+.remember-you__month-toggle {
+  display: grid;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-2);
+  border: 1px solid var(--color-border);
+  color: var(--color-ink-700);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.remember-you__year-toggle {
+  grid-template-columns: auto minmax(0, 1fr);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(145deg, var(--color-cream-50), var(--color-yellow-100));
+  box-shadow: var(--shadow-card);
+}
+
+.remember-you__month-toggle {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: rgb(255 253 249 / 84%);
+}
+
+.remember-you__year-toggle:hover,
+.remember-you__month-toggle:hover { border-color: var(--color-pink-300); background: var(--color-pink-100); }
+
+.remember-you__year-toggle:focus-visible,
+.remember-you__month-toggle:focus-visible { outline: 0.18rem solid var(--color-pink-400); outline-offset: 0.16rem; }
+
+.remember-you__year-toggle strong,
+.remember-you__month-toggle span { min-width: 0; overflow-wrap: anywhere; }
+.remember-you__month-toggle small { color: var(--color-pink-500); font-size: var(--font-size-caption); font-weight: var(--font-weight-semibold); white-space: nowrap; }
+.remember-you__year-content { padding-left: var(--space-2); }
+
+@media (max-width: 26rem) {
+  .remember-you__year-content { padding-left: 0; }
+  .remember-you__year-toggle,
+  .remember-you__month-toggle { padding-right: var(--space-2); padding-left: var(--space-2); }
+}

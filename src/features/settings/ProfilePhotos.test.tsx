@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import { PersistenceProvider } from '../../data/PersistenceContext'
@@ -21,6 +22,15 @@ const compressed = {
   thumbnail: { blob: new Blob(['thumb'], { type: 'image/jpeg' }), mimeType: 'image/jpeg', width: 512, height: 384 },
 }
 const compression: PhotoCompressionService = { compress: async () => compressed }
+const nicknameStressValues: Record<Locale, string> = {
+  'zh-TW': '超級喜歡看星星的小宇宙女孩',
+  en: 'StarlightDreamerForever',
+  ja: '星空を見上げる恋するわたし',
+  ko: '별빛을좋아하는마음가득한사람',
+  es: 'CorazónBajoLasEstrellas',
+  fr: 'MonCoeurSousLesÉtoiles',
+}
+const emojiNickname = '🌙⭐黑貓與星星✨💗'
 
 function installPhotoRepository(runtime: PersistenceRuntime, ids: string[]) {
   let index = 0
@@ -70,6 +80,66 @@ afterEach(() => {
 })
 
 describe('Profile photo Settings and Today integration', () => {
+  it('keeps both nickname fields native, controlled, and available for long Unicode values in every locale', async () => {
+    for (const locale of supportedLocales) {
+      const runtime = await createRuntime()
+      const view = renderSettings(runtime, locale)
+      const mine = screen.getByRole<HTMLInputElement>('textbox', { name: messages[locale]['settings.profile.meName'] })
+      const partner = screen.getByRole<HTMLInputElement>('textbox', { name: messages[locale]['settings.profile.partnerName'] })
+
+      for (const field of [mine, partner]) {
+        expect(field.tagName).toBe('INPUT')
+        expect(field.type).toBe('text')
+        expect(field).toHaveAttribute('maxlength', '20')
+        expect(field.closest('.settings-row--responsive-control')).toBeInTheDocument()
+        expect(field.closest('.settings-row__actions')).toBeInTheDocument()
+      }
+      fireEvent.change(mine, { target: { value: nicknameStressValues[locale] } })
+      fireEvent.change(partner, { target: { value: emojiNickname } })
+      expect(mine).toHaveValue(nicknameStressValues[locale])
+      expect(partner).toHaveValue(emojiNickname)
+      expect(view.container.querySelector('textarea')).not.toBeInTheDocument()
+      view.unmount()
+    }
+  })
+
+  it('persists valid nickname edits independently and restores them after reopening Settings', async () => {
+    const backing = createMemoryStorageBacking()
+    const first = await createRuntime(backing)
+    const view = renderSettings(first)
+    const mine = screen.getByRole<HTMLInputElement>('textbox', { name: '我的暱稱' })
+    const partner = screen.getByRole<HTMLInputElement>('textbox', { name: '對方暱稱' })
+    fireEvent.change(mine, { target: { value: 'StarlightDreamer2026' } })
+    fireEvent.blur(mine)
+    fireEvent.change(partner, { target: { value: emojiNickname } })
+    fireEvent.blur(partner)
+    await waitFor(async () => expect((await first.profiles.getProfile('user'))?.nickname).toBe('StarlightDreamer2026'))
+    await waitFor(async () => expect((await first.profiles.getProfile('partner'))?.nickname).toBe(emojiNickname))
+
+    view.unmount()
+    first.adapter.close()
+    const reopened = await createRuntime(backing)
+    renderSettings(reopened)
+    expect(screen.getByRole('textbox', { name: '我的暱稱' })).toHaveValue('StarlightDreamer2026')
+    expect(screen.getByRole('textbox', { name: '對方暱稱' })).toHaveValue(emojiNickname)
+  })
+
+  it('uses the same responsive nickname structure for all supported locales', async () => {
+    const runtime = await createRuntime()
+    for (const locale of supportedLocales) {
+      const view = renderSettings(runtime, locale)
+      const nicknameRows = view.container.querySelectorAll<HTMLElement>('.settings-row--responsive-control')
+      expect(nicknameRows).toHaveLength(2)
+      expect(screen.getByRole('textbox', { name: messages[locale]['settings.profile.meName'] })).toBeInTheDocument()
+      expect(screen.getByRole('textbox', { name: messages[locale]['settings.profile.partnerName'] })).toBeInTheDocument()
+      for (const row of nicknameRows) {
+        expect(row.querySelector('.settings-row__identity')).toBeInTheDocument()
+        expect(row.querySelector('.settings-row__actions .settings-text-input')).toBeInTheDocument()
+      }
+      view.unmount()
+    }
+  })
+
   it('uses a shared two-level identity and wrapping actions layout for every locale', async () => {
     const runtime = await createRuntime()
     for (const locale of supportedLocales) {
@@ -85,6 +155,14 @@ describe('Profile photo Settings and Today integration', () => {
       }
       view.unmount()
     }
+  })
+
+  it('keeps the mobile profile rows in their dedicated one-column layouts', () => {
+    const styles = readFileSync('src/features/settings/settings.css', 'utf8')
+    const mobileStyles = styles.slice(styles.indexOf('@media (max-width: 30rem)'))
+    expect(mobileStyles).toContain('.settings-row--responsive-control {\n    grid-template-columns: minmax(0, 1fr);')
+    expect(mobileStyles).toContain('.settings-row--stacked-control {\n    grid-template-columns: minmax(0, 1fr);')
+    expect(mobileStyles).toContain('.settings-row--stacked-control .settings-row__actions {\n    padding-left: 0;')
   })
 
   it('imports mine and partner photos with stable categories and updates Settings immediately', async () => {

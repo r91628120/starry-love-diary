@@ -1,6 +1,6 @@
 import type { Locale } from './messages'
 
-export const ourBatch4Messages = {
+const baseOurBatch4Messages = {
   'zh-TW': {
     'our.title': '我們',
     'our.memoryWall': '我們的回憶牆',
@@ -121,4 +121,22 @@ export const ourBatch4Messages = {
     'our.message.title': 'Ce que je veux te dire', 'our.message.empty': 'Certains mots peuvent rester ici.', 'our.message.edit': 'Modifier', 'our.message.editLabel': 'Modifier ce que je veux te dire', 'our.message.clear': 'Effacer', 'our.message.share': 'Partager', 'our.message.characterCount': '{current} / {max}', 'our.message.clearConfirmTitle': 'Effacer ce message ?', 'our.message.clearConfirmBody': 'La confirmation effacera le message enregistré.', 'our.message.shareFeedback': 'L’aperçu de partage sera disponible à la prochaine étape',
     'our.rememberYou.title': 'Ce dont je me souviens de toi', 'our.rememberYou.searchPlaceholder': 'Rechercher dans mes souvenirs', 'our.rememberYou.filterLabel': 'Filtre des favoris', 'our.rememberYou.all': 'Tout', 'our.rememberYou.favoritesOnly': 'Favoris uniquement', 'our.rememberYou.favorite': 'Ajouter aux favoris', 'our.rememberYou.unfavorite': 'Retirer des favoris', 'our.rememberYou.empty': 'Aucun souvenir pour le moment. Notez une petite chose à garder en mémoire.', 'our.rememberYou.noResults': 'Aucun souvenir ne correspond à la recherche et au filtre des favoris.',
   },
+} as const satisfies Record<Locale, Record<string, string>>
+
+const rememberedYouGroupingMessages = {
+  'zh-TW': { 'our.rememberYou.group.expand': '展開 {label}', 'our.rememberYou.group.collapse': '收合 {label}' },
+  en: { 'our.rememberYou.group.expand': 'Expand {label}', 'our.rememberYou.group.collapse': 'Collapse {label}' },
+  ja: { 'our.rememberYou.group.expand': '{label}を展開', 'our.rememberYou.group.collapse': '{label}を折りたたむ' },
+  ko: { 'our.rememberYou.group.expand': '{label} 펼치기', 'our.rememberYou.group.collapse': '{label} 접기' },
+  es: { 'our.rememberYou.group.expand': 'Expandir {label}', 'our.rememberYou.group.collapse': 'Contraer {label}' },
+  fr: { 'our.rememberYou.group.expand': 'Développer {label}', 'our.rememberYou.group.collapse': 'Réduire {label}' },
+} as const satisfies Record<Locale, Record<string, string>>
+
+export const ourBatch4Messages = {
+  'zh-TW': { ...baseOurBatch4Messages['zh-TW'], ...rememberedYouGroupingMessages['zh-TW'] },
+  en: { ...baseOurBatch4Messages.en, ...rememberedYouGroupingMessages.en },
+  ja: { ...baseOurBatch4Messages.ja, ...rememberedYouGroupingMessages.ja },
+  ko: { ...baseOurBatch4Messages.ko, ...rememberedYouGroupingMessages.ko },
+  es: { ...baseOurBatch4Messages.es, ...rememberedYouGroupingMessages.es },
+  fr: { ...baseOurBatch4Messages.fr, ...rememberedYouGroupingMessages.fr },
 } as const satisfies Record<Locale, Record<string, string>>

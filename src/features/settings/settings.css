@@ -390,6 +390,25 @@
   word-break: normal;
 }
 
+.settings-row--responsive-control {
+  grid-template-columns: minmax(0, 1fr) minmax(7rem, 10rem);
+}
+
+.settings-row--responsive-control .settings-row__identity,
+.settings-row--responsive-control .settings-row__actions {
+  min-width: 0;
+}
+
+.settings-row--responsive-control .settings-row__copy strong {
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+.settings-row--responsive-control .settings-text-input {
+  width: 100%;
+  max-width: none;
+}
+
 @media (max-width: 30rem) {
   .settings-grid {
     grid-template-columns: 1fr;
@@ -401,6 +420,22 @@
 
   .settings-row {
     grid-template-columns: 2.1rem minmax(0, 1fr) auto auto;
+  }
+
+  .settings-row--responsive-control {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    gap: var(--space-2);
+  }
+
+  .settings-row--stacked-control {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    gap: var(--space-2);
+  }
+
+  .settings-row--stacked-control .settings-row__actions {
+    padding-left: 0;
   }
 
   .language-options {

@@ -66,7 +66,7 @@ export function LoveBrainFlow({ onDone }: { onDone: () => void }) {
 
   if (loading) return null
   if (completed) return <SoftCard className="clear-flow clear-result" tone="green"><h2>{t('clear.brain.completed')}</h2><BrainResult record={completed} /><div className="clear-flow__actions"><PrimaryButton onClick={saveStar} disabled={savedStar}>{t(savedStar ? 'clear.common.savedStar' : 'clear.common.saveStar')}</PrimaryButton><SecondaryButton onClick={onDone}>{t('clear.common.finishAndReturn')}</SecondaryButton></div></SoftCard>
-  if (!draft) return <SoftCard className="clear-flow clear-intro" tone="purple"><SecondaryButton onClick={onDone}>{t('clear.home')}</SecondaryButton><p>{t('clear.brain.intro')}</p><p>{t('clear.brain.duration')}</p><PrimaryButton onClick={start}>{t('clear.brain.start')}</PrimaryButton></SoftCard>
+  if (!draft) return <SoftCard className="clear-flow clear-intro clear-tool-intro" tone="purple"><SecondaryButton onClick={onDone}>{t('clear.home')}</SecondaryButton><p>{t('clear.brain.intro')}</p><p>{t('clear.brain.duration')}</p><PrimaryButton onClick={start}>{t('clear.brain.start')}</PrimaryButton></SoftCard>
   if (preview) return <section className="clear-flow"><div className="clear-flow__top"><SecondaryButton onClick={() => setPreview(false)}>{t('clear.common.previous')}</SecondaryButton><SecondaryButton onClick={onDone}>{t('clear.common.continueLater')}</SecondaryButton></div><SoftCard className="clear-result" tone="purple"><BrainResult record={draft} /><PrimaryButton onClick={finish}>{t('clear.brain.finish')}</PrimaryButton></SoftCard><p>{t('clear.common.savedDraft')}</p></section>
 
   const question = LOVE_BRAIN_KEYS[draft.currentQuestionIndex]

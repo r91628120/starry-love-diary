@@ -11,6 +11,7 @@ export type HeartRevealCardOrientation = 'landscape' | 'portrait'
 
 export interface HeartRevealOverlayLayout {
   orientation: HeartRevealCardOrientation
+  vertical: 'top' | 'bottom'
   x: number
   y: number
   width: number
@@ -21,8 +22,11 @@ export interface HeartRevealOverlayLayout {
 
 export interface HeartRevealCardCopy { locale: RevealLocale }
 export interface HeartRevealCardLayout { fontSize: number; lines: string[] }
+export interface HeartRevealPanelLayout extends HeartRevealOverlayLayout { lineHeight: number; textHeight: number }
 
 const CARD_PADDING = 54
+const PANEL_VERTICAL_PADDING = 38
+const PANEL_HORIZONTAL_PADDING = 42
 const fontFamily = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
 
 function isCjkLocale(locale: RevealLocale) { return locale === 'zh-TW' || locale === 'ja' || locale === 'ko' }
@@ -41,7 +45,7 @@ export function getHeartRevealOverlayLayout(sourceWidth = HEART_REVEAL_CARD_WIDT
   const vertical = textPlacement.startsWith('top') ? 'top' : 'bottom'
   const x = horizontal === 'left' ? CARD_PADDING : horizontal === 'right' ? HEART_REVEAL_CARD_WIDTH - width - CARD_PADDING : (HEART_REVEAL_CARD_WIDTH - width) / 2
   const y = vertical === 'top' ? CARD_PADDING : HEART_REVEAL_CARD_HEIGHT - height - CARD_PADDING
-  return { orientation, x, y, width, height, textAlign: horizontal, maxLines: orientation === 'landscape' ? 3 : 4 }
+  return { orientation, vertical, x, y, width, height, textAlign: horizontal, maxLines: orientation === 'landscape' ? 3 : 4 }
 }
 
 function splitLongUnit(unit: string, measure: (value: string) => number, maxWidth: number) {
@@ -91,6 +95,14 @@ export function getHeartRevealCardTextLayout(text: string, measure: (value: stri
   return { fontSize, lines: wrapText(text, (value) => measure(value, fontSize), maxWidth, locale) }
 }
 
+export function getHeartRevealPanelLayout(overlay: HeartRevealOverlayLayout, textLayout: HeartRevealCardLayout): HeartRevealPanelLayout {
+  const lineHeight = textLayout.fontSize * 1.38
+  const textHeight = textLayout.lines.length * lineHeight
+  const height = textHeight + PANEL_VERTICAL_PADDING * 2
+  const y = overlay.vertical === 'top' ? CARD_PADDING : HEART_REVEAL_CARD_HEIGHT - height - CARD_PADDING
+  return { ...overlay, y, height, lineHeight, textHeight }
+}
+
 function drawRoundedRect(context: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) {
   context.beginPath()
   context.moveTo(x + radius, y)
@@ -123,17 +135,15 @@ function drawPlacedPhoto(context: CanvasRenderingContext2D, image: CanvasImageSo
 
 function drawOverlay(context: CanvasRenderingContext2D, text: string, copy: HeartRevealCardCopy, sourceWidth: number, sourceHeight: number, textPlacement: HeartRevealTextPlacement) {
   const overlay = getHeartRevealOverlayLayout(sourceWidth, sourceHeight, textPlacement)
-  const inset = 42
+  const textLayout = getHeartRevealCardTextLayout(text, (value, fontSize) => { context.font = `600 ${fontSize}px ${fontFamily}`; return context.measureText(value).width }, overlay.width - PANEL_HORIZONTAL_PADDING * 2, copy.locale, overlay.maxLines)
+  const panel = getHeartRevealPanelLayout(overlay, textLayout)
   context.save()
   context.fillStyle = 'rgba(255, 250, 244, 0.78)'
-  drawRoundedRect(context, overlay.x, overlay.y, overlay.width, overlay.height, 34)
-  const textLayout = getHeartRevealCardTextLayout(text, (value, fontSize) => { context.font = `600 ${fontSize}px ${fontFamily}`; return context.measureText(value).width }, overlay.width - inset * 2, copy.locale, overlay.maxLines)
-  const lineHeight = textLayout.fontSize * 1.38
-  const textHeight = textLayout.lines.length * lineHeight
-  const anchorX = overlay.textAlign === 'left' ? overlay.x + inset : overlay.textAlign === 'right' ? overlay.x + overlay.width - inset : overlay.x + overlay.width / 2
-  const anchorY = overlay.y + (overlay.height - textHeight) / 2 + textLayout.fontSize
-  context.fillStyle = '#49334d'; context.font = `600 ${textLayout.fontSize}px ${fontFamily}`; context.textAlign = overlay.textAlign; context.textBaseline = 'alphabetic'
-  textLayout.lines.forEach((line, index) => context.fillText(line, anchorX, anchorY + index * lineHeight))
+  drawRoundedRect(context, panel.x, panel.y, panel.width, panel.height, 34)
+  const anchorX = panel.textAlign === 'left' ? panel.x + PANEL_HORIZONTAL_PADDING : panel.textAlign === 'right' ? panel.x + panel.width - PANEL_HORIZONTAL_PADDING : panel.x + panel.width / 2
+  const anchorY = panel.y + PANEL_VERTICAL_PADDING + textLayout.fontSize
+  context.fillStyle = '#49334d'; context.font = `600 ${textLayout.fontSize}px ${fontFamily}`; context.textAlign = panel.textAlign; context.textBaseline = 'alphabetic'
+  textLayout.lines.forEach((line, index) => context.fillText(line, anchorX, anchorY + index * panel.lineHeight))
   context.restore()
 }
 

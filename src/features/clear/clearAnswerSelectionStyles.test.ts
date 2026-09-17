@@ -18,6 +18,11 @@ describe('Clear answer selection styles', () => {
     expect(css).toMatch(/button:focus-visible[^{}]*\{[^}]*outline:3px solid #657aa1;outline-offset:2px/)
   })
 
+  it('uses the scenario card background and border without a visual checkmark badge', () => {
+    expect(css).toMatch(/\.clear-scenarios__rail button\.is-active\{[^}]*border-color:var\(--color-pink-500\)[^}]*background:var\(--color-pink-100\)[^}]*box-shadow:/)
+    expect(css).not.toContain('.clear-scenarios__rail button.is-active::after')
+  })
+
   it('marks Yes, No, and Unknown selects after a choice is made', () => {
     const source = readFileSync(resolve(clearDirectory, 'OrganizeFeelingsFlow.tsx'), 'utf8')
     expect(source).toContain("className={form.observations[item] ? 'is-selected' : ''}")
