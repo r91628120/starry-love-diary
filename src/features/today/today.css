@@ -346,6 +346,19 @@
   margin-top: var(--space-4);
 }
 
+.mood-selector--latin {
+  display: flex;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mood-selector--latin::-webkit-scrollbar {
+  display: none;
+}
+
 .mood-option {
   position: relative;
   display: flex;
@@ -393,6 +406,26 @@
   height: clamp(2.3rem, 10vw, 3.3rem);
   object-fit: contain;
   filter: drop-shadow(0 0.15rem 0.25rem rgb(91 62 55 / 12%));
+}
+
+.mood-selector--latin .mood-option {
+  min-width: 8rem;
+  min-height: 6.25rem;
+  flex: 0 0 clamp(8rem, 36vw, 9.5rem);
+  padding: var(--space-2);
+  overflow-wrap: normal;
+  word-break: normal;
+  scroll-snap-align: start;
+}
+
+.mood-selector--latin .mood-option__illustration {
+  width: clamp(2.8rem, 12vw, 3.5rem);
+  height: clamp(2.8rem, 12vw, 3.5rem);
+}
+
+.mood-selector--latin .mood-option__label {
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 @keyframes mood-reward-pop {
@@ -796,6 +829,13 @@
     padding: var(--space-1) var(--space-1) var(--space-3);
     overscroll-behavior-inline: contain;
     scrollbar-width: thin;
+  }
+
+  .mood-selector--latin {
+    display: flex;
+    overflow-x: auto;
+    padding: 0;
+    scrollbar-width: none;
   }
 
   .heart-reveal-card__body {

@@ -17,7 +17,7 @@ const moods: Array<{ id: MoodKey; labelKey: TranslationKey; image: string }> = [
 ]
 
 export function MoodSelector() {
-  const { t } = useI18n()
+  const { locale, t } = useI18n()
   const persistence = usePersistence()
   const [selectedMood, setSelectedMood] = useState<MoodKey | undefined>(persistence?.todayMood?.mood)
   const [showReward, setShowReward] = useState(false)
@@ -53,11 +53,11 @@ export function MoodSelector() {
     <SoftCard className="mood-card">
       <SectionHeader icon={<span className="section-symbol" aria-hidden="true">♥</span>} title={t('today.mood.title')} />
       {showReward ? <span className="mood-card__reward" role="status">+2</span> : null}
-      <div className="mood-selector" role="group" aria-label={t('today.mood.title')}>
+      <div className={`mood-selector${locale === 'en' || locale === 'es' || locale === 'fr' ? ' mood-selector--latin' : ''}`} role="group" aria-label={t('today.mood.title')}>
         {moods.map((mood) => (
           <button key={mood.id} className={`mood-option mood-option--${mood.id}`} type="button" aria-pressed={selectedMood === mood.id} onClick={() => selectMood(mood.id)}>
             <img className="mood-option__illustration" src={mood.image} alt="" aria-hidden="true" />
-            <span>{t(mood.labelKey)}</span>
+            <span className="mood-option__label">{t(mood.labelKey)}</span>
           </button>
         ))}
       </div>

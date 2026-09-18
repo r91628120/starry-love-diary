@@ -6,6 +6,7 @@ import { initializePersistence, type PersistenceRuntime } from '../../data/persi
 import { createMemoryStorageBacking, MemoryStorageAdapter, type MemoryStorageBacking } from '../../data/storage/MemoryStorageAdapter'
 import { useI18n } from '../../i18n/I18nContext'
 import { I18nProvider } from '../../i18n/I18nProvider'
+import type { Locale } from '../../i18n/messages'
 import { MoodSelector } from './MoodSelector'
 
 const todayStyles = readFileSync('src/features/today/today.css', 'utf8')
@@ -25,10 +26,10 @@ async function createRuntime(backing: MemoryStorageBacking = createMemoryStorage
   })
 }
 
-function renderSelector(runtime: PersistenceRuntime) {
+function renderSelector(runtime: PersistenceRuntime, locale: Locale = 'zh-TW') {
   return render(
     <PersistenceProvider runtime={runtime}>
-      <I18nProvider initialLocale="zh-TW">
+      <I18nProvider initialLocale={locale}>
         <MoodSelector />
         <LocaleControl />
       </I18nProvider>
@@ -51,6 +52,39 @@ afterEach(() => {
 })
 
 describe('MoodSelector persisted selection feedback', () => {
+  it.each(['zh-TW', 'ja', 'ko'] as const)('keeps the compact seven-column layout for %s', async (locale) => {
+    const runtime = await createRuntime()
+    renderSelector(runtime, locale)
+
+    const selector = screen.getByRole('group')
+    expect(selector).toHaveClass('mood-selector')
+    expect(selector).not.toHaveClass('mood-selector--latin')
+    expect(selector.querySelectorAll('.mood-option')).toHaveLength(7)
+  })
+
+  it.each(['en', 'es', 'fr'] as const)('uses the wide horizontal layout for %s without changing mood order', async (locale) => {
+    const runtime = await createRuntime()
+    renderSelector(runtime, locale)
+
+    const selector = screen.getByRole('group')
+    expect(selector).toHaveClass('mood-selector', 'mood-selector--latin')
+    expect([...selector.querySelectorAll('.mood-option')].map((option) => option.className)).toEqual([
+      'mood-option mood-option--flutter',
+      'mood-option mood-option--happy',
+      'mood-option mood-option--peaceful',
+      'mood-option mood-option--miss',
+      'mood-option mood-option--uneasy',
+      'mood-option mood-option--sad',
+      'mood-option mood-option--rumination',
+    ])
+  })
+
+  it('keeps CJK grid and Latin scrolling CSS presentation separate', () => {
+    expect(todayStyles).toMatch(/\.mood-selector\s*\{[\s\S]*?display:\s*grid;[\s\S]*?grid-template-columns:\s*repeat\(7, minmax\(0, 1fr\)\)/)
+    expect(todayStyles).toMatch(/\.mood-selector--latin\s*\{[\s\S]*?display:\s*flex;[\s\S]*?overflow-x:\s*auto;/)
+    expect(todayStyles).toMatch(/\.mood-selector--latin \.mood-option\s*\{[\s\S]*?min-width:\s*8rem;[\s\S]*?overflow-wrap:\s*normal;[\s\S]*?word-break:\s*normal;/)
+  })
+
   it('persists the first mood selection and shows the existing +2 feedback', async () => {
     const runtime = await createRuntime()
     renderSelector(runtime)
