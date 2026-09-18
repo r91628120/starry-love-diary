@@ -134,7 +134,7 @@ jobs:
           assert len(targets) == 1, 'Expected exactly one App target'
           settings = targets[0]
           expected = {'PRODUCT_BUNDLE_IDENTIFIER': 'com.miracle.starrylovediary',
-                      'MARKETING_VERSION': '1.0.0', 'CURRENT_PROJECT_VERSION': '2',
+                      'MARKETING_VERSION': '1.0.0', 'CURRENT_PROJECT_VERSION': '3',
                       'PRODUCT_NAME': 'App', 'CONFIGURATION': 'Release',
                       'WRAPPER_EXTENSION': 'app', 'SKIP_INSTALL': 'NO'}
           for key, value in expected.items():
@@ -250,7 +250,7 @@ jobs:
           apps = list((work / 'StarryLoveDiary.xcarchive/Products/Applications').glob('*.app'))
           assert len(apps) == 1 and apps[0].name == 'App.app', 'Expected one archived App.app'
           info = plistlib.loads((apps[0] / 'Info.plist').read_bytes())
-          for key, value in {'CFBundleIdentifier': 'com.miracle.starrylovediary', 'CFBundleShortVersionString': '1.0.0', 'CFBundleVersion': '2'}.items():
+          for key, value in {'CFBundleIdentifier': 'com.miracle.starrylovediary', 'CFBundleShortVersionString': '1.0.0', 'CFBundleVersion': '3'}.items():
               assert info.get(key) == value, f'Archive mismatch: {key}'
           signing = json.loads((work / 'signing.json').read_text())
           options = {'method': 'app-store-connect', 'destination': 'export', 'signingStyle': 'manual',
@@ -258,7 +258,7 @@ jobs:
                      'provisioningProfiles': {'com.miracle.starrylovediary': signing['uuid']},
                      'manageAppVersionAndBuildNumber': False, 'stripSwiftSymbols': True, 'uploadSymbols': False}
           (work / 'ExportOptions.plist').write_bytes(plistlib.dumps(options))
-          print('Archive identity: com.miracle.starrylovediary 1.0.0 (1): PASS')
+          print('Archive identity: com.miracle.starrylovediary 1.0.0 (3): PASS')
           PY
 
       - name: Export IPA locally
@@ -287,7 +287,7 @@ jobs:
           apps = list((dest / 'Payload').glob('*.app'))
           assert len(apps) == 1 and apps[0].name == 'App.app', 'Expected one Payload/App.app'
           info = plistlib.loads((apps[0] / 'Info.plist').read_bytes())
-          for key, value in {'CFBundleIdentifier': 'com.miracle.starrylovediary', 'CFBundleShortVersionString': '1.0.0', 'CFBundleVersion': '2'}.items():
+          for key, value in {'CFBundleIdentifier': 'com.miracle.starrylovediary', 'CFBundleShortVersionString': '1.0.0', 'CFBundleVersion': '3'}.items():
               assert info.get(key) == value, f'IPA mismatch: {key}'
           subprocess.run(['codesign', '--verify', '--deep', '--strict', str(apps[0])], check=True, capture_output=True)
           decoded = subprocess.run(['security', 'cms', '-D', '-i', str(apps[0] / 'embedded.mobileprovision')], check=True, capture_output=True)

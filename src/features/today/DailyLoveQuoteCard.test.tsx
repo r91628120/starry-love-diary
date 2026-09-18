@@ -7,7 +7,7 @@ import { I18nProvider } from '../../i18n/I18nProvider'
 import { useI18n } from '../../i18n/I18nContext'
 import type { Locale } from '../../i18n/messages'
 import { DailyLoveQuoteCard } from './DailyLoveQuoteCard'
-import { getDailyLoveQuote } from './dailyLoveQuoteRuntime'
+import { formatDailyLoveQuoteDate, getDailyLoveQuote } from './dailyLoveQuoteRuntime'
 
 function LocaleSwitch() {
   const { setLocale } = useI18n()
@@ -57,7 +57,7 @@ describe('DailyLoveQuoteCard runtime integration', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Share' }))
     await waitFor(() => expect(share).toHaveBeenCalledWith({
       title: 'Love Note | Daily Quote',
-      text: `${getDailyLoveQuote('en', 1)}\n\nStarry Love Diary`,
+      text: `${getDailyLoveQuote('en', 1)}\n\nLove Note | Daily Quote\n${formatDailyLoveQuoteDate('2026-08-31', 'en')}｜Day 1\nStarry Love Diary`,
     }))
     await waitFor(() => expect(screen.getByText('Today’s love quote was shared')).toBeInTheDocument())
     expect(await runtime.scores.hasAward('quote_shared', { localDate: '2026-08-31' })).toBe(true)
@@ -70,7 +70,7 @@ describe('DailyLoveQuoteCard runtime integration', () => {
     renderCard(runtime, 'en')
 
     fireEvent.click(screen.getByRole('button', { name: 'Share' }))
-    await waitFor(() => expect(writeText).toHaveBeenCalledWith(`${getDailyLoveQuote('en', 1)}\n\nStarry Love Diary`))
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(`${getDailyLoveQuote('en', 1)}\n\nLove Note | Daily Quote\n${formatDailyLoveQuoteDate('2026-08-31', 'en')}｜Day 1\nStarry Love Diary`))
     expect(await screen.findByText('Today’s love quote was copied')).toBeInTheDocument()
     expect(await runtime.scores.hasAward('quote_shared', { localDate: '2026-08-31' })).toBe(true)
   })

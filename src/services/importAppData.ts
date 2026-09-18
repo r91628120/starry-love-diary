@@ -5,7 +5,7 @@ import type { StoreName } from '../data/storage/StorageAdapter'
 import { MESSAGE_TO_YOU_TYPES, type AppSettings, type DiaryEntry, type HeartPhrase, type ImportantDate, type MemoryMoment, type MessageToYouEntry, type MoodKey, type MoodRecord, type Profile, type RememberedYouCard, type ScoreAward, type Star } from '../data/types'
 import { STARLOVE_EXPORT_FORMAT, STARLOVE_EXPORT_VERSION, type AppDataExport } from './exportAppData'
 
-export type AppDataImportRuntime = Pick<PersistenceRuntime, 'adapter' | 'profiles' | 'moods' | 'diaries' | 'settings' | 'stars' | 'scores' | 'heartPhrases' | 'importantDates' | 'memoryMoments' | 'messageToYou' | 'rememberedYou' | 'clearRecords' | 'loveBoatAssessments' | 'loveBrainAssessments' | 'likeOrHabitReflections'>
+export type AppDataImportRuntime = Pick<PersistenceRuntime, 'adapter' | 'photos' | 'profiles' | 'moods' | 'diaries' | 'settings' | 'stars' | 'scores' | 'heartPhrases' | 'importantDates' | 'memoryMoments' | 'messageToYou' | 'rememberedYou' | 'clearRecords' | 'loveBoatAssessments' | 'loveBrainAssessments' | 'likeOrHabitReflections'>
 
 export const MAX_APP_DATA_IMPORT_BYTES = 10 * 1024 * 1024
 
@@ -153,18 +153,22 @@ export async function buildImportPlan(runtime: AppDataImportRuntime, exportData:
 
 function importedRecords<T>(action: MergeAction<T>) { return [...action.add, ...action.update] }
 async function write<T extends { id: string }>(runtime: AppDataImportRuntime, store: StoreName, entries: T[]) { await Promise.all(entries.map((record) => runtime.adapter.put(store, record))) }
+async function validLocalPhotoAssetId(runtime: AppDataImportRuntime, photoAssetId: string | null | undefined) {
+  if (!photoAssetId) return undefined
+  return await runtime.photos.getRenderableThumbnail(photoAssetId) ? photoAssetId : undefined
+}
 export async function applyImportPlan(runtime: AppDataImportRuntime, plan: AppDataImportPlan) {
   const currentProfiles = new Map((await current<Profile>(runtime, 'profiles')).map((record) => [record.id, record]))
   const currentMoments = new Map((await current<MemoryMoment>(runtime, 'memoryMoments')).map((record) => [record.id, record]))
   const currentSettings = await runtime.settings.getSettings()
-  const profiles = importedRecords(plan.profiles).map((record) => {
-    const photoAssetId = currentProfiles.get(record.id)?.photoAssetId
+  const profiles = await Promise.all(importedRecords(plan.profiles).map(async (record) => {
+    const photoAssetId = await validLocalPhotoAssetId(runtime, currentProfiles.get(record.id)?.photoAssetId)
     return photoAssetId ? { ...record, photoAssetId } : record
-  })
-  const moments = importedRecords(plan.memoryMoments).map((record) => {
-    const photoAssetId = currentMoments.get(record.id)?.photoAssetId
+  }))
+  const moments = await Promise.all(importedRecords(plan.memoryMoments).map(async (record) => {
+    const photoAssetId = await validLocalPhotoAssetId(runtime, currentMoments.get(record.id)?.photoAssetId)
     return photoAssetId ? { ...record, photoAssetId } : record
-  })
+  }))
   const settings = importedRecords(plan.settings).map((record) => ({ ...record, schemaVersion: SCHEMA_VERSION, onboardingCompleted: currentSettings?.onboardingCompleted ?? true }))
   await Promise.all([
     write(runtime, 'profiles', profiles), write(runtime, 'moods', importedRecords(plan.moods)), write(runtime, 'diaries', importedRecords(plan.diaries)), write(runtime, 'clearRecords', importedRecords(plan.clearRecords)), write(runtime, 'loveBoatAssessments', importedRecords(plan.loveBoatAssessments)), write(runtime, 'loveBrainAssessments', importedRecords(plan.loveBrainAssessments)), write(runtime, 'likeOrHabitReflections', importedRecords(plan.likeOrHabitReflections)), write(runtime, 'stars', importedRecords(plan.stars)), write(runtime, 'scoreAwards', importedRecords(plan.scoreAwards)), write(runtime, 'heartPhrases', importedRecords(plan.heartPhrases)), write(runtime, 'importantDates', importedRecords(plan.importantDates)), write(runtime, 'memoryMoments', moments), write(runtime, 'messageToYou', importedRecords(plan.messageToYou)), write(runtime, 'rememberedYouCards', importedRecords(plan.rememberedYouCards)), write(runtime, 'settings', settings),

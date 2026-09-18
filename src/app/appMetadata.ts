@@ -1,5 +1,4 @@
-import packageManifest from '../../package.json'
+declare const __STARRY_MARKETING_VERSION__: string
 
-// Keep runtime version information aligned with the package manifest instead of
-// duplicating it in a UI translation or component.
-export const APP_VERSION = packageManifest.version
+// Injected by Vite from the single MARKETING_VERSION value in the iOS project.
+export const APP_VERSION = __STARRY_MARKETING_VERSION__

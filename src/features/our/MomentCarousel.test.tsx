@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { PersistenceProvider } from '../../data/PersistenceContext'
 import { initializePersistence } from '../../data/persistence'
@@ -11,6 +12,34 @@ import { MomentCarousel } from './MomentCarousel'
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
 describe('MomentCarousel', () => {
+  it('keeps the native date input constrained to its own Moments form field', async () => {
+    const runtime = await initializePersistence({ adapter: new MemoryStorageAdapter(), defaultLocale: 'en', localDate: '2026-09-08' })
+    const view = render(<PersistenceProvider runtime={runtime}><I18nProvider initialLocale="en"><MomentCarousel photoManagement /></I18nProvider></PersistenceProvider>)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+
+    const dateInput = screen.getByLabelText('Date')
+    expect(dateInput).toHaveAttribute('type', 'date')
+    expect(dateInput).toHaveClass('moment-form__date-input')
+    expect(dateInput.closest('label')).toHaveClass('moment-form__date-field')
+    expect(readFileSync('src/features/our/our.css', 'utf8')).toMatch(/\.moment-carousel \.moment-form__date-field\{min-width:0\}\.moment-carousel \.moment-form__date-input\{min-width:0;max-width:100%\}/u)
+    expect(view.container.querySelector('.important-dates .moment-form__date-input')).toBeNull()
+  })
+
+  it('keeps the native date binding unchanged through moment save and edit', async () => {
+    const runtime = await initializePersistence({ adapter: new MemoryStorageAdapter(), defaultLocale: 'en', localDate: '2026-09-08' })
+    render(<PersistenceProvider runtime={runtime}><I18nProvider initialLocale="en"><MomentCarousel photoManagement /></I18nProvider></PersistenceProvider>)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+    fireEvent.change(screen.getByLabelText('Date'), { target: { value: '2026-09-07' } })
+    fireEvent.change(screen.getByLabelText('Content'), { target: { value: 'A saved local date.' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save this moment' }))
+
+    await waitFor(async () => expect(await runtime.memoryMoments.getMemoryMoments()).toMatchObject([{ localDate: '2026-09-07', content: 'A saved local date.' }]))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    expect(screen.getByLabelText('Date')).toHaveValue('2026-09-07')
+  })
+
   it('makes the existing View all moments action render every persisted moment', async () => {
     const backing = createMemoryStorageBacking()
     const first = await initializePersistence({ adapter: new MemoryStorageAdapter(backing), defaultLocale: 'en', localDate: '2026-09-08' })
@@ -80,5 +109,31 @@ describe('MomentCarousel', () => {
     expect(screen.getByRole('button', { name: 'Replace photo' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Adjust photo' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Remove photo' })).toBeInTheDocument()
+  })
+
+  it('renders the Moment management actions as full-width icon-first vertical rows without changing photo conditions', async () => {
+    const runtime = await initializePersistence({ adapter: new MemoryStorageAdapter(), defaultLocale: 'en', localDate: '2026-09-08' })
+    await runtime.memoryMoments.createMemoryMoment({ title: 'Text memory', content: 'A memory without a photo.', localDate: '2026-09-08' })
+    runtime.initial.memoryMoments = await runtime.memoryMoments.getMemoryMoments()
+
+    const view = render(<PersistenceProvider runtime={runtime}><I18nProvider initialLocale="en"><MomentCarousel photoManagement /></I18nProvider></PersistenceProvider>)
+    const actionList = view.container.querySelector('.moment-action-list')
+    expect(actionList).toBeInTheDocument()
+    expect(Array.from(actionList!.querySelectorAll(':scope > button')).map((button) => button.textContent)).toEqual(['Edit', 'Delete'])
+    expect(actionList?.querySelectorAll('svg')).toHaveLength(2)
+    expect(actionList?.querySelectorAll('button > svg + span')).toHaveLength(2)
+    expect(screen.queryByRole('button', { name: 'Replace photo' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Adjust photo' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Remove photo' })).not.toBeInTheDocument()
+
+    const source = readFileSync('src/features/our/MomentCarousel.tsx', 'utf8')
+    const css = readFileSync('src/features/our/our.css', 'utf8')
+    expect(source).toContain('moment-action-list__row')
+    expect(source).not.toMatch(/moment-action-list[\s\S]*?<br\s*\/?/u)
+    expect(css).toMatch(/\.moment-carousel \.moment-action-list\{display:grid;width:100%;min-width:0/u)
+    expect(css).toMatch(/grid-template-columns:1\.5rem minmax\(0,1fr\)/u)
+    expect(css).toContain('white-space:normal')
+    expect(css).not.toMatch(/\.moment-carousel \.moment-action-list[^}]*overflow-x:\s*(auto|scroll)/u)
+    expect(css).not.toMatch(/\.moment-carousel \.moment-action-list__row[^}]*line-clamp/u)
   })
 })

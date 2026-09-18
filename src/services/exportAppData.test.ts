@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { initializePersistence } from '../data/persistence'
 import { MemoryStorageAdapter } from '../data/storage/MemoryStorageAdapter'
 import { LEGACY_V4_STORE_NAMES } from '../data/storage/StorageAdapter'
-import { STARLOVE_EXPORT_FORMAT, STARLOVE_EXPORT_VERSION, buildAppDataExport, createAppDataExport, downloadAppDataExport, serializeAppDataExport } from './exportAppData'
+import { STARLOVE_EXPORT_FORMAT, STARLOVE_EXPORT_VERSION, buildAppDataExport, createAppDataExport, downloadAppDataExport, exportAppData, serializeAppDataExport } from './exportAppData'
 
 async function createFixture() {
   const runtime = await initializePersistence({ adapter: new MemoryStorageAdapter(), defaultLocale: 'zh-TW', localDate: '2026-09-11' })
@@ -86,5 +86,41 @@ describe('App data export', () => {
     expect(createObjectURL).toHaveBeenCalledTimes(2)
     expect(revokeObjectURL).toHaveBeenCalledTimes(2)
     click.mockRestore()
+  })
+
+  it('writes Unicode JSON only to native Cache and shares its returned file URI without using browser download', async () => {
+    const runtime = await createFixture()
+    let nativeBase64 = ''
+    const share = vi.fn(async () => undefined)
+    const download = vi.fn()
+    const result = await exportAppData({ repositories: runtime, localDate: '2026-09-11' }, {
+      isNativePlatform: () => true,
+      canShare: async () => ({ value: true }),
+      writeFile: async ({ path, data, directory }) => { nativeBase64 = data; expect(path).toBe('starry-love-diary-data-2026-09-11.json'); expect(String(directory)).toBe('CACHE'); return { uri: 'file:///cache/starry-love-diary-data-2026-09-11.json' } },
+      share,
+      deleteFile: async ({ path, directory }) => { expect(path).toBe('starry-love-diary-data-2026-09-11.json'); expect(String(directory)).toBe('CACHE') },
+      download,
+    })
+    const binary = globalThis.atob(nativeBase64)
+    const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0))
+    expect(new TextDecoder().decode(bytes)).toBe(result.content)
+    expect(result.delivery).toBe('share-sheet-opened')
+    expect(share).toHaveBeenCalledWith({ files: ['file:///cache/starry-love-diary-data-2026-09-11.json'] })
+    expect(download).not.toHaveBeenCalled()
+  })
+
+  it('scopes native cleanup to its temporary file and treats share cancellation as neutral', async () => {
+    const runtime = await createFixture()
+    const deleteFile = vi.fn(async () => undefined)
+    const result = await exportAppData({ repositories: runtime, localDate: '2026-09-11' }, {
+      isNativePlatform: () => true,
+      canShare: async () => ({ value: true }),
+      writeFile: async () => ({ uri: 'file:///cache/backup.json' }),
+      share: async () => { throw new DOMException('Share cancelled', 'AbortError') },
+      deleteFile,
+    })
+    expect(result.delivery).toBe('cancelled')
+    expect(deleteFile).toHaveBeenCalledTimes(1)
+    expect(deleteFile).toHaveBeenCalledWith(expect.objectContaining({ path: 'starry-love-diary-data-2026-09-11.json' }))
   })
 })

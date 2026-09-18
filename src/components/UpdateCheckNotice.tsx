@@ -30,5 +30,5 @@ export function UpdateCheckNotice({ check }: UpdateCheckNoticeProps) {
     setDismissed(true)
   }
 
-  return <div className="update-check-notice__backdrop" role="presentation"><section className="update-check-notice" role="dialog" aria-modal="true" aria-labelledby="update-check-title" aria-describedby="update-check-description"><h2 id="update-check-title">{t('update.title')}</h2><p id="update-check-description">{t('update.body')}</p><div className="update-check-notice__actions"><SecondaryButton onClick={() => setDismissed(true)}>{t('update.later')}</SecondaryButton>{canOpenStore ? <PrimaryButton onClick={goToUpdate}>{t('update.now')}</PrimaryButton> : null}</div></section></div>
+  return <div className="update-check-notice__backdrop" data-qa12-overlay="update-check" role="presentation"><section className="update-check-notice" role="dialog" aria-modal="true" aria-labelledby="update-check-title" aria-describedby="update-check-description"><h2 id="update-check-title">{t('update.title')}</h2><p id="update-check-description">{t('update.body')}</p><div className="update-check-notice__actions"><SecondaryButton onClick={() => setDismissed(true)}>{t('update.later')}</SecondaryButton>{canOpenStore ? <PrimaryButton onClick={goToUpdate}>{t('update.now')}</PrimaryButton> : null}</div></section></div>
 }

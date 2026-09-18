@@ -140,6 +140,29 @@ describe('Milestone 4C-3 Onboarding localization and runtime', () => {
     expect((await runtime.settings.getSettings())?.onboardingCompleted).toBe(false)
   })
 
+  it.each(supportedLocales)('renders one shared optional-photo hint in %s without changing the two placeholders', async (locale) => {
+    const runtime = await initializePersistence({ adapter: new MemoryStorageAdapter(), defaultLocale: locale, localDate: '2026-08-31' })
+    renderRuntime(runtime)
+    fireEvent.change(screen.getByLabelText(messages[locale]['onboarding.myNickname.label']), { target: { value: 'My name' } })
+    fireEvent.change(screen.getByLabelText(messages[locale]['onboarding.otherNickname.label']), { target: { value: 'Partner name' } })
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(messages[locale]['onboarding.next']) }))
+
+    expect(await screen.findByText(messages[locale]['onboarding.photo.optional'])).toBeInTheDocument()
+    expect(screen.getAllByText(messages[locale]['onboarding.fallback.photo'])).toHaveLength(2)
+    expect(screen.getAllByText(messages[locale]['onboarding.photo.optional'])).toHaveLength(1)
+  })
+
+  it('uses the approved Traditional Chinese shared hint instead of the previous copy', async () => {
+    const runtime = await initializePersistence({ adapter: new MemoryStorageAdapter(), defaultLocale: 'zh-TW', localDate: '2026-08-31' })
+    renderRuntime(runtime)
+    fireEvent.change(screen.getByLabelText('我的暱稱'), { target: { value: '小星' } })
+    fireEvent.change(screen.getByLabelText('我喜歡對象的暱稱'), { target: { value: '月亮' } })
+    fireEvent.click(screen.getByRole('button', { name: /下一步/ }))
+
+    expect(await screen.findByText('照片為選填，稍後可至「設定」加入，不影響開始記錄。')).toBeInTheDocument()
+    expect(screen.queryByText('照片為選填，不影響開始記錄。')).not.toBeInTheDocument()
+  })
+
   it('keeps validation localized and does not save incomplete profiles', async () => {
     const runtime = await initializePersistence({ adapter: new MemoryStorageAdapter(), defaultLocale: 'en', localDate: '2026-08-31' })
     renderRuntime(runtime)

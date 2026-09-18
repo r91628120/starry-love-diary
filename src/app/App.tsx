@@ -13,9 +13,15 @@ import { HeartRevealPhotoPage } from '../pages/HeartRevealPhotoPage'
 import { MomentPhotoManagementPage } from '../pages/MomentPhotoManagementPage'
 import { SettingsInformationPage } from '../pages/SettingsInformationPage'
 import { usePersistence } from '../data/PersistenceStateContext'
+import { useEffect } from 'react'
+import { installQa12Diagnostics } from '../services/qa12Diagnostics'
 
 export function App() {
   const persistence = usePersistence()
+  useEffect(() => {
+    const diagnostics = installQa12Diagnostics()
+    return diagnostics.dispose
+  }, [])
   if (persistence && !persistence.settings.onboardingCompleted) {
     return <><UpdateCheckNotice /><Routes>
       <Route path="/onboarding" element={<OnboardingPage />} />

@@ -387,29 +387,6 @@
   font-weight: var(--font-weight-semibold);
 }
 
-.mood-option__check {
-  position: absolute;
-  top: 0.2rem;
-  right: 0.25rem;
-  display: grid;
-  width: 1.15rem;
-  height: 1.15rem;
-  place-items: center;
-  border-radius: 50%;
-  background: var(--color-pink-500);
-  color: var(--color-surface-strong);
-  font-size: 0.72rem;
-  line-height: 1;
-  opacity: 0;
-  transform: scale(0.7);
-  transition: opacity 160ms ease, transform 160ms ease;
-}
-
-.mood-option[aria-pressed='true'] .mood-option__check {
-  opacity: 1;
-  transform: scale(1);
-}
-
 .mood-option__illustration {
   display: block;
   width: clamp(2.3rem, 10vw, 3.3rem);

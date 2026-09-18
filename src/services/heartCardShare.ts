@@ -1,19 +1,36 @@
+import { Capacitor } from '@capacitor/core'
+import { Directory, Filesystem } from '@capacitor/filesystem'
+import { Share } from '@capacitor/share'
+
 export type HeartCardShareResult = 'shared' | 'cancelled' | 'unsupported' | 'error' | 'pending'
 export type HeartCardSaveResult = 'downloaded' | 'save-sheet-opened' | 'cancelled' | 'unsupported' | 'error' | 'pending'
 export const HEART_CARD_SHARE_PENDING_SAFETY_TIMEOUT_MS = 12_000
 
 type NativePlatform = 'ios' | 'android'
-interface CapacitorHost { Capacitor?: { getPlatform?: () => string } }
+interface NativePlatformHost { getPlatform(): string }
+interface NativeImageShare {
+  canShare(): Promise<{ value: boolean }>
+  share(options: { title?: string; files: string[] }): Promise<unknown>
+}
+interface NativeFilesystem {
+  writeFile(options: { path: string; data: string; directory: Directory }): Promise<{ uri: string }>
+  deleteFile(options: { path: string; directory: Directory }): Promise<void>
+}
 interface HeartCardSaveOptions {
-  target?: Pick<Navigator, 'share' | 'canShare'>
-  capacitorHost?: CapacitorHost
+  nativePlatform?: NativePlatformHost
+  nativeShare?: NativeImageShare
+  nativeFilesystem?: NativeFilesystem
   download?: (blob: Blob) => void
+  filename?: () => string
 }
 
-function isCancelled(error: unknown) { return error instanceof DOMException && error.name === 'AbortError' }
+function isCancelled(error: unknown) {
+  return (error instanceof DOMException && error.name === 'AbortError')
+    || (error instanceof Error && /cancel/i.test(error.message))
+}
 
-export function getHeartCardNativePlatform(host: CapacitorHost = globalThis as CapacitorHost): NativePlatform | undefined {
-  const platform = host.Capacitor?.getPlatform?.()
+export function getHeartCardNativePlatform(host: NativePlatformHost = Capacitor): NativePlatform | undefined {
+  const platform = host.getPlatform()
   return platform === 'ios' || platform === 'android' ? platform : undefined
 }
 
@@ -39,11 +56,49 @@ export function downloadHeartCardImage(blob: Blob) {
   globalThis.setTimeout(() => URL.revokeObjectURL(url), 0)
 }
 
-export async function saveHeartCardImage(blob: Blob, options: HeartCardSaveOptions = {}): Promise<HeartCardSaveResult> {
-  if (getHeartCardNativePlatform(options.capacitorHost)) {
-    const result = await shareHeartCardImage(blob, options.target)
-    return result === 'shared' ? 'save-sheet-opened' : result
+function createNativeHeartCardFilename() {
+  return `starry-love-card-${Date.now()}-${Math.random().toString(36).slice(2, 10)}.png`
+}
+
+async function blobToBase64(blob: Blob) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onerror = () => reject(reader.error ?? new Error('PNG conversion failed'))
+    reader.onload = () => {
+      const result = typeof reader.result === 'string' ? reader.result : ''
+      const base64 = result.split(',', 2)[1]
+      if (base64) resolve(base64)
+      else reject(new Error('PNG conversion failed'))
+    }
+    reader.readAsDataURL(blob)
+  })
+}
+
+async function saveNativeHeartCardImage(blob: Blob, options: HeartCardSaveOptions): Promise<HeartCardSaveResult> {
+  const nativeShare = options.nativeShare ?? Share
+  const nativeFilesystem = options.nativeFilesystem ?? Filesystem
+  const filename = (options.filename ?? createNativeHeartCardFilename)()
+  let written = false
+
+  try {
+    if (!(await nativeShare.canShare()).value) return 'unsupported'
+    const { uri } = await nativeFilesystem.writeFile({
+      path: filename,
+      data: await blobToBase64(blob),
+      directory: Directory.Cache,
+    })
+    written = true
+    await nativeShare.share({ files: [uri] })
+    return 'save-sheet-opened'
+  } catch (error) {
+    return isCancelled(error) ? 'cancelled' : 'error'
+  } finally {
+    if (written) await nativeFilesystem.deleteFile({ path: filename, directory: Directory.Cache }).catch(() => undefined)
   }
+}
+
+export async function saveHeartCardImage(blob: Blob, options: HeartCardSaveOptions = {}): Promise<HeartCardSaveResult> {
+  if (getHeartCardNativePlatform(options.nativePlatform)) return saveNativeHeartCardImage(blob, options)
   try {
     ;(options.download ?? downloadHeartCardImage)(blob)
     return 'downloaded'

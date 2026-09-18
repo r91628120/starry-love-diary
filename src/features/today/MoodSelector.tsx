@@ -56,7 +56,6 @@ export function MoodSelector() {
       <div className="mood-selector" role="group" aria-label={t('today.mood.title')}>
         {moods.map((mood) => (
           <button key={mood.id} className={`mood-option mood-option--${mood.id}`} type="button" aria-pressed={selectedMood === mood.id} onClick={() => selectMood(mood.id)}>
-            <span className="mood-option__check" aria-hidden="true">✓</span>
             <img className="mood-option__illustration" src={mood.image} alt="" aria-hidden="true" />
             <span>{t(mood.labelKey)}</span>
           </button>

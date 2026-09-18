@@ -6,6 +6,8 @@ import {
   getDailyLoveQuote,
   getDailyLoveQuoteDayIndex,
   getDailyLoveQuoteKey,
+  formatDailyLoveQuoteDate,
+  formatDailyLoveQuoteSharePayload,
   shareDailyLoveQuote,
 } from './dailyLoveQuoteRuntime'
 
@@ -36,12 +38,70 @@ describe('daily love quote runtime', () => {
     }
   })
 
-  it('shares exactly the supplied current-locale quote', async () => {
+  it('uses native Capacitor Share before Web Share or clipboard', async () => {
+    const nativeShare = { canShare: vi.fn().mockResolvedValue({ value: true }), share: vi.fn().mockResolvedValue({}) }
+    const webShare = vi.fn().mockResolvedValue(undefined)
+    const writeText = vi.fn().mockResolvedValue(undefined)
+
+    await expect(shareDailyLoveQuote('native text', 'Native title', {
+      nativePlatform: { isNativePlatform: () => true }, nativeShare, target: { share: webShare, clipboard: { writeText } },
+    })).resolves.toBe('shared')
+    expect(nativeShare.share).toHaveBeenCalledWith({ title: 'Native title', text: 'native text' })
+    expect(webShare).not.toHaveBeenCalled()
+    expect(writeText).not.toHaveBeenCalled()
+  })
+
+  it('does not copy when native sharing is cancelled or fails after invocation', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    await expect(shareDailyLoveQuote('text', 'title', {
+      nativePlatform: { isNativePlatform: () => true },
+      nativeShare: { canShare: vi.fn().mockResolvedValue({ value: true }), share: vi.fn().mockRejectedValue(new DOMException('cancelled', 'AbortError')) },
+      target: { clipboard: { writeText } },
+    })).resolves.toBe('cancelled')
+    await expect(shareDailyLoveQuote('text', 'title', {
+      nativePlatform: { isNativePlatform: () => true },
+      nativeShare: { canShare: vi.fn().mockResolvedValue({ value: true }), share: vi.fn().mockRejectedValue(new Error('native failure')) },
+      target: { clipboard: { writeText } },
+    })).resolves.toBe('error')
+    expect(writeText).not.toHaveBeenCalled()
+  })
+
+  it('uses Web Share then clipboard only when native sharing is unavailable', async () => {
     const share = vi.fn().mockResolvedValue(undefined)
     const quote = getDailyLoveQuote('fr', 142)
 
-    await expect(shareDailyLoveQuote(quote, 'Phrase du jour', { share })).resolves.toBe('shared')
+    await expect(shareDailyLoveQuote(quote, 'Phrase du jour', { nativePlatform: { isNativePlatform: () => false }, target: { share } })).resolves.toBe('shared')
     expect(share).toHaveBeenCalledWith({ title: 'Phrase du jour', text: quote })
+
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    await expect(shareDailyLoveQuote(quote, 'Phrase du jour', {
+      nativePlatform: { isNativePlatform: () => true }, nativeShare: { canShare: vi.fn().mockResolvedValue({ value: false }), share: vi.fn() }, target: { clipboard: { writeText } },
+    })).resolves.toBe('copied')
+    expect(writeText).toHaveBeenCalledWith(quote)
+  })
+
+  it('uses the clipboard when native capability cannot be determined before opening a sheet', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    await expect(shareDailyLoveQuote('text', 'title', {
+      nativePlatform: { isNativePlatform: () => true },
+      nativeShare: { canShare: vi.fn().mockRejectedValue(new Error('unavailable')), share: vi.fn() },
+      target: { clipboard: { writeText } },
+    })).resolves.toBe('copied')
+    expect(writeText).toHaveBeenCalledWith('text')
+  })
+
+  it.each(supportedLocales)('builds a complete, private-safe %s payload from dynamic quote, date, and day values', (locale) => {
+    const quote = getDailyLoveQuote(locale, 1)
+    const payload = formatDailyLoveQuoteSharePayload({
+      quote,
+      title: messages[locale]['today.dailyQuote'],
+      date: formatDailyLoveQuoteDate('2026-09-17', locale),
+      dayNumber: messages[locale]['today.dayNumber'].replace('{day}', '1'),
+      appName: messages[locale]['app.brand'],
+    })
+    expect(payload).toBe(`${quote}\n\n${messages[locale]['today.dailyQuote']}\n${formatDailyLoveQuoteDate('2026-09-17', locale)}｜${messages[locale]['today.dayNumber'].replace('{day}', '1')}\n${messages[locale]['app.brand']}`)
+    expect(payload).not.toContain('nickname')
+    expect(payload).not.toContain('diary')
   })
 
   it('preserves activation and progression after storage reopen', async () => {

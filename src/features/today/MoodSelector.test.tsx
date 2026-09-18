@@ -87,17 +87,17 @@ describe('MoodSelector persisted selection feedback', () => {
     expect(await runtime.scores.getTotal()).toBe(3)
   })
 
-  it('uses distinct selected styling with a check indicator', async () => {
+  it('uses distinct selected styling without a visual check indicator', async () => {
     const runtime = await createRuntime()
     renderSelector(runtime)
     fireEvent.click(screen.getByRole('button', { name: '不安' }))
     const selected = await screen.findByRole('button', { name: '不安' })
 
     expect(selected).toHaveAttribute('aria-pressed', 'true')
-    expect(selected.querySelector('.mood-option__check')).toHaveTextContent('✓')
+    expect(selected.querySelector('.mood-option__check')).not.toBeInTheDocument()
     expect(todayStyles).toMatch(/\.mood-option\[aria-pressed='true'\]\s*\{[\s\S]*?border-color:/)
     expect(todayStyles).toMatch(/\.mood-option\[aria-pressed='true'\]\s*\{[\s\S]*?background:/)
-    expect(todayStyles).toMatch(/\.mood-option\[aria-pressed='true'\] \.mood-option__check\s*\{[\s\S]*?opacity:\s*1;/)
+    expect(todayStyles).not.toContain('.mood-option__check')
     expect(todayStyles).toMatch(/\.mood-option:hover:not\(\[aria-pressed='true'\]\)/)
     expect(todayStyles).toMatch(/\.mood-option:focus-visible/)
   })

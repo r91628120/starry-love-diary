@@ -68,6 +68,15 @@ describe('App routing', () => {
     renderApp('/not-a-route')
     expect(await screen.findByRole('heading', { level: 1, name: '今天' })).toBeInTheDocument()
   })
+
+  it('keeps the five primary links inside one interactive navigation capsule', () => {
+    renderApp('/today')
+    const navigation = screen.getByRole('navigation')
+    const capsule = navigation.querySelector('.bottom-navigation__inner')
+    expect(capsule).toBeInTheDocument()
+    expect(within(navigation).getAllByRole('link')).toHaveLength(5)
+    expect(within(navigation).getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual(['/today', '/star-bottle', '/footprints', '/our', '/clear'])
+  })
 })
 
 describe('Today Page static UI', () => {
@@ -245,7 +254,7 @@ describe('Clear Page static UI',()=>{
 })
 
 describe('Settings Page static UI',()=>{
- it('renders the eight Settings sections without retired Clear or notification cards or Bottom Navigation',()=>{renderApp('/settings');expect(screen.getByRole('heading',{level:1,name:'設定'})).toBeInTheDocument();for(const title of ['基本資料','重要日子','照片與回憶','日記與星星','使用與說明','語言','隱私與資料','關於'])expect(screen.getByRole('heading',{level:2,name:title})).toBeInTheDocument();expect(screen.queryByRole('heading',{level:2,name:'清醒'})).not.toBeInTheDocument();expect(screen.queryByRole('heading',{level:2,name:'通知'})).not.toBeInTheDocument();expect(screen.queryByRole('switch')).not.toBeInTheDocument();expect(screen.queryByLabelText('提醒時間')).not.toBeInTheDocument();expect(screen.queryByRole('navigation')).not.toBeInTheDocument();expect(APP_VERSION).toBe('0.1.1');expect(screen.getByText(APP_VERSION)).toBeInTheDocument();expect(screen.getByText('隱私政策')).toBeInTheDocument();expect(screen.getByText('使用條款')).toBeInTheDocument()})
+ it('renders the eight Settings sections without retired Clear or notification cards or Bottom Navigation',()=>{renderApp('/settings');expect(screen.getByRole('heading',{level:1,name:'設定'})).toBeInTheDocument();for(const title of ['基本資料','重要日子','照片與回憶','日記與星星','使用與說明','語言','隱私與資料','關於'])expect(screen.getByRole('heading',{level:2,name:title})).toBeInTheDocument();expect(screen.queryByRole('heading',{level:2,name:'清醒'})).not.toBeInTheDocument();expect(screen.queryByRole('heading',{level:2,name:'通知'})).not.toBeInTheDocument();expect(screen.queryByRole('switch')).not.toBeInTheDocument();expect(screen.queryByLabelText('提醒時間')).not.toBeInTheDocument();expect(screen.queryByRole('navigation')).not.toBeInTheDocument();expect(APP_VERSION).toBe('1.0.0');expect(screen.getByText(APP_VERSION)).toBeInTheDocument();expect(screen.getByText('隱私政策')).toBeInTheDocument();expect(screen.getByText('使用條款')).toBeInTheDocument()})
  it('opens the seven-heart-notes reveal photo manager and returns to Settings',()=>{renderApp('/settings');fireEvent.click(screen.getByRole('button',{name:/七句心話・照片顯影/}));expect(screen.getByRole('heading',{level:1,name:'七句心話・照片顯影'})).toBeInTheDocument();expect(screen.getByText('尚未選擇照片')).toBeInTheDocument();fireEvent.click(screen.getByRole('button',{name:'返回'}));expect(screen.getByRole('heading',{level:1,name:'設定'})).toBeInTheDocument()})
  it('opens Moment photo management from Settings and returns to Settings',()=>{renderApp('/settings');fireEvent.click(screen.getByRole('button',{name:'我們的時刻'}));expect(screen.getByRole('heading',{level:1,name:'我們的時刻'})).toBeInTheDocument();expect(screen.getByRole('heading',{level:2,name:'我們的時刻'})).toBeInTheDocument();fireEvent.click(screen.getByRole('button',{name:'返回'}));expect(screen.getByRole('heading',{level:1,name:'設定'})).toBeInTheDocument()})
  it('supports six language options, actionable data clearing, and back without reminder controls',()=>{renderApp('/today');fireEvent.click(screen.getByRole('button',{name:'設定'}));expect(screen.queryByRole('switch')).not.toBeInTheDocument();expect(screen.queryByLabelText('提醒時間')).not.toBeInTheDocument();const languages=screen.getByRole('group',{name:'語言'});expect(within(languages).getAllByRole('button')).toHaveLength(6);fireEvent.click(within(languages).getByRole('button',{name:'English'}));expect(within(languages).getByRole('button',{name:'English'})).toHaveAttribute('aria-pressed','true');fireEvent.click(within(languages).getByRole('button',{name:'繁體中文'}));expect(screen.getByRole('button',{name:/清空目前戀情資料/u})).toBeEnabled();expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();fireEvent.click(screen.getByRole('button',{name:'返回'}));expect(screen.getByRole('heading',{level:1,name:'今天'})).toBeInTheDocument()})

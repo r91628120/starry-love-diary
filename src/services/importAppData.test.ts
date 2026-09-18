@@ -16,6 +16,12 @@ async function sourceRuntime() {
   return runtime
 }
 
+async function addUsableLocalPhoto(runtime: Awaited<ReturnType<typeof initializePersistence>>, id: string) {
+  const stamp = '2026-09-11T12:00:00.000Z'
+  await runtime.adapter.put('photoAssets', { id, category: 'profile', storageKind: 'indexeddb_blob', localUri: `indexeddb-photo://${id}/master`, thumbnailUri: `indexeddb-photo://${id}/thumbnail`, mimeType: 'image/png', width: 1, height: 1, fileSizeBytes: 1, thumbnailMimeType: 'image/png', thumbnailWidth: 1, thumbnailHeight: 1, thumbnailFileSizeBytes: 1, createdAt: stamp, updatedAt: stamp })
+  await runtime.adapter.put('photoAssetBlobs', { id, master: new Blob(['m']), thumbnail: new Blob(['t']) })
+}
+
 describe('Import App Data V1', () => {
   it('accepts Export App Data V1 and round-trips raw score, stars, and persisted drafts without user-action side effects', async () => {
     const source = await sourceRuntime()
@@ -35,6 +41,7 @@ describe('Import App Data V1', () => {
 
   it('keeps current newer records and current device photo references while merging a newer incoming record', async () => {
     const target = await initializePersistence({ adapter: new MemoryStorageAdapter(), defaultLocale: 'zh-TW', localDate: '2026-09-11' })
+    await addUsableLocalPhoto(target, 'device-photo')
     await target.adapter.put('profiles', { id: 'user', kind: 'user', nickname: '現在', photoAssetId: 'device-photo', createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-12T00:00:00.000Z' })
     const exportData = await buildAppDataExport({ repositories: target, localDate: '2026-09-11', exportedAt: '2026-09-11T00:00:00.000Z' })
     exportData.data.profiles = exportData.data.profiles.map((profile) => profile.kind === 'user' ? { ...profile, nickname: '舊資料', updatedAt: '2026-09-10T00:00:00.000Z' } : profile)
@@ -63,5 +70,43 @@ describe('Import App Data V1', () => {
     const target = await initializePersistence({ adapter: new MemoryStorageAdapter(), defaultLocale: 'zh-TW', localDate: '2026-09-11' })
     await applyImportPlan(target, await buildImportPlan(target, validateAppDataExport(hostile)))
     expect(await target.memoryMoments.getMemoryMoment('moment-1')).not.toHaveProperty('photoAssetId')
+  })
+
+  it('round-trips multilingual non-photo records into a clean database without restoring photo stores or ghost references', async () => {
+    const source = await sourceRuntime()
+    const stamp = '2099-09-11T12:00:00.000Z'
+    await source.adapter.put('profiles', { id: 'user', kind: 'user', nickname: '繁體中文 日本語 한국어 ✨', photoAssetId: 'source-profile', createdAt: stamp, updatedAt: stamp })
+    await source.adapter.put('memoryMoments', { id: 'moment-photo', title: 'Español Français', content: 'cœur 💛', localDate: '2026-09-10', timezone: 'Asia/Taipei', order: 0, photoAssetId: 'source-moment', createdAt: stamp, updatedAt: stamp })
+    await source.adapter.put('photoAssets', { id: 'source-profile', category: 'profile', storageKind: 'indexeddb_blob', localUri: 'indexeddb-photo://source-profile/master', mimeType: 'image/png', width: 1, height: 1, fileSizeBytes: 1, createdAt: stamp, updatedAt: stamp })
+    await source.adapter.put('photoAssetBlobs', { id: 'source-profile', master: new Blob(['secret-image']), thumbnail: new Blob(['secret-thumb']) })
+    await source.adapter.put('diaryPhotos', { id: 'diary-photo', diaryEntryId: 'diary-1', photoAssetId: 'source-profile', sortOrder: 0, createdAt: stamp, updatedAt: stamp })
+    await source.adapter.put('photoLayouts', { id: 'wall', layoutType: 'wall', photoCount: 1, slots: [{ id: 'slot', photoAssetId: 'source-profile', placement: { positionX: 0, positionY: 0, zoom: 1 } }], isActive: true, createdAt: stamp, updatedAt: stamp })
+    await source.adapter.put('heartRevealProjects', { id: 'reveal', photoAssetId: 'source-profile', status: 'active', progressCount: 1, createdAt: stamp, updatedAt: stamp })
+    const exported = await buildAppDataExport({ repositories: source, localDate: '2026-09-11', exportedAt: '2026-09-11T12:00:01.000Z' })
+    const serialized = JSON.stringify(exported)
+    expect(serialized).not.toMatch(/source-profile|source-moment|secret-image|photoAssetId|photoLayouts|heartReveal/u)
+
+    const target = await initializePersistence({ adapter: new MemoryStorageAdapter(), defaultLocale: 'zh-TW', localDate: '2026-09-11' })
+    await applyImportPlan(target, await buildImportPlan(target, validateAppDataExport(JSON.parse(serialized))))
+    expect(await target.profiles.getProfile('user')).toMatchObject({ nickname: '繁體中文 日本語 한국어 ✨' })
+    expect(await target.profiles.getProfile('user')).not.toHaveProperty('photoAssetId')
+    expect(await target.memoryMoments.getMemoryMoment('moment-photo')).toMatchObject({ title: 'Español Français', content: 'cœur 💛', localDate: '2026-09-10' })
+    expect(await target.memoryMoments.getMemoryMoment('moment-photo')).not.toHaveProperty('photoAssetId')
+    expect(await target.adapter.getAll('photoAssets')).toHaveLength(0)
+    expect(await target.adapter.getAll('photoAssetBlobs')).toHaveLength(0)
+    expect(await target.adapter.getAll('diaryPhotos')).toHaveLength(0)
+    expect(await target.adapter.getAll('photoLayouts')).toHaveLength(0)
+    expect(await target.adapter.get('heartRevealProjects', 'reveal')).toBeUndefined()
+    expect((await target.scores.getAwards()).filter((award) => award.id === 'award-1')).toHaveLength(1)
+  })
+
+  it('clears a stale existing photo reference when its local image is unavailable', async () => {
+    const target = await initializePersistence({ adapter: new MemoryStorageAdapter(), defaultLocale: 'zh-TW', localDate: '2026-09-11' })
+    await target.adapter.put('profiles', { id: 'user', kind: 'user', nickname: '舊資料', photoAssetId: 'missing-local-photo', createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:00:00.000Z' })
+    const incoming = await buildAppDataExport({ repositories: target, localDate: '2026-09-11' })
+    incoming.data.profiles = incoming.data.profiles.map((profile) => profile.kind === 'user' ? { ...profile, nickname: '已恢復', updatedAt: '2026-09-12T00:00:00.000Z' } : profile)
+    await applyImportPlan(target, await buildImportPlan(target, incoming))
+    expect(await target.profiles.getProfile('user')).toMatchObject({ nickname: '已恢復' })
+    expect(await target.profiles.getProfile('user')).not.toHaveProperty('photoAssetId')
   })
 })

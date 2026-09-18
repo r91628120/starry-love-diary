@@ -57,3 +57,24 @@ export function HeartIcon(props: IconProps) {
 export function CalendarIcon(props: IconProps) {
   return <IconBase {...props}><rect x="3" y="5" width="18" height="16" rx="3" /><path d="M8 3v4M16 3v4M3 10h18" /><path d="M8 14h2M14 14h2M8 17h2" /></IconBase>
 }
+
+
+export function EditIcon(props: IconProps) {
+  return <IconBase {...props}><path d="m4 20 4.2-1 10.3-10.3a2.1 2.1 0 0 0-3-3L5.2 16 4 20Z" /><path d="m13.8 7.2 3 3" /></IconBase>
+}
+
+export function PhotoReplaceIcon(props: IconProps) {
+  return <IconBase {...props}><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="8" cy="10" r="1.5" /><path d="m4 17 5-5 3.5 3.5 2.5-2.5 5 4.5M16 2v4M14 4h4" /></IconBase>
+}
+
+export function PhotoAdjustIcon(props: IconProps) {
+  return <IconBase {...props}><path d="M5 8V5h3M16 5h3v3M19 16v3h-3M8 19H5v-3" /><rect x="8" y="8" width="8" height="8" rx="1" /></IconBase>
+}
+
+export function PhotoRemoveIcon(props: IconProps) {
+  return <IconBase {...props}><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="8" cy="10" r="1.5" /><path d="m4 17 5-5 3.5 3.5 2.5-2.5 5 4.5M15 4h6" /></IconBase>
+}
+
+export function TrashIcon(props: IconProps) {
+  return <IconBase {...props}><path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" /></IconBase>
+}

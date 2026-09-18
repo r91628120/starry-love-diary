@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { SettingsPage } from '../../pages/SettingsPage'
+import { APP_VERSION } from '../../app/appMetadata'
 import { SettingsInformationPage } from '../../pages/SettingsInformationPage'
 import { I18nProvider } from '../../i18n/I18nProvider'
 import { messages, supportedLocales } from '../../i18n/messages'
@@ -124,7 +125,8 @@ describe('Settings help, rules, and legal information architecture', () => {
     cleanup()
     renderRoute('/settings/version')
     expect(screen.getByText('星星戀愛日記')).toBeInTheDocument()
-    expect(screen.getByText('0.1.1')).toBeInTheDocument()
+    expect(APP_VERSION).toBe('1.0.0')
+    expect(screen.getByText(APP_VERSION)).toBeInTheDocument()
     expect(screen.getByText('© 2026 Starry Love Diary')).toBeInTheDocument()
   })
 

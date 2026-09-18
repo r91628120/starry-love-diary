@@ -4,7 +4,7 @@ import { ShareIcon, SparkleIcon } from '../../components/icons'
 import { useI18n } from '../../i18n/I18nContext'
 import { usePersistence } from '../../data/PersistenceStateContext'
 import { toLocalDate } from '../../services/localDateService'
-import { formatDailyLoveQuoteDate, getDailyLoveQuote, getDailyLoveQuoteDayIndex, shareDailyLoveQuote } from './dailyLoveQuoteRuntime'
+import { formatDailyLoveQuoteDate, formatDailyLoveQuoteSharePayload, getDailyLoveQuote, getDailyLoveQuoteDayIndex, shareDailyLoveQuote } from './dailyLoveQuoteRuntime'
 import type { TranslationKey } from '../../i18n/messages'
 
 function useCurrentLocalDate(initialLocalDate: string) {
@@ -42,7 +42,13 @@ export function DailyLoveQuoteCard() {
     setSharing(true)
     setFeedbackKey(undefined)
     try {
-      const result = await shareDailyLoveQuote(`${quote}\n\n${t('app.brand')}`, t('today.dailyQuote'))
+      const result = await shareDailyLoveQuote(formatDailyLoveQuoteSharePayload({
+        quote,
+        title: t('today.dailyQuote'),
+        date: formatDailyLoveQuoteDate(currentLocalDate, locale),
+        dayNumber: t('today.dayNumber', { day: dayIndex }),
+        appName: t('app.brand'),
+      }), t('today.dailyQuote'))
       if (result === 'shared' || result === 'copied') {
         await persistence?.shareDailyQuote()
         setFeedbackKey(result === 'shared' ? 'today.share.shared' : 'today.share.copied')

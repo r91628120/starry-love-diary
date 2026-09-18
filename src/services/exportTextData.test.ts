@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createTextExport, downloadTextExport } from './exportTextData'
+import { Directory } from '@capacitor/filesystem'
+import { createTextExport, downloadTextExport, exportTextData } from './exportTextData'
 import { initializePersistence } from '../data/persistence'
 import { MemoryStorageAdapter } from '../data/storage/MemoryStorageAdapter'
 import { messages, supportedLocales, type Locale, type TranslationKey } from '../i18n/messages'
@@ -72,5 +73,64 @@ describe('text data export', () => {
     expect(click).toHaveBeenCalledOnce()
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:export')
     expect(document.querySelector('a[download]')).toBeNull()
+  })
+
+  it('writes the existing Unicode text export to a native Cache file and shares only its URI', async () => {
+    const runtime = await initializePersistence({ adapter: new MemoryStorageAdapter(), defaultLocale: 'zh-TW', localDate: '2026-09-11' })
+    const unicodeNickname = '繁體中文日本語한국어⭐'
+    const unicodeDiary = 'Español Français ❤️'
+    await runtime.profiles.updateProfile('user', { nickname: unicodeNickname })
+    await runtime.diaries.createDiary({ localDate: '2026-09-11', title: 'Unicode', content: unicodeDiary })
+    const writeFile = vi.fn().mockResolvedValue({ uri: 'file:///tmp/starry-love-diary-export-2026-09-11.txt' })
+    const deleteFile = vi.fn().mockResolvedValue(undefined)
+    const share = vi.fn().mockResolvedValue(undefined)
+    const download = vi.fn()
+
+    const result = await exportTextData(
+      { repositories: runtime, locale: 'zh-TW', localDate: '2026-09-11', t: translator('zh-TW') },
+      { nativePlatform: { getPlatform: () => 'ios' }, nativeShare: { canShare: vi.fn().mockResolvedValue({ value: true }), share }, nativeFilesystem: { writeFile, deleteFile }, download },
+    )
+
+    expect(result.delivery).toBe('share-sheet-opened')
+    expect(result.content).toContain(unicodeNickname)
+    expect(result.content).toContain(unicodeDiary)
+    expect(writeFile).toHaveBeenCalledWith(expect.objectContaining({ path: result.filename, directory: Directory.Cache, data: expect.any(String) }))
+    const base64 = writeFile.mock.calls[0][0].data as string
+    const bytes = Uint8Array.from(globalThis.atob(base64), (character) => character.charCodeAt(0))
+    expect(new TextDecoder().decode(bytes)).toBe(result.content)
+    expect(share).toHaveBeenCalledWith({ files: ['file:///tmp/starry-love-diary-export-2026-09-11.txt'] })
+    expect(deleteFile).toHaveBeenCalledWith({ path: result.filename, directory: Directory.Cache })
+    expect(download).not.toHaveBeenCalled()
+  })
+
+  it('preserves the browser download path without touching native plugins', async () => {
+    const runtime = await initializePersistence({ adapter: new MemoryStorageAdapter(), defaultLocale: 'en', localDate: '2026-09-11' })
+    const download = vi.fn()
+    const writeFile = vi.fn()
+    const share = vi.fn()
+
+    const result = await exportTextData(
+      { repositories: runtime, locale: 'en', localDate: '2026-09-11', t: translator('en') },
+      { nativePlatform: { getPlatform: () => 'web' }, nativeShare: { canShare: vi.fn(), share }, nativeFilesystem: { writeFile, deleteFile: vi.fn() }, download },
+    )
+
+    expect(result.delivery).toBe('downloaded')
+    expect(download).toHaveBeenCalledWith(expect.objectContaining({ filename: 'starry-love-diary-export-2026-09-11.txt' }))
+    expect(writeFile).not.toHaveBeenCalled()
+    expect(share).not.toHaveBeenCalled()
+  })
+
+  it('treats native share cancellation as neutral without a browser fallback', async () => {
+    const runtime = await initializePersistence({ adapter: new MemoryStorageAdapter(), defaultLocale: 'en', localDate: '2026-09-11' })
+    const deleteFile = vi.fn().mockResolvedValue(undefined)
+    const download = vi.fn()
+    const result = await exportTextData(
+      { repositories: runtime, locale: 'en', localDate: '2026-09-11', t: translator('en') },
+      { nativePlatform: { getPlatform: () => 'ios' }, nativeShare: { canShare: vi.fn().mockResolvedValue({ value: true }), share: vi.fn().mockRejectedValue(new Error('Share canceled')) }, nativeFilesystem: { writeFile: vi.fn().mockResolvedValue({ uri: 'file:///tmp/export.txt' }), deleteFile }, download },
+    )
+
+    expect(result.delivery).toBe('cancelled')
+    expect(download).not.toHaveBeenCalled()
+    expect(deleteFile).toHaveBeenCalledWith({ path: result.filename, directory: Directory.Cache })
   })
 })

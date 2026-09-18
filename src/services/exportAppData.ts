@@ -1,7 +1,11 @@
+import { Capacitor } from '@capacitor/core'
+import { Directory, Filesystem } from '@capacitor/filesystem'
+import { Share } from '@capacitor/share'
 import type { ClearRecord, LikeOrHabitReflection, LoveBoatAssessment, LoveBrainAssessment } from '../data/clearTypes'
 import type { PersistenceRuntime } from '../data/persistence'
 import { SCHEMA_VERSION } from '../data/storage/IndexedDbStorageAdapter'
 import type { AppSettings, DiaryEntry, HeartPhrase, ImportantDate, MemoryMoment, MessageToYouEntry, MoodRecord, Profile, RememberedYouCard, ScoreAward, Star } from '../data/types'
+import { encodeTextExportUtf8 } from './exportTextData'
 
 type ExportRepositories = Pick<PersistenceRuntime, 'profiles' | 'moods' | 'diaries' | 'settings' | 'stars' | 'scores' | 'heartPhrases' | 'importantDates' | 'memoryMoments' | 'messageToYou' | 'rememberedYou' | 'clearRecords' | 'loveBoatAssessments' | 'loveBrainAssessments' | 'likeOrHabitReflections'>
 
@@ -46,6 +50,17 @@ export interface AppDataExportResult {
   filename: string
   content: string
   data: AppDataExport
+  delivery: AppDataExportDelivery
+}
+
+export type AppDataExportDelivery = 'downloaded' | 'share-sheet-opened' | 'cancelled' | 'unsupported' | 'error'
+export interface AppDataExportDeliveryOptions {
+  isNativePlatform?: () => boolean
+  canShare?: () => Promise<{ value: boolean }>
+  writeFile?: (options: { path: string; data: string; directory: Directory }) => Promise<{ uri: string }>
+  share?: (options: { files: string[] }) => Promise<unknown>
+  deleteFile?: (options: { path: string; directory: Directory }) => Promise<unknown>
+  download?: (result: AppDataExportResult) => void
 }
 
 function compareStrings(left: string, right: string) { return left < right ? -1 : left > right ? 1 : 0 }
@@ -125,7 +140,7 @@ export function serializeAppDataExport(data: AppDataExport) {
 
 export async function createAppDataExport(options: AppDataExportOptions): Promise<AppDataExportResult> {
   const data = await buildAppDataExport(options)
-  return { filename: `starry-love-diary-data-${options.localDate}.json`, content: serializeAppDataExport(data), data }
+  return { filename: `starry-love-diary-data-${options.localDate}.json`, content: serializeAppDataExport(data), data, delivery: 'error' }
 }
 
 export function downloadAppDataExport(result: AppDataExportResult) {
@@ -144,8 +159,43 @@ export function downloadAppDataExport(result: AppDataExportResult) {
   }
 }
 
-export async function exportAppData(options: AppDataExportOptions) {
+function isShareCancellation(error: unknown) {
+  return error instanceof DOMException && error.name === 'AbortError'
+    || error instanceof Error && /cancel/i.test(error.message)
+}
+
+async function shareNativeAppDataExport(result: AppDataExportResult, options: AppDataExportDeliveryOptions): Promise<AppDataExportDelivery> {
+  const canShare = options.canShare ?? (() => Share.canShare())
+  const writeFile = options.writeFile ?? ((writeOptions) => Filesystem.writeFile(writeOptions))
+  const share = options.share ?? ((shareOptions) => Share.share(shareOptions))
+  const deleteFile = options.deleteFile ?? ((deleteOptions) => Filesystem.deleteFile(deleteOptions))
+  const availability = await canShare()
+  if (!availability.value) return 'unsupported'
+
+  let created = false
+  try {
+    const file = await writeFile({ path: result.filename, data: encodeTextExportUtf8(result.content), directory: Directory.Cache })
+    created = true
+    await share({ files: [file.uri] })
+    return 'share-sheet-opened'
+  } catch (error) {
+    return isShareCancellation(error) ? 'cancelled' : 'error'
+  } finally {
+    if (created) {
+      try { await deleteFile({ path: result.filename, directory: Directory.Cache }) } catch { /* The scoped temporary cache file is best-effort cleanup. */ }
+    }
+  }
+}
+
+/** Delivers a structured backup through native Share on Capacitor and a download in browsers. */
+export async function exportAppData(options: AppDataExportOptions, deliveryOptions: AppDataExportDeliveryOptions = {}) {
   const result = await createAppDataExport(options)
-  downloadAppDataExport(result)
-  return result
+  const isNativePlatform = deliveryOptions.isNativePlatform ?? (() => Capacitor.isNativePlatform())
+  if (isNativePlatform()) return { ...result, delivery: await shareNativeAppDataExport(result, deliveryOptions) }
+  try {
+    ;(deliveryOptions.download ?? downloadAppDataExport)(result)
+    return { ...result, delivery: 'downloaded' as const }
+  } catch {
+    return { ...result, delivery: 'error' as const }
+  }
 }

@@ -6,6 +6,8 @@ export const exportAppDataMessages = {
     'exportAppData.description': '可供之後匯入 App，不包含照片。',
     'exportAppData.preparing': '正在準備 App 資料…',
     'exportAppData.success': 'App 資料已匯出。',
+    'exportAppData.shareSheetOpened': 'App 資料已準備好，請選擇儲存或分享方式。',
+    'exportAppData.cancelled': '已取消匯出 App 資料。',
     'exportAppData.error': 'App 資料匯出失敗，請稍後再試。',
   },
   en: {
@@ -13,6 +15,8 @@ export const exportAppDataMessages = {
     'exportAppData.description': 'For a future app import. Photos are not included.',
     'exportAppData.preparing': 'Preparing app data…',
     'exportAppData.success': 'App data exported.',
+    'exportAppData.shareSheetOpened': 'App data is ready. Choose how to save or share it.',
+    'exportAppData.cancelled': 'App data export was cancelled.',
     'exportAppData.error': 'Could not export app data. Please try again later.',
   },
   ja: {
@@ -20,6 +24,8 @@ export const exportAppDataMessages = {
     'exportAppData.description': '今後のアプリへの取り込み用です。写真は含まれません。',
     'exportAppData.preparing': 'アプリデータを準備しています…',
     'exportAppData.success': 'アプリデータを書き出しました。',
+    'exportAppData.shareSheetOpened': 'アプリデータの準備ができました。保存または共有の方法を選択してください。',
+    'exportAppData.cancelled': 'アプリデータの書き出しをキャンセルしました。',
     'exportAppData.error': 'アプリデータを書き出せませんでした。後でもう一度お試しください。',
   },
   ko: {
@@ -27,6 +33,8 @@ export const exportAppDataMessages = {
     'exportAppData.description': '나중에 앱으로 가져오기 위한 파일이며, 사진은 포함되지 않습니다.',
     'exportAppData.preparing': '앱 데이터를 준비하고 있어요…',
     'exportAppData.success': '앱 데이터를 내보냈어요.',
+    'exportAppData.shareSheetOpened': '앱 데이터를 준비했어요. 저장하거나 공유할 방법을 선택해 주세요.',
+    'exportAppData.cancelled': '앱 데이터 내보내기를 취소했어요.',
     'exportAppData.error': '앱 데이터를 내보내지 못했어요. 잠시 후 다시 시도해 주세요.',
   },
   es: {
@@ -34,6 +42,8 @@ export const exportAppDataMessages = {
     'exportAppData.description': 'Para importarlos en la app más adelante. No incluye fotos.',
     'exportAppData.preparing': 'Preparando los datos de la app…',
     'exportAppData.success': 'Datos de la app exportados.',
+    'exportAppData.shareSheetOpened': 'Los datos de la app están listos. Elige cómo guardarlos o compartirlos.',
+    'exportAppData.cancelled': 'Se canceló la exportación de datos de la app.',
     'exportAppData.error': 'No se pudieron exportar los datos de la app. Inténtalo de nuevo más tarde.',
   },
   fr: {
@@ -41,6 +51,8 @@ export const exportAppDataMessages = {
     'exportAppData.description': 'Pour une future importation dans l’app. Les photos ne sont pas incluses.',
     'exportAppData.preparing': 'Préparation des données de l’app…',
     'exportAppData.success': 'Données de l’app exportées.',
+    'exportAppData.shareSheetOpened': 'Les données de l’app sont prêtes. Choisissez comment les enregistrer ou les partager.',
+    'exportAppData.cancelled': 'L’exportation des données de l’app a été annulée.',
     'exportAppData.error': 'Impossible d’exporter les données de l’app. Réessayez plus tard.',
   },
 } as const satisfies Record<Locale, Record<string, string>>

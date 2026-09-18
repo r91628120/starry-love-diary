@@ -1,3 +1,5 @@
+import { Capacitor } from '@capacitor/core'
+import { Share } from '@capacitor/share'
 import { messages, type Locale } from '../../i18n/messages'
 import { shareText, type ShareTextResult, type ShareTextTarget } from '../../services/shareText'
 
@@ -37,7 +39,54 @@ export function formatDailyLoveQuoteDate(localDate: string, locale: Locale): str
   )
 }
 
-export async function shareDailyLoveQuote(text: string, title: string, target: ShareTextTarget = globalThis.navigator): Promise<ShareTextResult> {
+export interface DailyLoveQuoteSharePayload {
+  quote: string
+  title: string
+  date: string
+  dayNumber: string
+  appName: string
+}
+
+export interface NativeSharePlatform { isNativePlatform(): boolean }
+export interface NativeTextShare {
+  canShare(): Promise<{ value: boolean }>
+  share(options: { title: string; text: string }): Promise<unknown>
+}
+
+export interface DailyLoveQuoteShareOptions {
+  nativePlatform?: NativeSharePlatform
+  nativeShare?: NativeTextShare
+  target?: ShareTextTarget
+}
+
+export function formatDailyLoveQuoteSharePayload({ quote, title, date, dayNumber, appName }: DailyLoveQuoteSharePayload) {
+  return `${quote}\n\n${title}\n${date}｜${dayNumber}\n${appName}`
+}
+
+function isCancellation(error: unknown) {
+  return error instanceof DOMException && error.name === 'AbortError'
+}
+
+export async function shareDailyLoveQuote(text: string, title: string, options: DailyLoveQuoteShareOptions = {}): Promise<ShareTextResult> {
+  const nativePlatform = options.nativePlatform ?? Capacitor
+  const nativeShare = options.nativeShare ?? Share
+  const target = options.target ?? globalThis.navigator
+
+  if (nativePlatform.isNativePlatform()) {
+    try {
+      if (!(await nativeShare.canShare()).value) return shareText(text, title, target)
+    } catch (error) {
+      return isCancellation(error) ? 'cancelled' : shareText(text, title, target)
+    }
+
+    try {
+      await nativeShare.share({ title, text })
+      return 'shared'
+    } catch (error) {
+      return isCancellation(error) ? 'cancelled' : 'error'
+    }
+  }
+
   // A Web Share failure is not a clipboard success. Clipboard is the fallback
   // only when Web Share is unavailable, so a failed/cancelled native share
   // cannot accidentally earn the daily award.

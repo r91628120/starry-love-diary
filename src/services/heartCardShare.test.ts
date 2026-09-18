@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { Directory } from '@capacitor/filesystem'
 import { getHeartCardNativePlatform, HEART_CARD_SHARE_PENDING_SAFETY_TIMEOUT_MS, saveHeartCardImage, shareHeartCardImage } from './heartCardShare'
 
 describe('shareHeartCardImage', () => {
@@ -37,28 +38,37 @@ describe('shareHeartCardImage', () => {
 
   it('uses the browser download path outside Capacitor', async () => {
     const download = vi.fn()
-    await expect(saveHeartCardImage(png, { capacitorHost: {}, download })).resolves.toBe('downloaded')
+    await expect(saveHeartCardImage(png, { nativePlatform: { getPlatform: () => 'web' }, download })).resolves.toBe('downloaded')
     expect(download).toHaveBeenCalledWith(png)
   })
 
   it('reports browser download failures instead of failing silently', async () => {
-    await expect(saveHeartCardImage(png, { capacitorHost: {}, download: () => { throw new Error('download failed') } })).resolves.toBe('error')
+    await expect(saveHeartCardImage(png, { nativePlatform: { getPlatform: () => 'web' }, download: () => { throw new Error('download failed') } })).resolves.toBe('error')
   })
 
-  it('uses the native share sheet for a Capacitor iOS save request', async () => {
+  it('writes a private-safe Cache PNG and shares its native URI for a Capacitor iOS save request', async () => {
     const share = vi.fn().mockResolvedValue(undefined)
-    await expect(saveHeartCardImage(png, { capacitorHost: { Capacitor: { getPlatform: () => 'ios' } }, target: { canShare: () => true, share } })).resolves.toBe('save-sheet-opened')
-    expect(share).toHaveBeenCalledOnce()
+    const writeFile = vi.fn().mockResolvedValue({ uri: 'file:///tmp/starry-love-card-fixed.png' })
+    const deleteFile = vi.fn().mockResolvedValue(undefined)
+    const filename = 'starry-love-card-fixed.png'
+    await expect(saveHeartCardImage(png, { nativePlatform: { getPlatform: () => 'ios' }, nativeShare: { canShare: vi.fn().mockResolvedValue({ value: true }), share }, nativeFilesystem: { writeFile, deleteFile }, filename: () => filename })).resolves.toBe('save-sheet-opened')
+    expect(writeFile).toHaveBeenCalledWith(expect.objectContaining({ path: filename, directory: Directory.Cache, data: expect.any(String) }))
+    expect(writeFile.mock.calls[0][0].data).not.toContain('heart-card')
+    expect(share).toHaveBeenCalledWith({ files: ['file:///tmp/starry-love-card-fixed.png'] })
+    expect(deleteFile).toHaveBeenCalledWith({ path: filename, directory: Directory.Cache })
   })
 
-  it('keeps native cancellation and unsupported outcomes distinct from success', async () => {
-    await expect(saveHeartCardImage(png, { capacitorHost: { Capacitor: { getPlatform: () => 'android' } }, target: { canShare: () => false, share: vi.fn() } })).resolves.toBe('unsupported')
-    await expect(saveHeartCardImage(png, { capacitorHost: { Capacitor: { getPlatform: () => 'ios' } }, target: { canShare: () => true, share: vi.fn().mockRejectedValue(new DOMException('dismissed', 'AbortError')) } })).resolves.toBe('cancelled')
+  it('keeps native cancellation and unsupported outcomes distinct from success without downloading', async () => {
+    const download = vi.fn()
+    const nativeFilesystem = { writeFile: vi.fn().mockResolvedValue({ uri: 'file:///tmp/card.png' }), deleteFile: vi.fn().mockResolvedValue(undefined) }
+    await expect(saveHeartCardImage(png, { nativePlatform: { getPlatform: () => 'android' }, nativeShare: { canShare: vi.fn().mockResolvedValue({ value: false }), share: vi.fn() }, nativeFilesystem, download })).resolves.toBe('unsupported')
+    await expect(saveHeartCardImage(png, { nativePlatform: { getPlatform: () => 'ios' }, nativeShare: { canShare: vi.fn().mockResolvedValue({ value: true }), share: vi.fn().mockRejectedValue(new Error('Share canceled')) }, nativeFilesystem, download })).resolves.toBe('cancelled')
+    expect(download).not.toHaveBeenCalled()
   })
 
   it('identifies only Capacitor iOS and Android as native save platforms', () => {
-    expect(getHeartCardNativePlatform({ Capacitor: { getPlatform: () => 'ios' } })).toBe('ios')
-    expect(getHeartCardNativePlatform({ Capacitor: { getPlatform: () => 'android' } })).toBe('android')
-    expect(getHeartCardNativePlatform({ Capacitor: { getPlatform: () => 'web' } })).toBeUndefined()
+    expect(getHeartCardNativePlatform({ getPlatform: () => 'ios' })).toBe('ios')
+    expect(getHeartCardNativePlatform({ getPlatform: () => 'android' })).toBe('android')
+    expect(getHeartCardNativePlatform({ getPlatform: () => 'web' })).toBeUndefined()
   })
 })

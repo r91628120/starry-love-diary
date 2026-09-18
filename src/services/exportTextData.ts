@@ -1,4 +1,7 @@
 import type { PersistenceRuntime } from '../data/persistence'
+import { Capacitor } from '@capacitor/core'
+import { Directory, Filesystem } from '@capacitor/filesystem'
+import { Share } from '@capacitor/share'
 import type { ClearRecord, LikeOrHabitReflection, LoveBoatAssessment, LoveBrainAssessment } from '../data/clearTypes'
 import type { ImportantDate, MoodKey, Star } from '../data/types'
 import type { Locale, TranslationKey } from '../i18n/messages'
@@ -14,6 +17,20 @@ export interface TextExportOptions {
 }
 
 export interface TextExportResult { filename: string; content: string }
+export type TextExportDelivery = 'downloaded' | 'share-sheet-opened' | 'cancelled' | 'unsupported' | 'error'
+
+interface NativePlatformHost { getPlatform(): string }
+interface NativeTextShare { canShare(): Promise<{ value: boolean }>; share(options: { files: string[] }): Promise<unknown> }
+interface NativeTextFilesystem {
+  writeFile(options: { path: string; data: string; directory: Directory }): Promise<{ uri: string }>
+  deleteFile(options: { path: string; directory: Directory }): Promise<void>
+}
+export interface TextExportDeliveryOptions {
+  nativePlatform?: NativePlatformHost
+  nativeShare?: NativeTextShare
+  nativeFilesystem?: NativeTextFilesystem
+  download?: (result: TextExportResult) => void
+}
 
 const divider = '================================'
 
@@ -141,8 +158,51 @@ export function downloadTextExport(result: TextExportResult) {
   }
 }
 
-export async function exportTextData(options: TextExportOptions) {
+function isNativePlatform(host: NativePlatformHost = Capacitor) {
+  const platform = host.getPlatform()
+  return platform === 'ios' || platform === 'android'
+}
+
+function isCancelled(error: unknown) {
+  return (error instanceof DOMException && error.name === 'AbortError')
+    || (error instanceof Error && /cancel/i.test(error.message))
+}
+
+export function encodeTextExportUtf8(content: string) {
+  const bytes = new TextEncoder().encode(content)
+  let binary = ''
+  for (const byte of bytes) binary += String.fromCharCode(byte)
+  return globalThis.btoa(binary)
+}
+
+async function shareNativeTextExport(result: TextExportResult, options: TextExportDeliveryOptions): Promise<TextExportDelivery> {
+  const nativeShare = options.nativeShare ?? Share
+  const nativeFilesystem = options.nativeFilesystem ?? Filesystem
+  let written = false
+  try {
+    if (!(await nativeShare.canShare()).value) return 'unsupported'
+    const { uri } = await nativeFilesystem.writeFile({
+      path: result.filename,
+      data: encodeTextExportUtf8(result.content),
+      directory: Directory.Cache,
+    })
+    written = true
+    await nativeShare.share({ files: [uri] })
+    return 'share-sheet-opened'
+  } catch (error) {
+    return isCancelled(error) ? 'cancelled' : 'error'
+  } finally {
+    if (written) await nativeFilesystem.deleteFile({ path: result.filename, directory: Directory.Cache }).catch(() => undefined)
+  }
+}
+
+export async function exportTextData(options: TextExportOptions, deliveryOptions: TextExportDeliveryOptions = {}) {
   const result = await createTextExport(options)
-  downloadTextExport(result)
-  return result
+  if (isNativePlatform(deliveryOptions.nativePlatform)) return { ...result, delivery: await shareNativeTextExport(result, deliveryOptions) }
+  try {
+    ;(deliveryOptions.download ?? downloadTextExport)(result)
+    return { ...result, delivery: 'downloaded' as const }
+  } catch {
+    return { ...result, delivery: 'error' as const }
+  }
 }

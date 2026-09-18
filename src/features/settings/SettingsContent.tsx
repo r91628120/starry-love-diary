@@ -16,6 +16,7 @@ import { SettingsRow, SettingsSection } from './SettingsSection'
 import { APP_VERSION } from '../../app/appMetadata'
 import { exportAppData } from '../../services/exportAppData'
 import { exportTextData } from '../../services/exportTextData'
+import { exportQa12Diagnostics } from '../../services/qa12Diagnostics'
 import { AppDataImportError, buildImportPlan, parseAppDataFile, summarizeImportPlan, type AppDataImportPlan } from '../../services/importAppData'
 
 const languages: Array<{ locale: Locale; key: TranslationKey }> = [
@@ -35,7 +36,10 @@ export function SettingsContent() {
   const [partnerNickname, setPartnerNickname] = useState(persistence?.partnerProfile.nickname ?? t('settings.profile.partnerValue'))
   const [feedbackKey, setFeedbackKey] = useState<TranslationKey>()
   const [isExporting, setIsExporting] = useState(false)
+  const textExportInFlight = useRef(false)
   const [isExportingAppData, setIsExportingAppData] = useState(false)
+  const [isExportingQa12Diagnostics, setIsExportingQa12Diagnostics] = useState(false)
+  const qa12DiagnosticsInFlight = useRef(false)
   const appDataExportInFlight = useRef(false)
   const appDataFileInput = useRef<HTMLInputElement>(null)
   const [pendingImportPlan, setPendingImportPlan] = useState<AppDataImportPlan>()
@@ -83,15 +87,17 @@ export function SettingsContent() {
   }
 
   const exportText = async () => {
-    if (!persistence || isExporting) return
+    if (!persistence || textExportInFlight.current) return
+    textExportInFlight.current = true
     setIsExporting(true)
     setFeedbackKey('export.feedback.preparing')
     try {
-      await exportTextData({ repositories: persistence.repositories, locale, localDate: persistence.currentLocalDate, t })
-      setFeedbackKey('export.feedback.success')
+      const { delivery } = await exportTextData({ repositories: persistence.repositories, locale, localDate: persistence.currentLocalDate, t })
+      setFeedbackKey(delivery === 'downloaded' ? 'export.feedback.success' : delivery === 'share-sheet-opened' ? 'export.feedback.shareSheetOpened' : delivery === 'cancelled' ? 'export.feedback.cancelled' : 'export.feedback.error')
     } catch {
       setFeedbackKey('export.feedback.error')
     } finally {
+      textExportInFlight.current = false
       setIsExporting(false)
     }
   }
@@ -102,13 +108,32 @@ export function SettingsContent() {
     setIsExportingAppData(true)
     setFeedbackKey('exportAppData.preparing')
     try {
-      await exportAppData({ repositories: persistence.repositories, localDate: persistence.currentLocalDate })
-      setFeedbackKey('exportAppData.success')
+      const result = await exportAppData({ repositories: persistence.repositories, localDate: persistence.currentLocalDate })
+      setFeedbackKey(result.delivery === 'downloaded' ? 'exportAppData.success'
+        : result.delivery === 'share-sheet-opened' ? 'exportAppData.shareSheetOpened'
+          : result.delivery === 'cancelled' ? 'exportAppData.cancelled'
+            : 'exportAppData.error')
     } catch {
       setFeedbackKey('exportAppData.error')
     } finally {
       appDataExportInFlight.current = false
       setIsExportingAppData(false)
+    }
+  }
+
+  const exportQa12DiagnosticLog = async () => {
+    if (qa12DiagnosticsInFlight.current) return
+    qa12DiagnosticsInFlight.current = true
+    setIsExportingQa12Diagnostics(true)
+    setFeedbackKey('settings.qa12.preparing')
+    try {
+      const delivery = await exportQa12Diagnostics()
+      setFeedbackKey(delivery === 'share-sheet-opened' ? 'settings.qa12.ready' : delivery === 'downloaded' ? 'settings.qa12.downloaded' : delivery === 'cancelled' ? 'settings.qa12.cancelled' : 'settings.qa12.error')
+    } catch {
+      setFeedbackKey('settings.qa12.error')
+    } finally {
+      qa12DiagnosticsInFlight.current = false
+      setIsExportingQa12Diagnostics(false)
     }
   }
 
@@ -255,7 +280,7 @@ export function SettingsContent() {
       </SettingsSection>
       <SettingsSection title={t('settings.diary.title')} icon={settingsAssets.star}>
         <SettingsRow icon={settingsAssets.star} label={t('settings.diary.stars')} onClick={() => navigate('/star-bottle')} />
-        <SettingsRow icon={settingsAssets.exportData} label={t('settings.diary.export')} onClick={() => void exportText()} />
+        <SettingsRow icon={settingsAssets.exportData} label={t('settings.diary.export')} onClick={isExporting ? undefined : () => void exportText()} />
         <SettingsRow icon={settingsAssets.exportData} label={t('settings.diary.exportAppData')} description={t('exportAppData.description')} onClick={isExportingAppData ? undefined : () => void exportFullAppData()} />
         <SettingsRow icon={settingsAssets.exportData} label={t('settings.diary.importAppData')} description={t('importAppData.description')} onClick={isImporting ? undefined : () => appDataFileInput.current?.click()} />
       </SettingsSection>
@@ -279,6 +304,7 @@ export function SettingsContent() {
         <SettingsRow icon={settingsAssets.info} label={t('settings.about.version')} value={APP_VERSION} onClick={() => navigate('/settings/version', { state: { from: '/settings' } })} />
         <SettingsRow icon={settingsAssets.privacyPolicy} label={t('settings.about.privacyPolicy')} onClick={() => navigate('/settings/privacy', { state: { from: '/settings' } })} />
         <SettingsRow icon={settingsAssets.terms} label={t('settings.about.terms')} onClick={() => navigate('/settings/terms', { state: { from: '/settings' } })} />
+        <SettingsRow icon={settingsAssets.info} label={t('settings.qa12.export')} description={t('settings.qa12.description')} onClick={isExportingQa12Diagnostics ? undefined : () => void exportQa12DiagnosticLog()} />
       </SettingsSection>
     </div>
     <p className="mock-feedback" aria-live="polite">{feedbackKey ? t(feedbackKey) : ''}</p>
