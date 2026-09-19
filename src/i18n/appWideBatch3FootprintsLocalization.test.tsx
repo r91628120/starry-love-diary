@@ -86,6 +86,8 @@ describe('Milestone 4C-3 Batch 3 Footprints localization', () => {
 
     const diary = screen.getByRole('textbox', { name: '今天的日記' })
     fireEvent.change(diary, { target: { value: '使用者尚未儲存的中文草稿' } })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(diary).toHaveValue('使用者尚未儲存的中文草稿')
     const search = screen.getByRole('searchbox', { name: '搜尋日記或心情' })
     fireEvent.change(search, { target: { value: '2026' } })
     fireEvent.click(screen.getByRole('button', { name: '下個月' }))

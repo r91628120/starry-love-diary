@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { footprintsAssets } from '../../assets/uiAssets'
 import { ConfirmDialog, PrimaryButton, SecondaryButton, SectionHeader, SoftCard } from '../../components'
@@ -22,6 +22,7 @@ export function TodayDiaryCard() {
   const persistence = usePersistence()
   const [searchParams, setSearchParams] = useSearchParams()
   const requestedRecordId = searchParams.get('entry') === 'diary' ? searchParams.get('recordId') ?? undefined : undefined
+  const previousRequestedRecordId = useRef(requestedRecordId)
   const [editingRecordId, setEditingRecordId] = useState<string>()
   const [content, setContent] = useState('')
   const [feedbackKey, setFeedbackKey] = useState<TranslationKey>()
@@ -30,9 +31,13 @@ export function TodayDiaryCard() {
 
   useEffect(() => {
     let active = true
+    const wasEditingRecord = previousRequestedRecordId.current
+    previousRequestedRecordId.current = requestedRecordId
     if (!requestedRecordId || !persistence) {
-      setEditingRecordId(undefined)
-      setContent('')
+      if (wasEditingRecord) {
+        setEditingRecordId(undefined)
+        setContent('')
+      }
       return () => { active = false }
     }
     void persistence.repositories.diaries.getDiary(requestedRecordId).then((record) => {
