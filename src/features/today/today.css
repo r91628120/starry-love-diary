@@ -459,6 +459,17 @@
   text-align: right;
 }
 
+.heart-line-card .heart-line-card__help {
+  margin-left: 0;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  color: var(--color-pink-400);
+}
+
+.heart-line-card .heart-line-card__help:hover { background: var(--color-pink-100); color: var(--color-pink-500); }
+.heart-line-card .heart-line-card__help svg { width: 1.125rem; height: 1.125rem; stroke-width: 1.5; }
+
 .heart-line-card textarea {
   width: 100%;
   min-height: 8.5rem;

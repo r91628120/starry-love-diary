@@ -1,6 +1,7 @@
 import type { Locale } from '../../i18n/messages'
 import { getDeviceTimezone, toLocalDate } from '../../services/localDateService'
 import type { StorageAdapter } from '../storage/StorageAdapter'
+import type { StarPresentationWriter } from './starDropPresentationRepository'
 import { MESSAGE_TO_YOU_TYPES, type AppSettings, type AwardType, type DiaryEntry, type HeartPhrase, type ImportantDate, type ImportantDateType, type MemoryMoment, type MessageToYou, type MessageToYouEntry, type MessageToYouType, type MoodKey, type MoodRecord, type Profile, type ProfileKind, type RememberedYouCard, type ScoreAward, type Star, type StarType } from '../types'
 import { SCHEMA_VERSION } from '../storage/IndexedDbStorageAdapter'
 
@@ -163,24 +164,29 @@ export interface StarRepository {
 }
 
 export class LocalStarRepository implements StarRepository, MoodStarWriter {
-  constructor(private readonly storage: StorageAdapter) {}
+  constructor(private readonly storage: StorageAdapter, private readonly presentations?: StarPresentationWriter) {}
   async createStar(input: Omit<Star, 'id' | 'createdAt' | 'updatedAt' | 'timezone' | 'localDate'> & { localDate?: string }) {
     const timestamp = now()
     const star: Star = { ...input, id: id('star'), localDate: input.localDate ?? toLocalDate(), timezone: getDeviceTimezone(), createdAt: timestamp, updatedAt: timestamp }
     await this.storage.put('stars', star)
+    await this.presentations?.queue(star).catch(() => undefined)
     return star
   }
   async getStars() { return (await this.storage.getAll<Star>('stars')).sort((a, b) => b.createdAt.localeCompare(a.createdAt)) }
   async getStarsByType(type: StarType) { return (await this.getStars()).filter((star) => star.type === type) }
   async getStarsByLocalDate(localDate: string) { return (await this.getStars()).filter((star) => star.localDate === localDate) }
-  deleteStar(id: string) { return this.storage.delete('stars', id) }
-  async upsertMoodStar(record: MoodRecord) {
+  async deleteStar(id: string) {
+    await this.storage.delete('stars', id)
+    await this.presentations?.remove(id).catch(() => undefined)
+  }
+  async upsertMoodStar(record: MoodRecord, queuePresentation = true) {
     const existing = (await this.getStars()).find((star) => star.type === 'mood' && star.sourceType === 'mood' && star.sourceId === record.localDate)
     const timestamp = now()
     const star: Star = existing
       ? { ...existing, sourceType: 'mood', sourceId: record.localDate, content: record.mood, mood: record.mood, localDate: record.localDate, timezone: record.timezone, updatedAt: timestamp }
       : { id: `mood-star:${record.localDate}`, type: 'mood', sourceType: 'mood', sourceId: record.localDate, content: record.mood, mood: record.mood, localDate: record.localDate, timezone: record.timezone, createdAt: timestamp, updatedAt: timestamp }
     await this.storage.put('stars', star)
+    if (!existing && queuePresentation) await this.presentations?.queue(star).catch(() => undefined)
     return star
   }
   async reconcileMoodStars(records: MoodRecord[]) {
@@ -188,7 +194,7 @@ export class LocalStarRepository implements StarRepository, MoodStarWriter {
     let updated = 0
     for (const record of records) {
       const existing = (await this.getStars()).find((star) => star.type === 'mood' && star.sourceType === 'mood' && star.sourceId === record.localDate)
-      await this.upsertMoodStar(record)
+      await this.upsertMoodStar(record, false)
       if (existing) updated += 1
       else created += 1
     }

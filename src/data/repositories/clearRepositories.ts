@@ -28,6 +28,7 @@ import type {
 import type { StorageAdapter, StoreName } from '../storage/StorageAdapter'
 import type { Star } from '../types'
 import type { AwardWriter } from './repositories'
+import type { StarPresentationWriter } from './starDropPresentationRepository'
 
 function now() { return new Date().toISOString() }
 function id(prefix: string) { return prefix + '-' + crypto.randomUUID() }
@@ -56,9 +57,12 @@ async function listNewest<T extends { createdAt: string }>(storage: StorageAdapt
   return (await storage.getAll<T>(store)).sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 }
 
-async function deleteLinkedRecord(storage: StorageAdapter, store: StoreName, record: { id: string; clearMindStarId?: string } | undefined, deleteStar: boolean) {
+async function deleteLinkedRecord(storage: StorageAdapter, store: StoreName, record: { id: string; clearMindStarId?: string } | undefined, deleteStar: boolean, presentations?: StarPresentationWriter) {
   if (!record) return
-  if (deleteStar && record.clearMindStarId) await storage.delete('stars', record.clearMindStarId)
+  if (deleteStar && record.clearMindStarId) {
+    await storage.delete('stars', record.clearMindStarId)
+    await presentations?.remove(record.clearMindStarId).catch(() => undefined)
+  }
   await storage.delete(store, record.id)
 }
 
@@ -67,6 +71,7 @@ async function saveLinkedClearStar<T extends { id: string; status?: 'draft' | 'c
   store: StoreName,
   record: T,
   sourceType: ClearToolSourceType,
+  presentations?: StarPresentationWriter,
 ) {
   if (record.status === 'draft') throw new ClearDataValidationError('Only completed records can become stars', 'completion_required')
   const existing = (await storage.getAll<Star>('stars')).find((star) => star.type === 'clear_mind' && star.sourceType === sourceType && star.sourceId === record.id)
@@ -88,6 +93,7 @@ async function saveLinkedClearStar<T extends { id: string; status?: 'draft' | 'c
   }
   await storage.put('stars', star)
   await storage.put(store, { ...record, clearMindStarId: star.id, updatedAt: timestamp })
+  await presentations?.queue(star).catch(() => undefined)
   return { star, created: true }
 }
 
@@ -128,7 +134,7 @@ function normalizeClearInput(input: CompleteClearRecordInput): CompleteClearReco
 }
 
 export class LocalClearRecordRepository {
-  constructor(private readonly storage: StorageAdapter, private readonly awards: AwardWriter) {}
+  constructor(private readonly storage: StorageAdapter, private readonly awards: AwardWriter, private readonly presentations?: StarPresentationWriter) {}
   async complete(input: CompleteClearRecordInput) {
     const normalized = normalizeClearInput(input)
     const timestamp = now()
@@ -147,11 +153,11 @@ export class LocalClearRecordRepository {
   }
   getById(recordId: string) { return this.storage.get<ClearRecord>('clearRecords', recordId) }
   async list() { return listNewest<ClearRecord>(this.storage, 'clearRecords') }
-  async delete(recordId: string, deleteStar = false) { await deleteLinkedRecord(this.storage, 'clearRecords', await this.getById(recordId), deleteStar) }
+  async delete(recordId: string, deleteStar = false) { await deleteLinkedRecord(this.storage, 'clearRecords', await this.getById(recordId), deleteStar, this.presentations) }
   async saveAsClearMindStar(recordId: string) {
     const record = await this.getById(recordId)
     if (!record) throw new ClearDataValidationError('Clear record not found', 'not_found')
-    return saveLinkedClearStar(this.storage, 'clearRecords', record, 'clear_record')
+    return saveLinkedClearStar(this.storage, 'clearRecords', record, 'clear_record', this.presentations)
   }
 }
 
@@ -213,7 +219,7 @@ export function calculateLoveBoat(aAnswers: LoveBoatAssessment['aAnswers'], bAns
 }
 
 export class LocalLoveBoatAssessmentRepository {
-  constructor(private readonly storage: StorageAdapter) {}
+  constructor(private readonly storage: StorageAdapter, private readonly presentations?: StarPresentationWriter) {}
   async createDraft() {
     const active = await this.getActiveDraft()
     if (active) return active
@@ -256,11 +262,11 @@ export class LocalLoveBoatAssessmentRepository {
     await this.storage.put('loveBoatAssessments', completed)
     return completed
   }
-  async delete(recordId: string, deleteStar = false) { await deleteLinkedRecord(this.storage, 'loveBoatAssessments', await this.getById(recordId), deleteStar) }
+  async delete(recordId: string, deleteStar = false) { await deleteLinkedRecord(this.storage, 'loveBoatAssessments', await this.getById(recordId), deleteStar, this.presentations) }
   async saveAsClearMindStar(recordId: string) {
     const record = await this.getById(recordId)
     if (!record) throw new ClearDataValidationError('Love boat assessment not found', 'not_found')
-    return saveLinkedClearStar(this.storage, 'loveBoatAssessments', record, 'love_boat_code')
+    return saveLinkedClearStar(this.storage, 'loveBoatAssessments', record, 'love_boat_code', this.presentations)
   }
 }
 
@@ -299,7 +305,7 @@ export function calculateLoveBrain(answers: LoveBrainAssessment['answers']) {
 }
 
 export class LocalLoveBrainAssessmentRepository {
-  constructor(private readonly storage: StorageAdapter) {}
+  constructor(private readonly storage: StorageAdapter, private readonly presentations?: StarPresentationWriter) {}
   async createDraft() {
     const active = await this.getActiveDraft()
     if (active) return active
@@ -345,11 +351,11 @@ export class LocalLoveBrainAssessmentRepository {
     await this.storage.put('loveBrainAssessments', completed)
     return completed
   }
-  async delete(recordId: string, deleteStar = false) { await deleteLinkedRecord(this.storage, 'loveBrainAssessments', await this.getById(recordId), deleteStar) }
+  async delete(recordId: string, deleteStar = false) { await deleteLinkedRecord(this.storage, 'loveBrainAssessments', await this.getById(recordId), deleteStar, this.presentations) }
   async saveAsClearMindStar(recordId: string) {
     const record = await this.getById(recordId)
     if (!record) throw new ClearDataValidationError('Love brain assessment not found', 'not_found')
-    return saveLinkedClearStar(this.storage, 'loveBrainAssessments', record, 'love_brain_assessment')
+    return saveLinkedClearStar(this.storage, 'loveBrainAssessments', record, 'love_brain_assessment', this.presentations)
   }
 }
 
@@ -451,7 +457,7 @@ function validateLikeOrHabitAnswers(answers: LikeOrHabitAnswers, realPersonNote?
 }
 
 export class LocalLikeOrHabitReflectionRepository {
-  constructor(private readonly storage: StorageAdapter) {}
+  constructor(private readonly storage: StorageAdapter, private readonly presentations?: StarPresentationWriter) {}
   async createDraft() {
     const active = await this.getActiveDraft()
     if (active) return active
@@ -492,10 +498,10 @@ export class LocalLikeOrHabitReflectionRepository {
     await this.storage.put('likeOrHabitReflections', completed)
     return completed
   }
-  async delete(recordId: string, deleteStar = false) { await deleteLinkedRecord(this.storage, 'likeOrHabitReflections', await this.getById(recordId), deleteStar) }
+  async delete(recordId: string, deleteStar = false) { await deleteLinkedRecord(this.storage, 'likeOrHabitReflections', await this.getById(recordId), deleteStar, this.presentations) }
   async saveAsClearMindStar(recordId: string) {
     const record = await this.getById(recordId)
     if (!record) throw new ClearDataValidationError('Like or habit reflection not found', 'not_found')
-    return saveLinkedClearStar(this.storage, 'likeOrHabitReflections', record, 'like_or_habit')
+    return saveLinkedClearStar(this.storage, 'likeOrHabitReflections', record, 'like_or_habit', this.presentations)
   }
 }

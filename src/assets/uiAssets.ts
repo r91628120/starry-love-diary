@@ -1,3 +1,5 @@
+import starBottleHero from '../../design/ui-reference/star-bottle/star-bottle-hero-couple-cat-garden-v1.png'
+
 export const todayAssets = {
   hero: '/images/ui/today/today-hero-couple-garden-cat-v1.png',
   profileFramePink: '/images/ui/today/profile-frame-pink.png',
@@ -20,7 +22,7 @@ export const todayAssets = {
 } as const
 
 export const starBottleAssets = {
-  hero: '/images/ui/star-bottle/star-bottle-hero-v1.png',
+  hero: starBottleHero,
   jar: '/images/ui/star-bottle/star-bottle-glass-jar.png',
   moodStar: '/images/ui/star-bottle/star-bottle-mood-star.png',
   clearStar: '/images/ui/star-bottle/star-bottle-clear-star.png',

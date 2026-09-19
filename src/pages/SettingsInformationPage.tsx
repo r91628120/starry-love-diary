@@ -1,3 +1,5 @@
+import { useEffect, useRef } from 'react'
+import { useLocation } from 'react-router-dom'
 import { PageHeader, SoftCard } from '../components'
 import { APP_VERSION } from '../app/appMetadata'
 import { useI18n } from '../i18n/I18nContext'
@@ -54,10 +56,23 @@ const titleByKind: Record<SettingsInformationKind, TranslationKey> = {
 
 export function SettingsInformationPage({ kind }: { kind: SettingsInformationKind }) {
   const { t } = useI18n()
+  const location = useLocation()
+  const todayGuideRef = useRef<HTMLDetailsElement>(null)
+  const contextualState = location.state as { from?: string; guideTarget?: string; heartLineDraft?: { value: string; pressCount: number } } | null
+  const isContextualTodayGuide = kind === 'help' && contextualState?.from === '/today' && contextualState.guideTarget === 'today'
+
+  useEffect(() => {
+    if (!isContextualTodayGuide) return
+    const guide = todayGuideRef.current
+    guide?.scrollIntoView?.({ block: 'start' })
+    guide?.querySelector('summary')?.focus({ preventScroll: true })
+  }, [isContextualTodayGuide])
+
+  const contextualBackState = isContextualTodayGuide ? { heartLineHelpReturn: true, heartLineDraft: contextualState?.heartLineDraft } : undefined
   return <div className="app-shell"><div className="page page--settings settings-page settings-information-page">
-    <PageHeader titleKey={titleByKind[kind]} variant="secondary" backFallback="/settings" />
+    <PageHeader titleKey={titleByKind[kind]} variant="secondary" backFallback="/settings" backState={contextualBackState} />
     <main className="page__content settings-page__content">
-      {kind === 'help' ? <InfoCard intro="settings.guide.intro"><div className="settings-user-guide">{helpItems.map((item) => <details key={item.title} className="settings-user-guide__section"><summary>{t(item.title)}</summary><GuideBody value={t(item.body)} /></details>)}</div></InfoCard> : null}
+      {kind === 'help' ? <InfoCard intro="settings.guide.intro"><div className="settings-user-guide">{helpItems.map((item) => <details key={item.title} ref={item.title === 'settings.guide.today.title' ? todayGuideRef : undefined} className="settings-user-guide__section" open={item.title === 'settings.guide.today.title' && isContextualTodayGuide ? true : undefined}><summary>{t(item.title)}</summary><GuideBody value={t(item.body)} /></details>)}</div></InfoCard> : null}
       {kind === 'star-heart' ? <InfoCard intro="settings.info.starHeart.intro"><ul className="settings-info-rules">{starHeartRules.map((rule) => <li key={rule}>{t(rule)}</li>)}</ul><p className="settings-info-note">{t('settings.info.starHeart.notScore')}</p></InfoCard> : null}
       {kind === 'star-bottle-help' ? <InfoCard intro="settings.info.starBottle.intro"><dl className="settings-info-list"><div><dt>{t('settings.info.starBottle.mood.title')}</dt><dd>{t('settings.info.starBottle.mood.body')}</dd></div><div><dt>{t('settings.info.starBottle.clear.title')}</dt><dd>{t('settings.info.starBottle.clear.body')}</dd></div></dl><p className="settings-info-note">{t('settings.info.starBottle.different')}</p></InfoCard> : null}
       {kind === 'data-help' ? <InfoCard><InformationSections sections={dataManagementSections} listClassName="settings-info-bullets" /></InfoCard> : null}

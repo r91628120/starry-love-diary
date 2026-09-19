@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { afterEach, describe, expect, it } from 'vitest'
+import { MemoryRouter } from 'react-router-dom'
 import { PersistenceProvider } from '../../data/PersistenceContext'
 import { initializePersistence, type PersistenceRuntime } from '../../data/persistence'
 import { createMemoryStorageBacking, MemoryStorageAdapter } from '../../data/storage/MemoryStorageAdapter'
@@ -31,8 +32,10 @@ function renderCard(runtime: PersistenceRuntime, withReveal = false) {
   return render(
     <PersistenceProvider runtime={runtime}>
       <I18nProvider initialLocale="zh-TW">
-        <HeartLineCard />
-        {withReveal ? <HeartRevealProgressCard /> : null}
+        <MemoryRouter>
+          <HeartLineCard />
+          {withReveal ? <HeartRevealProgressCard /> : null}
+        </MemoryRouter>
       </I18nProvider>
     </PersistenceProvider>,
   )

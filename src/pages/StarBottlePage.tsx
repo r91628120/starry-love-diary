@@ -23,7 +23,7 @@ export function StarBottlePage() {
       <PageHeader titleKey="starBottle.title" brandOnly />
       <main className="star-bottle-page__content">
         <div className="star-bottle-page__title" aria-hidden="true">{t('starBottle.title')}</div>
-        <BottleHeroCard />
+        <BottleHeroCard stars={persistence?.stars ?? []} presentations={persistence?.repositories.starDropPresentations} />
         <TimeRangeFilter value={range} onChange={setRange} />
         <StarStats stars={rangedStars} />
         <SearchBar

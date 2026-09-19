@@ -6,7 +6,7 @@ import type { StoreName } from '../data/storage/StorageAdapter'
 const STORY_STORES: StoreName[] = [
   'profiles', 'moods', 'diaries', 'stars', 'scoreAwards', 'heartPhrases',
   'importantDates', 'memoryMoments', 'messageToYou', 'rememberedYouCards',
-  'clearRecords', 'loveBoatAssessments', 'loveBrainAssessments', 'likeOrHabitReflections',
+  'clearRecords', 'loveBoatAssessments', 'loveBrainAssessments', 'likeOrHabitReflections', 'starDropPresentations',
   'diaryPhotos', 'photoLayouts', 'heartRevealProjects', 'heartRevealLines', 'heartRevealCards',
 ]
 

@@ -255,6 +255,7 @@ export function PersistenceProvider({ runtime, children }: { runtime: Persistenc
     },
     async applyAppDataImport(plan: AppDataImportPlan) {
       const summary = await applyImportPlan(runtime, plan)
+      await runtime.starDropPresentations.clear()
       const [user, partner, nextSettings, nextMood, nextDiary, nextScore, nextStars, nextPhrases, nextImportantDates, nextMoments, nextMessage, nextMessageEntries, nextRemembered, nextDiaries] = await Promise.all([
         runtime.profiles.getProfile('user'), runtime.profiles.getProfile('partner'), runtime.settings.getSettings(), runtime.moods.getMoodByLocalDate(runtime.initial.currentLocalDate), runtime.diaries.getDiaryByLocalDate(runtime.initial.currentLocalDate), runtime.scores.getTotal(), runtime.stars.getStars(), runtime.heartPhrases.getHeartPhrases(), runtime.importantDates.getImportantDates(), runtime.memoryMoments.getMemoryMoments(), runtime.messageToYou.getMessage(), runtime.messageToYou.reconcileLegacy(), runtime.rememberedYou.getRememberedYouCards(), runtime.diaries.getDiaries(),
       ])

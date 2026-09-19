@@ -1,7 +1,7 @@
 import { STORE_NAMES, type StorageAdapter, type StoreName } from './StorageAdapter'
 
 export const DATABASE_NAME = 'starry-love-diary'
-export const SCHEMA_VERSION = 5
+export const SCHEMA_VERSION = 6
 
 export function ensureObjectStores(database: Pick<IDBDatabase, 'objectStoreNames' | 'createObjectStore'>) {
   for (const storeName of STORE_NAMES) {

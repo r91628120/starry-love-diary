@@ -6,7 +6,7 @@ import { PhotoObjectUrlResolver } from '../../services/photoObjectUrl'
 import type { DiaryPhoto, HeartPhrase, HeartRevealLine, HeartRevealProject, ImportantDate, MemoryMoment, PhotoLayout, Profile } from '../types'
 import { ensureObjectStores, SCHEMA_VERSION } from '../storage/IndexedDbStorageAdapter'
 import { createMemoryStorageBacking, MemoryStorageAdapter } from '../storage/MemoryStorageAdapter'
-import { LEGACY_V4_STORE_NAMES, PHOTO_V5_STORE_NAMES, STORE_NAMES, type StoreName } from '../storage/StorageAdapter'
+import { LEGACY_V4_STORE_NAMES, PHOTO_V5_STORE_NAMES, STAR_DROP_V6_STORE_NAMES, STORE_NAMES, type StoreName } from '../storage/StorageAdapter'
 import { IndexedDbPhotoContentStore } from './PhotoContentStore'
 import { LocalPhotoRepository, PhotoInUseError } from './PhotoRepository'
 
@@ -41,18 +41,18 @@ function readBlob(blob: Blob | undefined) {
 
 afterEach(() => vi.restoreAllMocks())
 
-describe('IndexedDB v5 photo migration', () => {
+describe('IndexedDB v6 store migration', () => {
   it('creates every store on a fresh install', () => {
     const created: string[] = []
     ensureObjectStores({
       objectStoreNames: { contains: () => false } as unknown as DOMStringList,
       createObjectStore: ((name: string) => { created.push(name); return {} as IDBObjectStore }) as IDBDatabase['createObjectStore'],
     })
-    expect(SCHEMA_VERSION).toBe(5)
+    expect(SCHEMA_VERSION).toBe(6)
     expect(created).toEqual(STORE_NAMES)
   })
 
-  it('adds exactly seven stores to v4 without touching existing records', () => {
+  it('adds v5 and v6 stores without touching existing records', () => {
     const records = new Map<string, Map<string, unknown>>()
     for (const store of LEGACY_V4_STORE_NAMES) records.set(store, new Map([['legacy', { id: 'legacy', store }]]))
     const before = new Map([...records].map(([name, values]) => [name, structuredClone([...values])]))
@@ -60,7 +60,7 @@ describe('IndexedDB v5 photo migration', () => {
       objectStoreNames: { contains: (name: string) => records.has(name) } as unknown as DOMStringList,
       createObjectStore: ((name: string) => { records.set(name, new Map()); return {} as IDBObjectStore }) as IDBDatabase['createObjectStore'],
     })
-    expect([...records.keys()].slice(-7)).toEqual(PHOTO_V5_STORE_NAMES)
+    expect([...records.keys()].slice(-8)).toEqual([...PHOTO_V5_STORE_NAMES, ...STAR_DROP_V6_STORE_NAMES])
     for (const store of LEGACY_V4_STORE_NAMES) expect([...records.get(store)!]).toEqual(before.get(store))
   })
 

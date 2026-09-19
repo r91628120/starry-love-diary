@@ -13,7 +13,7 @@ import { messages, supportedLocales, type TranslationKey } from './messages'
 
 const batch2Keys = [
   'starBottle.title',
-  'starBottle.hero.label', 'starBottle.hero.tagline',
+  'starBottle.hero.label', 'starBottle.hero.tagline', 'starBottle.ritual.mood', 'starBottle.ritual.clear',
   'starBottle.filter.label', 'starBottle.filter.today', 'starBottle.filter.month', 'starBottle.filter.year', 'starBottle.filter.all',
   'starBottle.stats.label', 'starBottle.totalStars', 'starBottle.moodStars', 'starBottle.clearStars', 'starBottle.statAria',
   'starBottle.searchPlaceholder',

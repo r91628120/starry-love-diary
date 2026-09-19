@@ -35,7 +35,7 @@ describe('App data export', () => {
     const parsed = JSON.parse(result.content)
     expect(result.filename).toBe('starry-love-diary-data-2026-09-11.json')
     expect(result.content).toContain('\n  "format"')
-    expect(parsed).toMatchObject({ format: STARLOVE_EXPORT_FORMAT, exportVersion: STARLOVE_EXPORT_VERSION, app: { name: 'Starry Love Diary', schemaVersion: 5 }, exportedAt: '2026-09-11T12:00:00.000Z', exportedLocalDate: '2026-09-11' })
+    expect(parsed).toMatchObject({ format: STARLOVE_EXPORT_FORMAT, exportVersion: STARLOVE_EXPORT_VERSION, app: { name: 'Starry Love Diary', schemaVersion: 6 }, exportedAt: '2026-09-11T12:00:00.000Z', exportedLocalDate: '2026-09-11' })
     expect(parsed.data.profiles.map((profile: { kind: string }) => profile.kind)).toEqual(['partner', 'user'])
     expect(parsed.data.profiles).toContainEqual(expect.objectContaining({ id: 'user', nickname: '我', birthday: '1999-04-02' }))
     expect(parsed.data.moods.map((mood: { id: string }) => mood.id)).toEqual(['mood-a', 'mood-b'])

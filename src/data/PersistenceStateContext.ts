@@ -58,7 +58,7 @@ export interface PersistenceContextValue {
   clearCurrentRelationshipData(): Promise<void>
   refreshScoreAndStars(): Promise<void>
   applyAppDataImport(plan: AppDataImportPlan): Promise<ImportSummary>
-  repositories: Pick<PersistenceRuntime, 'adapter' | 'profiles' | 'moods' | 'diaries' | 'settings' | 'stars' | 'scores' | 'heartPhrases' | 'importantDates' | 'memoryMoments' | 'messageToYou' | 'rememberedYou' | 'clearRecords' | 'loveBoatAssessments' | 'loveBrainAssessments' | 'likeOrHabitReflections' | 'photos' | 'memoryWallLayouts' | 'profilePhotoPlacements' | 'heartRevealPhotos' | 'memoryMomentPhotoPlacements'>
+  repositories: Pick<PersistenceRuntime, 'adapter' | 'profiles' | 'moods' | 'diaries' | 'settings' | 'stars' | 'starDropPresentations' | 'scores' | 'heartPhrases' | 'importantDates' | 'memoryMoments' | 'messageToYou' | 'rememberedYou' | 'clearRecords' | 'loveBoatAssessments' | 'loveBrainAssessments' | 'likeOrHabitReflections' | 'photos' | 'memoryWallLayouts' | 'profilePhotoPlacements' | 'heartRevealPhotos' | 'memoryMomentPhotoPlacements'>
 }
 
 export const PersistenceStateContext = createContext<PersistenceContextValue | null>(null)
