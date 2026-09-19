@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { PageHeader, SearchBar } from '../components'
 import { BottleHeroCard } from '../features/star-bottle/BottleHeroCard'
 import { StarEntryList } from '../features/star-bottle/StarEntryList'
@@ -16,14 +16,21 @@ export function StarBottlePage() {
   const [search, setSearch] = useState('')
   const [showAll, setShowAll] = useState(false)
   const persistence = usePersistence()
-  const rangedStars = filterStarsByRange(persistence?.stars ?? [], range, toLocalDate())
+  const [currentLocalDate, setCurrentLocalDate] = useState(() => toLocalDate())
+  useEffect(() => {
+    const refresh = () => setCurrentLocalDate(toLocalDate())
+    document.addEventListener('visibilitychange', refresh)
+    window.addEventListener('focus', refresh)
+    return () => { document.removeEventListener('visibilitychange', refresh); window.removeEventListener('focus', refresh) }
+  }, [])
+  const rangedStars = filterStarsByRange(persistence?.stars ?? [], range, currentLocalDate)
 
   return (
     <div className="page star-bottle-page">
       <PageHeader titleKey="starBottle.title" brandOnly />
       <main className="star-bottle-page__content">
         <div className="star-bottle-page__title" aria-hidden="true">{t('starBottle.title')}</div>
-        <BottleHeroCard stars={persistence?.stars ?? []} presentations={persistence?.repositories.starDropPresentations} />
+        <BottleHeroCard stars={persistence?.stars ?? []} currentLocalDate={currentLocalDate} presentations={persistence?.repositories.starDropPresentations} />
         <TimeRangeFilter value={range} onChange={setRange} />
         <StarStats stars={rangedStars} />
         <SearchBar

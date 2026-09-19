@@ -76,6 +76,7 @@ export function PersistenceProvider({ runtime, children }: { runtime: Persistenc
         ? await runtime.diaries.updateDiary(diaryId, { content })
         : await runtime.diaries.createDiary({ content })
       setTodayDiary(entry)
+        if (creating) await runtime.diaryDrafts.deleteDraft(runtime.initial.currentLocalDate).catch(() => undefined)
       if (creating) setDiaryCount((count) => count + 1)
       setStarHeartTotal(await runtime.scores.getTotal())
       return entry
@@ -256,6 +257,7 @@ export function PersistenceProvider({ runtime, children }: { runtime: Persistenc
     async applyAppDataImport(plan: AppDataImportPlan) {
       const summary = await applyImportPlan(runtime, plan)
       await runtime.starDropPresentations.clear()
+      await runtime.diaryDrafts.clear()
       const [user, partner, nextSettings, nextMood, nextDiary, nextScore, nextStars, nextPhrases, nextImportantDates, nextMoments, nextMessage, nextMessageEntries, nextRemembered, nextDiaries] = await Promise.all([
         runtime.profiles.getProfile('user'), runtime.profiles.getProfile('partner'), runtime.settings.getSettings(), runtime.moods.getMoodByLocalDate(runtime.initial.currentLocalDate), runtime.diaries.getDiaryByLocalDate(runtime.initial.currentLocalDate), runtime.scores.getTotal(), runtime.stars.getStars(), runtime.heartPhrases.getHeartPhrases(), runtime.importantDates.getImportantDates(), runtime.memoryMoments.getMemoryMoments(), runtime.messageToYou.getMessage(), runtime.messageToYou.reconcileLegacy(), runtime.rememberedYou.getRememberedYouCards(), runtime.diaries.getDiaries(),
       ])

@@ -17,7 +17,7 @@ import { LocalScoreRepository } from './repositories/repositories'
 import { initializePersistence } from './persistence'
 import { ensureObjectStores, SCHEMA_VERSION } from './storage/IndexedDbStorageAdapter'
 import { createMemoryStorageBacking, MemoryStorageAdapter } from './storage/MemoryStorageAdapter'
-import { LEGACY_V4_STORE_NAMES, PHOTO_V5_STORE_NAMES, STAR_DROP_V6_STORE_NAMES, STORE_NAMES } from './storage/StorageAdapter'
+import { DIARY_DRAFT_V7_STORE_NAMES, LEGACY_V4_STORE_NAMES, PHOTO_V5_STORE_NAMES, STAR_DROP_V6_STORE_NAMES, STORE_NAMES } from './storage/StorageAdapter'
 
 function answeredA(value: 0 | 1 | 2 | 3) {
   return Object.fromEntries(BOAT_A_KEYS.map((key) => [key, value])) as Record<BoatInvestmentQuestionKey, 0 | 1 | 2 | 3>
@@ -63,7 +63,7 @@ describe('IndexedDB v5 migration plan', () => {
       objectStoreNames: { contains: () => false } as unknown as DOMStringList,
       createObjectStore: ((name: string) => { created.push(name); return {} as IDBObjectStore }) as IDBDatabase['createObjectStore'],
     })
-    expect(SCHEMA_VERSION).toBe(6)
+    expect(SCHEMA_VERSION).toBe(7)
     expect(created).toEqual(STORE_NAMES)
   })
 
@@ -74,7 +74,7 @@ describe('IndexedDB v5 migration plan', () => {
       objectStoreNames: { contains: (name: string) => v3Stores.includes(name as typeof v3Stores[number]) } as unknown as DOMStringList,
       createObjectStore: ((name: string) => { created.push(name); return {} as IDBObjectStore }) as IDBDatabase['createObjectStore'],
     })
-    expect(created).toEqual([...LEGACY_V4_STORE_NAMES.slice(11), ...PHOTO_V5_STORE_NAMES, ...STAR_DROP_V6_STORE_NAMES])
+    expect(created).toEqual([...LEGACY_V4_STORE_NAMES.slice(11), ...PHOTO_V5_STORE_NAMES, ...STAR_DROP_V6_STORE_NAMES, ...DIARY_DRAFT_V7_STORE_NAMES])
     expect(v3Stores).toEqual(['profiles', 'settings', 'moods', 'diaries', 'stars', 'scoreAwards', 'heartPhrases', 'importantDates', 'memoryMoments', 'messageToYou', 'rememberedYouCards'])
   })
 
@@ -100,7 +100,7 @@ describe('IndexedDB v5 migration plan', () => {
 
     const runtime = await initializePersistence({ adapter, defaultLocale: 'zh-TW', localDate: '2026-08-30' })
 
-    expect(runtime.initial.settings.schemaVersion).toBe(6)
+    expect(runtime.initial.settings.schemaVersion).toBe(7)
     expect(runtime.initial.settings.onboardingCompleted).toBe(true)
     for (const store of Object.keys(legacyRecords) as Array<keyof typeof legacyRecords>) {
       expect(await adapter.get(store, legacyRecords[store].id)).toBeDefined()

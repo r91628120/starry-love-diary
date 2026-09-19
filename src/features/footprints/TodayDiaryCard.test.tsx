@@ -49,6 +49,22 @@ describe('TodayDiaryCard save and edit reset flow', () => {
     expect(screen.getByRole('button', { name: 'Save diary' })).toBeInTheDocument()
   })
 
+  it('restores a debounced draft after remount and clears it after a successful create', async () => {
+    const runtime = await renderDiary()
+    const editor = screen.getByRole('textbox', { name: "Today's diary" })
+    fireEvent.change(editor, { target: { value: 'Unsaved draft survives navigation' } })
+    fireEvent.blur(editor)
+    await waitFor(async () => expect((await runtime.diaryDrafts.getDraft('2026-09-08'))?.content).toBe('Unsaved draft survives navigation'))
+
+    cleanup()
+    render(<PersistenceProvider runtime={runtime}><I18nProvider initialLocale="en"><MemoryRouter initialEntries={['/footprints?date=2026-09-08']}><TodayDiaryCard /></MemoryRouter></I18nProvider></PersistenceProvider>)
+    expect(await screen.findByRole('textbox', { name: "Today's diary" })).toHaveValue('Unsaved draft survives navigation')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save diary' }))
+    await waitFor(() => expect(screen.getByRole('textbox', { name: "Today's diary" })).toHaveValue(''))
+    expect(await runtime.diaryDrafts.getDraft('2026-09-08')).toBeUndefined()
+  })
+
   it('updates a queried diary once, clears edit state and replaces its edit query', async () => {
     const runtime = await initializePersistence({ adapter: new MemoryStorageAdapter(), defaultLocale: 'en', localDate: '2026-09-08' })
     const entry = await runtime.diaries.createDiary({ localDate: '2026-09-08', content: 'Original diary' })

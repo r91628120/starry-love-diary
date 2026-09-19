@@ -7,6 +7,7 @@ const STORY_STORES: StoreName[] = [
   'profiles', 'moods', 'diaries', 'stars', 'scoreAwards', 'heartPhrases',
   'importantDates', 'memoryMoments', 'messageToYou', 'rememberedYouCards',
   'clearRecords', 'loveBoatAssessments', 'loveBrainAssessments', 'likeOrHabitReflections', 'starDropPresentations',
+  'diaryDrafts',
   'diaryPhotos', 'photoLayouts', 'heartRevealProjects', 'heartRevealLines', 'heartRevealCards',
 ]
 

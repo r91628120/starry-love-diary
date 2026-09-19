@@ -31,11 +31,12 @@ async function createFixture() {
 describe('App data export', () => {
   it('creates a deterministic, pretty JSON snapshot with all domain data and persisted Clear drafts', async () => {
     const runtime = await createFixture()
+    await runtime.diaryDrafts.saveDraft('2026-09-11', 'local draft stays local')
     const result = await createAppDataExport({ repositories: runtime, localDate: '2026-09-11', exportedAt: '2026-09-11T12:00:00.000Z' })
     const parsed = JSON.parse(result.content)
     expect(result.filename).toBe('starry-love-diary-data-2026-09-11.json')
     expect(result.content).toContain('\n  "format"')
-    expect(parsed).toMatchObject({ format: STARLOVE_EXPORT_FORMAT, exportVersion: STARLOVE_EXPORT_VERSION, app: { name: 'Starry Love Diary', schemaVersion: 6 }, exportedAt: '2026-09-11T12:00:00.000Z', exportedLocalDate: '2026-09-11' })
+    expect(parsed).toMatchObject({ format: STARLOVE_EXPORT_FORMAT, exportVersion: STARLOVE_EXPORT_VERSION, app: { name: 'Starry Love Diary', schemaVersion: 7 }, exportedAt: '2026-09-11T12:00:00.000Z', exportedLocalDate: '2026-09-11' })
     expect(parsed.data.profiles.map((profile: { kind: string }) => profile.kind)).toEqual(['partner', 'user'])
     expect(parsed.data.profiles).toContainEqual(expect.objectContaining({ id: 'user', nickname: '我', birthday: '1999-04-02' }))
     expect(parsed.data.moods.map((mood: { id: string }) => mood.id)).toEqual(['mood-a', 'mood-b'])
@@ -46,6 +47,7 @@ describe('App data export', () => {
     expect(parsed.data.clearRecords.likeOrHabitReflections).toEqual([expect.objectContaining({ id: 'like-draft', status: 'draft' })])
     expect(parsed.data.scoreAwards).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'award-b', awardType: 'mood_selected', points: 2 })]))
     expect(parsed.data.diaries).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'diary-photo', title: '日記標題', content: '保留文字', linkedClearMindId: 'clear-record-a' })]))
+    expect(parsed.data.diaryDrafts).toBeUndefined()
     expect(parsed.data.stars).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'star-b', sourceId: 'mood-b', sourceType: 'mood', mood: 'happy' })]))
     expect(parsed.data.settings).toMatchObject({ locale: 'fr', loveQuoteReminderEnabled: false, importantDateReminderEnabled: true, reminderTime: '20:45' })
     expect(parsed.data.messageToYou).toMatchObject({ id: 'message-to-you', content: '想說的話' })

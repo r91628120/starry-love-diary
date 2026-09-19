@@ -6,7 +6,7 @@ import { PhotoObjectUrlResolver } from '../../services/photoObjectUrl'
 import type { DiaryPhoto, HeartPhrase, HeartRevealLine, HeartRevealProject, ImportantDate, MemoryMoment, PhotoLayout, Profile } from '../types'
 import { ensureObjectStores, SCHEMA_VERSION } from '../storage/IndexedDbStorageAdapter'
 import { createMemoryStorageBacking, MemoryStorageAdapter } from '../storage/MemoryStorageAdapter'
-import { LEGACY_V4_STORE_NAMES, PHOTO_V5_STORE_NAMES, STAR_DROP_V6_STORE_NAMES, STORE_NAMES, type StoreName } from '../storage/StorageAdapter'
+import { DIARY_DRAFT_V7_STORE_NAMES, LEGACY_V4_STORE_NAMES, PHOTO_V5_STORE_NAMES, STAR_DROP_V6_STORE_NAMES, STORE_NAMES, type StoreName } from '../storage/StorageAdapter'
 import { IndexedDbPhotoContentStore } from './PhotoContentStore'
 import { LocalPhotoRepository, PhotoInUseError } from './PhotoRepository'
 
@@ -48,7 +48,7 @@ describe('IndexedDB v6 store migration', () => {
       objectStoreNames: { contains: () => false } as unknown as DOMStringList,
       createObjectStore: ((name: string) => { created.push(name); return {} as IDBObjectStore }) as IDBDatabase['createObjectStore'],
     })
-    expect(SCHEMA_VERSION).toBe(6)
+    expect(SCHEMA_VERSION).toBe(7)
     expect(created).toEqual(STORE_NAMES)
   })
 
@@ -60,7 +60,7 @@ describe('IndexedDB v6 store migration', () => {
       objectStoreNames: { contains: (name: string) => records.has(name) } as unknown as DOMStringList,
       createObjectStore: ((name: string) => { records.set(name, new Map()); return {} as IDBObjectStore }) as IDBDatabase['createObjectStore'],
     })
-    expect([...records.keys()].slice(-8)).toEqual([...PHOTO_V5_STORE_NAMES, ...STAR_DROP_V6_STORE_NAMES])
+    expect([...records.keys()].slice(-9)).toEqual([...PHOTO_V5_STORE_NAMES, ...STAR_DROP_V6_STORE_NAMES, ...DIARY_DRAFT_V7_STORE_NAMES])
     for (const store of LEGACY_V4_STORE_NAMES) expect([...records.get(store)!]).toEqual(before.get(store))
   })
 

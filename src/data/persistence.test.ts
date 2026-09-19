@@ -9,7 +9,7 @@ import { STORE_NAMES } from './storage/StorageAdapter'
 
 describe('Local persistence repositories', () => {
   it('keeps prior stores while upgrading schema 5 with the photo foundation stores', () => {
-    expect(SCHEMA_VERSION).toBe(6)
+    expect(SCHEMA_VERSION).toBe(7)
     expect(STORE_NAMES).toEqual(expect.arrayContaining(['profiles', 'diaries', 'scoreAwards', 'importantDates', 'memoryMoments', 'messageToYou', 'rememberedYouCards', 'clearRecords', 'loveBoatAssessments', 'loveBrainAssessments', 'likeOrHabitReflections', 'starDropPresentations']))
   })
 

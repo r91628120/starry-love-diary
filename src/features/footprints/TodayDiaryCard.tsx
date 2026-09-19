@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { footprintsAssets } from '../../assets/uiAssets'
 import { ConfirmDialog, PrimaryButton, SecondaryButton, SectionHeader, SoftCard } from '../../components'
@@ -25,6 +25,10 @@ export function TodayDiaryCard() {
   const previousRequestedRecordId = useRef(requestedRecordId)
   const [editingRecordId, setEditingRecordId] = useState<string>()
   const [content, setContent] = useState('')
+  const contentRef = useRef('')
+  const editedNewEntryRef = useRef(false)
+  const draftTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const draftWriteRef = useRef(Promise.resolve())
   const [feedbackKey, setFeedbackKey] = useState<TranslationKey>()
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const numberFormatter = new Intl.NumberFormat(locale)
@@ -38,6 +42,14 @@ export function TodayDiaryCard() {
         setEditingRecordId(undefined)
         setContent('')
       }
+      if (!requestedRecordId && persistence && !editedNewEntryRef.current) {
+        void persistence.repositories.diaryDrafts.getDraft(persistence.currentLocalDate).then((draft) => {
+          if (active && !editedNewEntryRef.current && !contentRef.current) {
+            contentRef.current = draft?.content ?? ''
+            setContent(draft?.content ?? '')
+          }
+        })
+      }
       return () => { active = false }
     }
     void persistence.repositories.diaries.getDiary(requestedRecordId).then((record) => {
@@ -48,7 +60,23 @@ export function TodayDiaryCard() {
     return () => { active = false }
   }, [persistence, requestedRecordId])
 
+  const flushDraft = useCallback(() => {
+    if (!persistence || requestedRecordId) return
+    const contentToSave = contentRef.current
+    draftWriteRef.current = draftWriteRef.current.then(async () => { await persistence.repositories.diaryDrafts.saveDraft(persistence.currentLocalDate, contentToSave) }).catch(() => undefined)
+  }, [persistence, requestedRecordId])
+
+  const scheduleDraft = (nextContent: string) => {
+    contentRef.current = nextContent
+    editedNewEntryRef.current = true
+    if (draftTimerRef.current) clearTimeout(draftTimerRef.current)
+    draftTimerRef.current = setTimeout(flushDraft, 400)
+  }
+
   const exitEditMode = () => {
+    if (draftTimerRef.current) clearTimeout(draftTimerRef.current)
+    contentRef.current = ''
+    editedNewEntryRef.current = false
     setEditingRecordId(undefined)
     setContent('')
     const next = new URLSearchParams(searchParams)
@@ -57,10 +85,31 @@ export function TodayDiaryCard() {
     setSearchParams(next, { replace: true })
   }
 
+  useEffect(() => () => {
+    if (draftTimerRef.current) clearTimeout(draftTimerRef.current)
+    if (!requestedRecordId && persistence && contentRef.current.trim()) flushDraft()
+  }, [flushDraft, persistence, requestedRecordId])
+
+  useEffect(() => {
+    if (!persistence || requestedRecordId) return
+    const flushOnLifecycle = () => flushDraft()
+    document.addEventListener('visibilitychange', flushOnLifecycle)
+    window.addEventListener('pagehide', flushOnLifecycle)
+    return () => {
+      document.removeEventListener('visibilitychange', flushOnLifecycle)
+      window.removeEventListener('pagehide', flushOnLifecycle)
+    }
+  }, [flushDraft, persistence, requestedRecordId])
+
   const save = async () => {
     if (!persistence) { setFeedbackKey('footprints.diary.saveError'); return }
     const updating = Boolean(editingRecordId)
     try {
+      if (!updating) {
+        if (draftTimerRef.current) clearTimeout(draftTimerRef.current)
+        flushDraft()
+        await draftWriteRef.current
+      }
       await persistence.saveTodayDiary(content, editingRecordId)
       setFeedbackKey(updating ? 'footprints.diary.updated' : 'footprints.diary.saved')
       exitEditMode()
@@ -87,7 +136,7 @@ export function TodayDiaryCard() {
       <div className={`today-diary-card__body ${diaryPhotoUrls.length === 0 ? 'today-diary-card__body--no-photos' : ''}`}>
         <img className="today-diary-card__notebook" src={footprintsAssets.diaryNotebook} alt="" aria-hidden="true" />
         <div className="today-diary-card__copy">
-          <textarea aria-label={t('footprints.todayDiary')} maxLength={1000} placeholder={t('footprints.diary.placeholder')} value={content} onChange={(event) => setContent(event.target.value)} />
+          <textarea aria-label={t('footprints.todayDiary')} maxLength={1000} placeholder={t('footprints.diary.placeholder')} value={content} onChange={(event) => { setContent(event.target.value); scheduleDraft(event.target.value) }} onBlur={flushDraft} />
           <span>{numberFormatter.format([...content].length)} / {numberFormatter.format(1000)} · {t('footprints.diary.maxLength')}</span>
         </div>
         <DiaryPhotoGrid photos={diaryPhotoUrls} />

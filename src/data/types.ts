@@ -147,6 +147,13 @@ export interface DiaryEntry {
   updatedAt: string
 }
 
+export interface DiaryDraft {
+  id: string
+  localDate: string
+  content: string
+  updatedAt: string
+}
+
 export interface AppSettings {
   id: 'settings'
   locale: Locale

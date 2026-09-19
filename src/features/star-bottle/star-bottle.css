@@ -146,6 +146,47 @@
 .bottle-star--slot-9 { bottom: 22%; left: 43%; width: 18%; transform: rotate(-5deg); }
 .bottle-star--slot-10 { right: 33%; bottom: 42%; width: 17%; transform: rotate(9deg); }
 .bottle-star--slot-11 { bottom: 36%; left: 35%; width: 17%; transform: rotate(-9deg); }
+.bottle-star--slot-12 { bottom: 68%; left: 10%; width: 15%; transform: rotate(-6deg); }
+.bottle-star--slot-13 { bottom: 70%; left: 38%; width: 15%; transform: rotate(8deg); }
+.bottle-star--slot-14 { right: 9%; bottom: 68%; width: 15%; transform: rotate(5deg); }
+.bottle-star--slot-15 { bottom: 82%; left: 25%; width: 14%; transform: rotate(-10deg); }
+.bottle-star--slot-16 { right: 25%; bottom: 82%; width: 14%; transform: rotate(9deg); }
+.bottle-star--slot-17 { bottom: 14%; left: 25%; width: 15%; transform: rotate(4deg); }
+.bottle-star--slot-18 { right: 24%; bottom: 14%; width: 15%; transform: rotate(-7deg); }
+.bottle-star--slot-19 { bottom: 57%; left: 24%; width: 15%; transform: rotate(6deg); }
+.bottle-star--slot-20 { right: 23%; bottom: 57%; width: 15%; transform: rotate(-5deg); }
+.bottle-star--slot-21 { bottom: 47%; left: 2%; width: 14%; transform: rotate(-8deg); }
+.bottle-star--slot-22 { right: 2%; bottom: 44%; width: 14%; transform: rotate(8deg); }
+.bottle-star--slot-23 { bottom: 74%; left: 3%; width: 13%; transform: rotate(10deg); }
+.bottle-star--slot-24 { right: 3%; bottom: 76%; width: 13%; transform: rotate(-9deg); }
+.bottle-star--slot-25 { bottom: 4%; left: 12%; width: 13%; transform: rotate(6deg); }
+.bottle-star--slot-26 { right: 11%; bottom: 3%; width: 13%; transform: rotate(-6deg); }
+.bottle-star--slot-27 { bottom: 38%; left: 17%; width: 13%; transform: rotate(7deg); }
+.bottle-star--slot-28 { right: 16%; bottom: 39%; width: 13%; transform: rotate(-7deg); }
+.bottle-star--slot-29 { bottom: 62%; left: 46%; width: 12%; transform: rotate(5deg); }
+.bottle-star--slot-30 { bottom: 25%; left: 47%; width: 12%; transform: rotate(-5deg); }
+.bottle-star--count-1,
+.bottle-star--count-2,
+.bottle-star--count-3,
+.bottle-star--count-4,
+.bottle-star--count-5,
+.bottle-star--count-6 { width: 22%; }
+.bottle-star--count-16,
+.bottle-star--count-17,
+.bottle-star--count-18,
+.bottle-star--count-19,
+.bottle-star--count-20,
+.bottle-star--count-21,
+.bottle-star--count-22,
+.bottle-star--count-23,
+.bottle-star--count-24,
+.bottle-star--count-25,
+.bottle-star--count-26,
+.bottle-star--count-27,
+.bottle-star--count-28,
+.bottle-star--count-29,
+.bottle-star--count-30,
+.bottle-star--count-31 { width: 15%; }
 
 .bottle-star--dropping {
   z-index: 3;
@@ -164,6 +205,38 @@
   object-fit: contain;
   animation: star-bottle-glow 1.3s ease-out forwards;
 }
+
+.bottle-hero__impact {
+  position: absolute;
+  z-index: 5;
+  top: 52%;
+  left: 51%;
+  width: 0;
+  height: 0;
+}
+
+.bottle-hero__impact-particle {
+  position: absolute;
+  width: var(--impact-size, 0.36rem);
+  height: var(--impact-size, 0.36rem);
+  border-radius: 50%;
+  background: var(--impact-color, #fff7cb);
+  box-shadow: 0 0 0.28rem var(--impact-color, #fff7cb), 0 0 0.55rem rgb(255 255 255 / 82%);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.35);
+  animation: star-bottle-impact-particle 0.82s cubic-bezier(.18, .72, .3, 1) 0.84s forwards;
+}
+
+.bottle-hero__impact-particle--north { --impact-x: 0rem; --impact-y: -1.5rem; --impact-size: 0.34rem; --impact-color: #fff9df; }
+.bottle-hero__impact-particle--north-east { --impact-x: 1.08rem; --impact-y: -1.12rem; --impact-size: 0.45rem; --impact-color: #ffe27a; }
+.bottle-hero__impact-particle--east { --impact-x: 1.55rem; --impact-y: -0.1rem; --impact-size: 0.34rem; --impact-color: #fff7dc; }
+.bottle-hero__impact-particle--south-east { --impact-x: 1.1rem; --impact-y: 1.08rem; --impact-size: 0.42rem; --impact-color: #ffd4df; }
+.bottle-hero__impact-particle--south { --impact-x: 0.05rem; --impact-y: 1.42rem; --impact-size: 0.3rem; --impact-color: #fff0a9; }
+.bottle-hero__impact-particle--south-west { --impact-x: -1.18rem; --impact-y: 1.02rem; --impact-size: 0.46rem; --impact-color: #ffd9e4; }
+.bottle-hero__impact-particle--west { --impact-x: -1.58rem; --impact-y: -0.14rem; --impact-size: 0.34rem; --impact-color: #fff9df; }
+.bottle-hero__impact-particle--north-west { --impact-x: -1.08rem; --impact-y: -1.08rem; --impact-size: 0.42rem; --impact-color: #ffe886; }
+.bottle-hero__impact-particle--inner-left { --impact-x: -0.58rem; --impact-y: 0.5rem; --impact-size: 0.28rem; --impact-color: #ffffff; }
+.bottle-hero__impact-particle--inner-right { --impact-x: 0.64rem; --impact-y: 0.42rem; --impact-size: 0.3rem; --impact-color: #ffffff; }
 
 .bottle-hero__ritual-message {
   position: absolute;
@@ -184,14 +257,21 @@
 @keyframes star-bottle-drop {
   0% { opacity: 0; transform: translateY(-0.5rem) rotate(-10deg) scale(.8); }
   18% { opacity: 1; }
-  75% { opacity: 1; transform: translateY(3.1rem) rotate(18deg) scale(1); }
-  100% { opacity: 0; transform: translateY(3.55rem) rotate(22deg) scale(.72); }
+  72% { top: 42%; opacity: 1; transform: rotate(18deg) scale(.9, .78); }
+  84% { top: 38%; opacity: 1; transform: rotate(21deg) scale(.88, 1.04); }
+  100% { top: 42%; opacity: 0; transform: rotate(22deg) scale(.72); }
 }
 
 @keyframes star-bottle-glow {
   0% { opacity: 0; transform: scale(.82); }
   38% { opacity: .78; transform: scale(1.04); }
   100% { opacity: 0; transform: scale(1.12); }
+}
+
+@keyframes star-bottle-impact-particle {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.35); }
+  14% { opacity: 1; }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--impact-x)), calc(-50% + var(--impact-y))) scale(0.72); }
 }
 
 .bottle-hero__tagline {

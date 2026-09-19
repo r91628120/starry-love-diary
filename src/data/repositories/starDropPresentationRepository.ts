@@ -29,14 +29,14 @@ export class LocalStarDropPresentationRepository implements StarPresentationWrit
     await this.storage.put('starDropPresentations', { id, starId: star.id, state: 'pending', queuedAt: new Date().toISOString() })
   }
 
-  async claimRepresentative(stars: Star[]): Promise<Star | undefined> {
+  async claimRepresentative(stars: Star[], isEligible: (star: Star) => boolean = () => true): Promise<Star | undefined> {
     const starById = new Map(stars.map((star) => [star.id, star]))
     const records = (await this.storage.getAll<StarDropPresentation>('starDropPresentations'))
       .sort((left, right) => left.queuedAt.localeCompare(right.queuedAt) || left.id.localeCompare(right.id))
     const pending = records.filter((record) => record.state === 'pending')
 
-    await Promise.all(records.filter((record) => !starById.has(record.starId)).map((record) => this.storage.delete('starDropPresentations', record.id)))
-    const eligible = pending.filter((record) => starById.has(record.starId))
+    await Promise.all(records.filter((record) => !starById.has(record.starId) || (starById.get(record.starId)?.type === 'mood' && !isEligible(starById.get(record.starId)!))).map((record) => this.storage.delete('starDropPresentations', record.id)))
+    const eligible = pending.filter((record) => starById.has(record.starId) && isEligible(starById.get(record.starId)!))
     if (!eligible.length) return undefined
 
     const presentedAt = new Date().toISOString()
