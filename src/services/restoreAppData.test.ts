@@ -1,4 +1,6 @@
 import 'fake-indexeddb/auto'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { IndexedDbStorageAdapter } from '../data/storage/IndexedDbStorageAdapter'
 import { MemoryStorageAdapter } from '../data/storage/MemoryStorageAdapter'
@@ -17,6 +19,7 @@ describe('atomic Restore engine', () => {
     const adapter = new MemoryStorageAdapter(); await adapter.open()
     await adapter.put('profiles', { id: 'user', kind: 'user', nickname: 'newer', createdAt: stamp, updatedAt: '2026-09-03T00:00:00.000Z' })
     await adapter.put('profiles', { id: 'partner', kind: 'partner', nickname: 'p', createdAt: stamp, updatedAt: stamp })
+    await adapter.put('settings', { id: 'settings', locale: 'ja', dailyLoveQuoteActivationDate: '2026-09-03', onboardingCompleted: true, loveQuoteReminderEnabled: false, importantDateReminderEnabled: false, reminderTime: '07:15', schemaVersion: 7, createdAt: stamp, updatedAt: '2026-09-03T00:00:00.000Z' })
     await adapter.put('diaries', { id: 'local-only', localDate: '2026-09-03', content: 'remove', createdAt: stamp, updatedAt: stamp })
     await adapter.put('diaryDrafts', { id: 'draft', localDate: '2026-09-03', content: 'discard', updatedAt: stamp })
     await adapter.put('starDropPresentations', { id: 'drop', starId: 'x', state: 'pending', queuedAt: stamp })
@@ -25,6 +28,15 @@ describe('atomic Restore engine', () => {
     expect((await adapter.get<{ nickname: string }>('profiles', 'user'))?.nickname).toBe('older backup')
     expect(await adapter.get('diaries', 'local-only')).toBeUndefined(); expect(await adapter.get('diaries', 'backup-only')).toBeDefined()
     expect(await adapter.getAll('diaryDrafts')).toEqual([]); expect(await adapter.getAll('starDropPresentations')).toEqual([])
+    expect(await adapter.get('settings', 'settings')).toMatchObject({ locale: 'ja', dailyLoveQuoteActivationDate: '2026-09-03', onboardingCompleted: true, reminderTime: '07:15', schemaVersion: 7 })
+  })
+
+  it('plans the redacted schema-5 device backup with its legacy message shape', () => {
+    const content = readFileSync(resolve('src/services/fixtures/starry-love-diary-data-2026-09-14-schema5.json'), 'utf8')
+    const plan = normalizeRestoreText(content)
+    expect(plan.data.app.schemaVersion).toBe(5)
+    expect(plan.data.data.messageToYouEntries).toEqual([expect.objectContaining({ id: 'message-to-you', type: 'free_message' })])
+    expect(plan.replace.loveBrainAssessments).toEqual([expect.objectContaining({ id: 'brain', currentQuestionIndex: 24 })])
   })
 
   it('rolls back every included store on a real IndexedDB request failure', async () => {

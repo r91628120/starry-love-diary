@@ -1,5 +1,6 @@
 import type { PersistenceRuntime } from '../data/persistence'
 import type { StoreName } from '../data/storage/StorageAdapter'
+import type { AppSettings } from '../data/types'
 import { parseAppDataFile, parseAppDataFileText } from './importAppData'
 import type { AppDataExport } from './exportAppData'
 
@@ -30,5 +31,6 @@ export function normalizeRestoreText(content: string) { return buildRestorePlan(
 export async function normalizeRestoreFile(file: File) { return buildRestorePlan(await parseAppDataFile(file)) }
 
 export async function restoreAppData(runtime: Pick<PersistenceRuntime, 'adapter'>, plan: RestorePlan) {
-  await runtime.adapter.restoreStoresAtomically(plan.replace, RESTORE_CLEAR_STORES)
+  const settings = await runtime.adapter.get<AppSettings>('settings', 'settings')
+  await runtime.adapter.restoreStoresAtomically({ ...plan.replace, settings: [settings ?? plan.data.data.settings] }, RESTORE_CLEAR_STORES)
 }

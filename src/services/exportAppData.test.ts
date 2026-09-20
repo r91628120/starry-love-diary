@@ -3,6 +3,7 @@ import { initializePersistence } from '../data/persistence'
 import { MemoryStorageAdapter } from '../data/storage/MemoryStorageAdapter'
 import { LEGACY_V4_STORE_NAMES } from '../data/storage/StorageAdapter'
 import { STARLOVE_EXPORT_FORMAT, STARLOVE_EXPORT_VERSION, buildAppDataExport, createAppDataExport, downloadAppDataExport, exportAppData, serializeAppDataExport } from './exportAppData'
+import { normalizeRestoreText } from './restoreAppData'
 
 async function createFixture() {
   const runtime = await initializePersistence({ adapter: new MemoryStorageAdapter(), defaultLocale: 'zh-TW', localDate: '2026-09-11' })
@@ -58,6 +59,15 @@ describe('App data export', () => {
     const runtime = await createFixture()
     await runtime.adapter.delete('settings', 'settings')
     await expect(createAppDataExport({ repositories: runtime, localDate: '2026-09-11' })).rejects.toThrow('snapshot is incomplete')
+  })
+
+  it('plans a Restore from the exact current production export JSON', async () => {
+    const runtime = await createFixture()
+    const result = await createAppDataExport({ repositories: runtime, localDate: '2026-09-11', exportedAt: '2026-09-11T12:00:00.000Z' })
+
+    const plan = normalizeRestoreText(result.content)
+    expect(plan.replace.profiles).toHaveLength(2)
+    expect(plan.replace.loveBrainAssessments).toEqual([expect.objectContaining({ id: 'brain-completed' })])
   })
 
   it('omits every photo reference and does not mutate persistence while exporting', async () => {

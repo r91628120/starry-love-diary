@@ -17,7 +17,7 @@ import { APP_VERSION } from '../../app/appMetadata'
 import { exportAppData } from '../../services/exportAppData'
 import { exportTextData } from '../../services/exportTextData'
 import { exportQa12Diagnostics } from '../../services/qa12Diagnostics'
-import { AppDataImportError, buildImportPlan, parseAppDataFile, summarizeImportPlan, type AppDataImportPlan } from '../../services/importAppData'
+import { AppDataImportError, parseAppDataFile } from '../../services/importAppData'
 import { buildRestorePlan, type RestorePlan } from '../../services/restoreAppData'
 
 const languages: Array<{ locale: Locale; key: TranslationKey }> = [
@@ -42,11 +42,8 @@ export function SettingsContent() {
   const [isExportingQa12Diagnostics, setIsExportingQa12Diagnostics] = useState(false)
   const qa12DiagnosticsInFlight = useRef(false)
   const appDataExportInFlight = useRef(false)
-  const appDataFileInput = useRef<HTMLInputElement>(null)
   const restoreFileInput = useRef<HTMLInputElement>(null)
-  const [pendingImportPlan, setPendingImportPlan] = useState<AppDataImportPlan>()
   const [pendingRestorePlan, setPendingRestorePlan] = useState<RestorePlan>()
-  const [isImporting, setIsImporting] = useState(false)
   const [isRestoring, setIsRestoring] = useState(false)
   const [clearDialogStep, setClearDialogStep] = useState<1 | 2>()
   const [isClearingRelationship, setIsClearingRelationship] = useState(false)
@@ -148,23 +145,10 @@ export function SettingsContent() {
     }
     return keys[error.code]
   }
-  const chooseAppDataFile = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.currentTarget.files?.[0]
-    event.currentTarget.value = ''
-    if (!file || !persistence || isImporting) return
-    setFeedbackKey('importAppData.checking')
-    try {
-      const parsed = await parseAppDataFile(file)
-      setPendingImportPlan(await buildImportPlan(persistence.repositories, parsed))
-      setFeedbackKey(undefined)
-    } catch (error) {
-      setFeedbackKey(importErrorKey(error))
-    }
-  }
   const chooseRestoreFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.currentTarget.files?.[0]
     event.currentTarget.value = ''
-    if (!file || !persistence || isRestoring || isImporting) return
+    if (!file || !persistence || isRestoring) return
     setFeedbackKey('restoreAppData.checking')
     try {
       setPendingRestorePlan(buildRestorePlan(await parseAppDataFile(file)))
@@ -173,29 +157,9 @@ export function SettingsContent() {
       setFeedbackKey(importErrorKey(error))
     }
   }
-  const cancelAppDataImport = () => {
-    setPendingImportPlan(undefined)
-    if (appDataFileInput.current) appDataFileInput.current.value = ''
-  }
   const cancelRestore = () => {
     setPendingRestorePlan(undefined)
     if (restoreFileInput.current) restoreFileInput.current.value = ''
-  }
-  const confirmAppDataImport = async () => {
-    if (!persistence || !pendingImportPlan || isImporting) return
-    setIsImporting(true)
-    try {
-      const summary = await persistence.applyAppDataImport(pendingImportPlan)
-      const importedSettings = await persistence.repositories.settings.getSettings()
-      if (importedSettings) setLocale(importedSettings.locale)
-      setPendingImportPlan(undefined)
-      setFeedbackKey(summary.added + summary.updated ? 'importAppData.success' : 'importAppData.noChanges')
-    } catch {
-      setFeedbackKey('importAppData.error.write')
-    } finally {
-      setIsImporting(false)
-      if (appDataFileInput.current) appDataFileInput.current.value = ''
-    }
   }
   const confirmRestore = async () => {
     if (!persistence || !pendingRestorePlan || isRestoring) return
@@ -316,8 +280,7 @@ export function SettingsContent() {
         <SettingsRow icon={settingsAssets.star} label={t('settings.diary.stars')} onClick={() => navigate('/star-bottle')} />
         <SettingsRow icon={settingsAssets.exportData} label={t('settings.diary.export')} onClick={isExporting ? undefined : () => void exportText()} />
         <SettingsRow icon={settingsAssets.exportData} label={t('settings.diary.exportAppData')} description={t('exportAppData.description')} onClick={isExportingAppData ? undefined : () => void exportFullAppData()} />
-        <SettingsRow icon={settingsAssets.exportData} label={t('settings.diary.restoreAppData')} description={t('restoreAppData.description')} onClick={isRestoring || isImporting ? undefined : () => restoreFileInput.current?.click()} />
-        <SettingsRow icon={settingsAssets.exportData} label={t('settings.diary.mergeAppData')} description={t('importAppData.description')} onClick={isImporting || isRestoring ? undefined : () => appDataFileInput.current?.click()} />
+        <SettingsRow icon={settingsAssets.exportData} label={t('settings.diary.restoreAppData')} description={t('restoreAppData.description')} onClick={isRestoring ? undefined : () => restoreFileInput.current?.click()} />
       </SettingsSection>
       <SettingsSection title={t('settings.help.title')} icon={settingsAssets.info}>
         <SettingsRow icon={settingsAssets.info} label={t('settings.help.usingApp')} description={t('settings.help.usingApp.description')} onClick={() => navigate('/settings/help', { state: { from: '/settings' } })} />
@@ -344,13 +307,9 @@ export function SettingsContent() {
     </div>
     <p className="mock-feedback" aria-live="polite">{feedbackKey ? t(feedbackKey) : ''}</p>
     <input ref={restoreFileInput} className="sr-only" type="file" accept="application/json,.json" aria-label={t('restoreAppData.chooseFile')} onChange={(event) => void chooseRestoreFile(event)} />
-    <input ref={appDataFileInput} className="sr-only" type="file" accept="application/json,.json" aria-label={t('importAppData.chooseFile')} onChange={(event) => void chooseAppDataFile(event)} />
     <ConfirmDialog open={Boolean(removePhotoKind)} title={t('settings.profile.removePhotoConfirmTitle')} description={t('settings.profile.removePhotoConfirmBody')} onCancel={() => setRemovePhotoKind(undefined)} onConfirm={() => void confirmRemovePhoto()} />
     <ConfirmDialog open={Boolean(pendingRestorePlan)} title={t('restoreAppData.confirmTitle')} description={t('restoreAppData.confirmBody')} confirmLabel={isRestoring ? t('restoreAppData.restoring') : t('restoreAppData.confirm')} onCancel={cancelRestore} onConfirm={() => void confirmRestore()}>
       {pendingRestorePlan ? <p className="settings-import-summary" role="status">{t('restoreAppData.summary', { exportedAt: new Date(pendingRestorePlan.data.exportedAt).toLocaleString(locale), diaries: pendingRestorePlan.data.data.diaries.length, moods: pendingRestorePlan.data.data.moods.length, stars: pendingRestorePlan.data.data.stars.length, dates: pendingRestorePlan.data.data.importantDates.length, moments: pendingRestorePlan.data.data.memoryMoments.length, cards: pendingRestorePlan.data.data.rememberedYouCards.length })}</p> : null}
-    </ConfirmDialog>
-    <ConfirmDialog open={Boolean(pendingImportPlan)} title={t('importAppData.confirmTitle')} description={t('importAppData.confirmBody')} confirmLabel={t('importAppData.confirm')} onCancel={cancelAppDataImport} onConfirm={() => void confirmAppDataImport()}>
-      {pendingImportPlan ? <p className="settings-import-summary" role="status">{t('importAppData.summary', { added: summarizeImportPlan(pendingImportPlan).added, updated: summarizeImportPlan(pendingImportPlan).updated, skipped: summarizeImportPlan(pendingImportPlan).skipped })}</p> : null}
     </ConfirmDialog>
     <ConfirmDialog open={clearDialogStep === 1} title={t('settings.clearRelationship.firstTitle')} description={t('settings.clearRelationship.firstBody')} confirmLabel={t('settings.clearRelationship.continue')} onCancel={() => setClearDialogStep(undefined)} onConfirm={() => setClearDialogStep(2)}>
       <p className="settings-clear-dialog__note">{t('settings.clearRelationship.firstNote')}</p>

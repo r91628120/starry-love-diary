@@ -1,0 +1,16 @@
+{
+  "format": "starry-love-diary-data",
+  "exportVersion": 1,
+  "app": { "name": "Starry Love Diary", "schemaVersion": 5 },
+  "exportedAt": "2026-09-14T08:00:00.000Z",
+  "exportedLocalDate": "2026-09-14",
+  "data": {
+    "profiles": [{ "id": "user", "kind": "user", "nickname": "User", "createdAt": "2026-09-01T00:00:00.000Z", "updatedAt": "2026-09-01T00:00:00.000Z" }, { "id": "partner", "kind": "partner", "nickname": "Partner", "createdAt": "2026-09-01T00:00:00.000Z", "updatedAt": "2026-09-01T00:00:00.000Z" }],
+    "moods": [], "diaries": [],
+    "clearRecords": { "organizeFeelings": [], "loveBoatAssessments": [{ "id": "boat", "status": "draft", "currentSection": "A", "currentQuestionIndex": 1, "aAnswers": {}, "bAnswers": {}, "localDate": "2026-09-14", "timezone": "Asia/Taipei", "createdAt": "2026-09-14T08:00:00.000Z", "updatedAt": "2026-09-14T08:00:00.000Z" }], "loveBrainAssessments": [{ "id": "brain", "status": "completed", "answers": {}, "currentQuestionIndex": 24, "localDate": "2026-09-14", "timezone": "Asia/Taipei", "createdAt": "2026-09-14T08:00:00.000Z", "updatedAt": "2026-09-14T08:00:00.000Z", "scores": {}, "isLowOverall": false, "primaryPatterns": [] }], "likeOrHabitReflections": [{ "id": "reflection", "status": "draft", "currentSection": "habit", "answers": {}, "localDate": "2026-09-14", "timezone": "Asia/Taipei", "createdAt": "2026-09-14T08:00:00.000Z", "updatedAt": "2026-09-14T08:00:00.000Z" }] },
+    "stars": [], "scoreAwards": [], "heartPhrases": [], "importantDates": [], "memoryMoments": [],
+    "messageToYou": { "id": "message-to-you", "content": "Redacted legacy message", "createdAt": "2026-09-14T08:00:00.000Z", "updatedAt": "2026-09-14T08:00:00.000Z" },
+    "rememberedYouCards": [],
+    "settings": { "id": "settings", "locale": "zh-TW", "dailyLoveQuoteActivationDate": "2026-09-01", "loveQuoteReminderEnabled": true, "importantDateReminderEnabled": true, "reminderTime": "20:00", "schemaVersion": 5, "createdAt": "2026-09-01T00:00:00.000Z", "updatedAt": "2026-09-14T08:00:00.000Z" }
+  }
+}

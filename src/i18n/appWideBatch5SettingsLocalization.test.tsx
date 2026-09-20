@@ -60,8 +60,8 @@ describe('Milestone 4C-3 Settings localization', () => {
     }
   })
 
-  it.each(supportedLocales)('has every Restore and Merge data-management key in %s', (locale) => {
-    for (const key of Object.keys(importAppDataMessages['zh-TW']) as Array<keyof (typeof importAppDataMessages)['zh-TW']>) {
+  it.each(supportedLocales)('has every Restore data-management key in %s', (locale) => {
+    for (const key of ['settings.diary.restoreAppData', 'restoreAppData.description', 'restoreAppData.chooseFile', 'restoreAppData.confirmTitle', 'restoreAppData.confirmBody', 'restoreAppData.confirm'] as const) {
       expect(importAppDataMessages[locale][key]).toBeTruthy()
     }
   })
@@ -236,7 +236,7 @@ describe('Milestone 4C-3 Settings localization', () => {
     expect(screen.getByRole('button', { name: /清空目前戀情資料/u })).toBeEnabled()
     expect(screen.getByRole('button', { name: '匯出文字資料' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /匯出 App 資料/u })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /匯入 App 資料/u })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /匯入 App 資料|從備份還原/u })).toBeInTheDocument()
     expect(screen.queryByText('備份')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: '回憶牆照片管理' })).toBeInTheDocument()
     expect(screen.queryByText('相片權限')).not.toBeInTheDocument()
@@ -281,7 +281,7 @@ describe('Milestone 4C-3 Settings localization', () => {
     expect(screen.queryByText('備份')).not.toBeInTheDocument()
   })
 
-  it('routes Restore and Merge file actions through separate confirmation flows', async () => {
+  it('routes Restore from Backup through its destructive replacement confirmation', async () => {
     const source = await initializePersistence({ adapter: new MemoryStorageAdapter(), defaultLocale: 'zh-TW', localDate: '2026-09-11' })
     await source.profiles.updateProfile('user', { nickname: 'backup user' })
     const content = serializeAppDataExport(await buildAppDataExport({ repositories: source, localDate: '2026-09-11', exportedAt: '2026-09-11T00:00:00.000Z' }))
@@ -289,39 +289,14 @@ describe('Milestone 4C-3 Settings localization', () => {
     const target = await initializePersistence({ adapter: new MemoryStorageAdapter(), defaultLocale: 'zh-TW', localDate: '2026-09-11' })
     await target.profiles.updateProfile('user', { nickname: 'newer user' })
     render(<PersistenceProvider runtime={target}><I18nProvider initialLocale="zh-TW"><MemoryRouter initialEntries={['/settings']}><SettingsPage /></MemoryRouter></I18nProvider></PersistenceProvider>)
-    fireEvent.click(screen.getByRole('button', { name: /匯入 App 資料/u })); fireEvent.change(screen.getByLabelText('選擇備份檔'), { target: { files: [file] } })
+    fireEvent.click(screen.getByRole('button', { name: /匯入 App 資料|從備份還原/u })); fireEvent.change(screen.getByLabelText('選擇備份檔'), { target: { files: [file] } })
     expect(await screen.findByRole('alertdialog')).toHaveTextContent('取代目前 App 中的資料')
     fireEvent.click(screen.getByRole('button', { name: '取消' })); expect((await target.profiles.getProfile('user'))?.nickname).toBe('newer user')
     fireEvent.change(screen.getByLabelText('選擇備份檔'), { target: { files: [file] } }); expect(await screen.findByRole('alertdialog')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: '確認匯入' })); await waitFor(async () => expect((await target.profiles.getProfile('user'))?.nickname).toBe('backup user'))
+    fireEvent.click(screen.getByRole('button', { name: /確認匯入|確認還原/u })); await waitFor(async () => expect((await target.profiles.getProfile('user'))?.nickname).toBe('backup user'))
     fireEvent.change(screen.getByLabelText('選擇備份檔'), { target: { files: [file] } }); expect(await screen.findByRole('alertdialog')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: '取消' }))
-    cleanup()
-    const mergeTarget = await initializePersistence({ adapter: new MemoryStorageAdapter(), defaultLocale: 'zh-TW', localDate: '2026-09-11' })
-    await mergeTarget.profiles.updateProfile('user', { nickname: 'newer user' })
-    render(<PersistenceProvider runtime={mergeTarget}><I18nProvider initialLocale="zh-TW"><MemoryRouter initialEntries={['/settings']}><SettingsPage /></MemoryRouter></I18nProvider></PersistenceProvider>)
-    fireEvent.click(screen.getByRole('button', { name: /合併 App 資料/u })); fireEvent.change(screen.getByLabelText('選擇資料檔'), { target: { files: [file] } })
-    expect(await screen.findByRole('alertdialog')).toHaveTextContent('保留較新的版本')
-    fireEvent.click(screen.getByRole('button', { name: '開始合併' })); await waitFor(async () => expect((await mergeTarget.profiles.getProfile('user'))?.nickname).toBe('newer user'))
-  })
-
-  it('allows Merge file reselection after cancel, error, and success', async () => {
-    const source = await initializePersistence({ adapter: new MemoryStorageAdapter(), defaultLocale: 'zh-TW', localDate: '2026-09-11' })
-    const content = serializeAppDataExport(await buildAppDataExport({ repositories: source, localDate: '2026-09-11' }))
-    const valid = new File([content], 'merge.json', { type: 'application/json' }); Object.defineProperty(valid, 'text', { value: async () => content })
-    const invalid = new File(['{}'], 'bad.json', { type: 'application/json' }); Object.defineProperty(invalid, 'text', { value: async () => '{}' })
-    const runtime = await initializePersistence({ adapter: new MemoryStorageAdapter(), defaultLocale: 'zh-TW', localDate: '2026-09-11' })
-    let persistence!: PersistenceContextValue
-    render(<PersistenceProvider runtime={runtime}><I18nProvider initialLocale="zh-TW"><MemoryRouter initialEntries={['/settings']}><SettingsPage /></MemoryRouter></I18nProvider><PersistenceProbe onValue={(value) => { persistence = value }} /></PersistenceProvider>)
-    const restoreSpy = vi.spyOn(persistence, 'restoreAppData')
-    fireEvent.click(screen.getByRole('button', { name: /合併 App 資料/u })); const input = screen.getByLabelText('選擇資料檔')
-    fireEvent.change(input, { target: { files: [valid] } }); expect(await screen.findByRole('alertdialog')).toBeInTheDocument(); fireEvent.click(screen.getByRole('button', { name: '取消' }))
-    fireEvent.change(input, { target: { files: [valid] } }); expect(await screen.findByRole('alertdialog')).toBeInTheDocument(); fireEvent.click(screen.getByRole('button', { name: '取消' }))
-    fireEvent.change(input, { target: { files: [invalid] } }); await waitFor(() => expect(screen.getByText('這不是星星戀愛日記資料檔。')).toBeInTheDocument())
-    fireEvent.change(input, { target: { files: [invalid] } }); await waitFor(() => expect(screen.getByText('這不是星星戀愛日記資料檔。')).toBeInTheDocument())
-    fireEvent.change(input, { target: { files: [valid] } }); expect(await screen.findByRole('alertdialog')).toBeInTheDocument(); expect(screen.queryByText('這不是星星戀愛日記資料檔。')).not.toBeInTheDocument(); fireEvent.click(screen.getByRole('button', { name: '開始合併' })); await waitFor(() => expect(screen.getByText('資料已檢查，沒有需要合併的新內容。')).toBeInTheDocument())
-    fireEvent.change(input, { target: { files: [valid] } }); expect(await screen.findByRole('alertdialog')).toBeInTheDocument()
-    expect(restoreSpy).not.toHaveBeenCalled()
+    expect(screen.queryByText('合併 App 資料')).not.toBeInTheDocument()
   })
 
   it('rejects an invalid Restore file in Settings, then accepts a valid replacement file', async () => {
@@ -330,13 +305,13 @@ describe('Milestone 4C-3 Settings localization', () => {
     const content = serializeAppDataExport(await buildAppDataExport({ repositories: runtime, localDate: '2026-09-11' }))
     const valid = new File([content], 'valid.json', { type: 'application/json' }); Object.defineProperty(valid, 'text', { value: async () => content })
     render(<PersistenceProvider runtime={runtime}><I18nProvider initialLocale="zh-TW"><MemoryRouter initialEntries={['/settings']}><SettingsPage /></MemoryRouter></I18nProvider></PersistenceProvider>)
-    fireEvent.click(screen.getByRole('button', { name: /匯入 App 資料/u })); const input = screen.getByLabelText('選擇備份檔')
+    fireEvent.click(screen.getByRole('button', { name: /匯入 App 資料|從備份還原/u })); const input = screen.getByLabelText('選擇備份檔')
     fireEvent.change(input, { target: { files: [invalid] } }); await waitFor(() => expect(screen.getByText('這個資料檔版本尚不支援。')).toBeInTheDocument()); expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
     fireEvent.change(input, { target: { files: [invalid] } }); await waitFor(() => expect(screen.getByText('這個資料檔版本尚不支援。')).toBeInTheDocument())
     fireEvent.change(input, { target: { files: [valid] } }); expect(await screen.findByRole('alertdialog')).toBeInTheDocument()
   })
 
-  it('prevents Restore reentry and blocks Merge while Restore is pending', async () => {
+  it('prevents Restore reentry while Restore is pending', async () => {
     const source = await initializePersistence({ adapter: new MemoryStorageAdapter(), defaultLocale: 'zh-TW', localDate: '2026-09-11' })
     await source.profiles.updateProfile('user', { nickname: 'restore source' })
     const content = serializeAppDataExport(await buildAppDataExport({ repositories: source, localDate: '2026-09-11' }))
@@ -350,64 +325,17 @@ describe('Milestone 4C-3 Settings localization', () => {
       await releaseRestore.promise
       return restoreOriginal(...args)
     })
-    const mergeSpy = vi.spyOn(persistence, 'applyAppDataImport')
-
-    fireEvent.click(screen.getByRole('button', { name: /匯入 App 資料/u }))
+    fireEvent.click(screen.getByRole('button', { name: /匯入 App 資料|從備份還原/u }))
     fireEvent.change(screen.getByLabelText('選擇備份檔'), { target: { files: [backup] } })
-    fireEvent.click(await screen.findByRole('button', { name: '確認匯入' }))
+    fireEvent.click(await screen.findByRole('button', { name: /確認匯入|確認還原/u }))
     await waitFor(() => expect(restoreSpy).toHaveBeenCalledTimes(1))
 
-    const restoreRow = screen.getByText('匯入 App 資料').closest('.settings-row')!
-    const mergeRow = screen.getByText('合併 App 資料').closest('.settings-row')!
-    expect(screen.queryByRole('button', { name: /匯入 App 資料/u })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /合併 App 資料/u })).not.toBeInTheDocument()
-    fireEvent.click(restoreRow)
-    fireEvent.click(mergeRow)
     expect(restoreSpy).toHaveBeenCalledTimes(1)
-    expect(mergeSpy).not.toHaveBeenCalled()
-    expect(screen.getByRole('alertdialog')).toHaveTextContent('匯入 App 資料？')
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(/匯入 App 資料？|從備份還原？/u)
 
     releaseRestore.resolve()
     await waitFor(() => expect(screen.getByText('App 資料已還原完成。')).toBeInTheDocument())
   })
-
-  it('prevents Merge reentry and blocks Restore while Merge is pending', async () => {
-    const target = await initializePersistence({ adapter: new MemoryStorageAdapter(), defaultLocale: 'zh-TW', localDate: '2026-09-11' })
-    const source = await initializePersistence({ adapter: new MemoryStorageAdapter(), defaultLocale: 'zh-TW', localDate: '2026-09-11' })
-    await source.profiles.updateProfile('user', { nickname: 'newer merge source' })
-    const exported = JSON.parse(serializeAppDataExport(await buildAppDataExport({ repositories: source, localDate: '2026-09-11' })))
-    for (const profile of exported.data.profiles) profile.updatedAt = '2099-01-01T00:00:00.000Z'
-    const content = JSON.stringify(exported)
-    const backup = createJsonFile('merge-pending.json', content)
-    const releaseMerge = deferred<void>()
-    let persistence!: PersistenceContextValue
-    render(<PersistenceProvider runtime={target}><I18nProvider initialLocale="zh-TW"><MemoryRouter initialEntries={['/settings']}><SettingsPage /></MemoryRouter></I18nProvider><PersistenceProbe onValue={(value) => { persistence = value }} /></PersistenceProvider>)
-    const mergeOriginal = persistence.applyAppDataImport.bind(persistence)
-    const mergeSpy = vi.spyOn(persistence, 'applyAppDataImport').mockImplementation(async (...args) => {
-      await releaseMerge.promise
-      return mergeOriginal(...args)
-    })
-    const restoreSpy = vi.spyOn(persistence, 'restoreAppData')
-
-    fireEvent.click(screen.getByRole('button', { name: /合併 App 資料/u }))
-    fireEvent.change(screen.getByLabelText('選擇資料檔'), { target: { files: [backup] } })
-    fireEvent.click(await screen.findByRole('button', { name: '開始合併' }))
-    await waitFor(() => expect(mergeSpy).toHaveBeenCalledTimes(1))
-
-    const mergeRow = screen.getByText('合併 App 資料').closest('.settings-row')!
-    const restoreRow = screen.getByText('匯入 App 資料').closest('.settings-row')!
-    expect(screen.queryByRole('button', { name: /合併 App 資料/u })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /匯入 App 資料/u })).not.toBeInTheDocument()
-    fireEvent.click(mergeRow)
-    fireEvent.click(restoreRow)
-    expect(mergeSpy).toHaveBeenCalledTimes(1)
-    expect(restoreSpy).not.toHaveBeenCalled()
-    expect(screen.getByRole('alertdialog')).toHaveTextContent('合併 App 資料？')
-
-    releaseMerge.resolve()
-    await waitFor(() => expect(screen.getByText('App 資料已合併。')).toBeInTheDocument())
-  })
-
 
   it('shows localized app data export failure feedback without changing Settings data', async () => {
     const runtime = await initializePersistence({ adapter: new MemoryStorageAdapter(), defaultLocale: 'zh-TW', localDate: '2026-09-11' })
