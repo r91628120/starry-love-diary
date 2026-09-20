@@ -193,7 +193,7 @@
   top: 8%;
   left: 39%;
   width: 24%;
-  animation: star-bottle-drop 1.25s cubic-bezier(.2, .8, .25, 1) forwards;
+  animation: star-bottle-drop 3.05s cubic-bezier(.2, .8, .25, 1) forwards;
 }
 
 .bottle-hero__ritual-sparkles {
@@ -203,7 +203,7 @@
   width: 126%;
   height: 96%;
   object-fit: contain;
-  animation: star-bottle-glow 1.3s ease-out forwards;
+  animation: star-bottle-glow 1.85s ease-out 2.42s forwards;
 }
 
 .bottle-hero__impact {
@@ -224,7 +224,7 @@
   box-shadow: 0 0 0.28rem var(--impact-color, #fff7cb), 0 0 0.55rem rgb(255 255 255 / 82%);
   opacity: 0;
   transform: translate(-50%, -50%) scale(0.35);
-  animation: star-bottle-impact-particle 0.82s cubic-bezier(.18, .72, .3, 1) 0.84s forwards;
+  animation: star-bottle-impact-particle 0.95s cubic-bezier(.18, .72, .3, 1) 2.62s forwards;
 }
 
 .bottle-hero__impact-particle--north { --impact-x: 0rem; --impact-y: -1.5rem; --impact-size: 0.34rem; --impact-color: #fff9df; }
@@ -256,15 +256,17 @@
 
 @keyframes star-bottle-drop {
   0% { opacity: 0; transform: translateY(-0.5rem) rotate(-10deg) scale(.8); }
-  18% { opacity: 1; }
-  72% { top: 42%; opacity: 1; transform: rotate(18deg) scale(.9, .78); }
-  84% { top: 38%; opacity: 1; transform: rotate(21deg) scale(.88, 1.04); }
+  12% { opacity: 1; }
+  66% { top: 42%; opacity: 1; transform: rotate(18deg) scale(.9, .78); }
+  75% { top: 42%; opacity: 1; transform: rotate(20deg) scale(.78, .62); }
+  88% { top: 38%; opacity: 1; transform: rotate(21deg) scale(.88, 1.04); }
   100% { top: 42%; opacity: 0; transform: rotate(22deg) scale(.72); }
 }
 
 @keyframes star-bottle-glow {
   0% { opacity: 0; transform: scale(.82); }
-  38% { opacity: .78; transform: scale(1.04); }
+  16% { opacity: .78; transform: scale(1.04); }
+  58% { opacity: .42; transform: scale(1.1); }
   100% { opacity: 0; transform: scale(1.12); }
 }
 

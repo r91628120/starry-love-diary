@@ -53,6 +53,25 @@ export class IndexedDbStorageAdapter implements StorageAdapter {
     await this.request<undefined>(store, 'readwrite', (objectStore) => objectStore.delete(key))
   }
 
+  restoreStoresAtomically(replace: Partial<Record<StoreName, unknown[]>>, clearStores: readonly StoreName[]): Promise<void> {
+    if (!this.database) return Promise.reject(new Error('Storage adapter is not open'))
+    const stores = [...new Set([...Object.keys(replace), ...clearStores])] as StoreName[]
+    return new Promise((resolve, reject) => {
+      const transaction = this.database!.transaction(stores, 'readwrite')
+      let settled = false
+      const fail = (error: unknown) => { if (!settled) { settled = true; reject(error instanceof Error ? error : new Error('Atomic restore failed')) } }
+      transaction.oncomplete = () => { if (!settled) { settled = true; resolve() } }
+      transaction.onerror = () => fail(transaction.error ?? new Error('Atomic restore failed'))
+      transaction.onabort = () => fail(transaction.error ?? new Error('Atomic restore aborted'))
+      try {
+        for (const store of stores) transaction.objectStore(store).clear().onerror = () => transaction.abort()
+        for (const [store, records] of Object.entries(replace) as [StoreName, unknown[]][]) {
+          for (const record of records) transaction.objectStore(store).put(record).onerror = () => transaction.abort()
+        }
+      } catch (error) { try { transaction.abort() } catch (abortError) { void abortError } fail(error) }
+    })
+  }
+
   private request<T>(store: StoreName, mode: IDBTransactionMode, create: (objectStore: IDBObjectStore) => IDBRequest): Promise<T> {
     if (!this.database) return Promise.reject(new Error('Storage adapter is not open'))
     return new Promise((resolve, reject) => {

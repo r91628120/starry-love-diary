@@ -9,6 +9,7 @@ import { selectCurrentMonthMoodStars } from './monthlyMoodStars'
 const moodStars = [starBottleAssets.pinkStars.smile, starBottleAssets.pinkStars.heart, starBottleAssets.pinkStars.wave] as const
 const clarityStars = [starBottleAssets.blueStars.calm, starBottleAssets.blueStars.peace, starBottleAssets.blueStars.think] as const
 const SLOT_COUNT = 31
+export const STAR_DROP_RITUAL_DURATION_MS = 4500
 const impactParticles = [
   'north', 'north-east', 'east', 'south-east', 'south',
   'south-west', 'west', 'north-west', 'inner-left', 'inner-right',
@@ -35,7 +36,7 @@ export function BottleHeroCard({ stars, currentLocalDate = toLocalDate(), presen
       setDroppingStar(star)
       settleTimer = setTimeout(() => {
         if (active) setDroppingStar(undefined)
-      }, 1800)
+      }, STAR_DROP_RITUAL_DURATION_MS)
     })
     return () => {
       active = false

@@ -199,6 +199,14 @@
   line-height: 1.12;
   overflow-wrap: normal;
   word-break: normal;
+  hyphens: none;
+}
+
+:lang(zh-TW) .star-heart__label,
+:lang(ja) .star-heart__label,
+:lang(ko) .star-heart__label {
+  white-space: nowrap;
+  word-break: keep-all;
 }
 
 .star-heart strong {

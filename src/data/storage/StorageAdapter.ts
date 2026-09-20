@@ -12,4 +12,5 @@ export interface StorageAdapter {
   getAll<T>(store: StoreName): Promise<T[]>
   put<T>(store: StoreName, value: T & { id: string }): Promise<void>
   delete(store: StoreName, key: string): Promise<void>
+  restoreStoresAtomically(replace: Partial<Record<StoreName, unknown[]>>, clearStores: readonly StoreName[]): Promise<void>
 }

@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { PersistenceProvider } from '../data/PersistenceContext'
+import { type PersistenceContextValue, usePersistence } from '../data/PersistenceStateContext'
 import { initializePersistence } from '../data/persistence'
 import { createMemoryStorageBacking, MemoryStorageAdapter } from '../data/storage/MemoryStorageAdapter'
 import { formatSettingsDate } from '../features/settings/settingsFormatters'
@@ -11,6 +12,8 @@ import { I18nProvider } from './I18nProvider'
 import { messages, supportedLocales } from './messages'
 import { settingsBatch5Messages } from './settingsBatch5Messages'
 import { exportAppDataMessages } from './exportAppDataMessages'
+import { importAppDataMessages } from './importAppDataMessages'
+import { buildAppDataExport, serializeAppDataExport } from '../services/exportAppData'
 
 const settingsKeys = Object.keys(settingsBatch5Messages['zh-TW']) as Array<keyof (typeof settingsBatch5Messages)['zh-TW']>
 const appDataExportKeys = Object.keys(exportAppDataMessages['zh-TW']) as Array<keyof (typeof exportAppDataMessages)['zh-TW']>
@@ -22,6 +25,24 @@ const scopedRuntimeFiles = [
 ] as const
 
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
+
+function createJsonFile(name: string, content: string) {
+  const file = new File([content], name, { type: 'application/json' })
+  Object.defineProperty(file, 'text', { value: async () => content })
+  return file
+}
+
+function deferred<T = void>() {
+  let resolve!: (value: T | PromiseLike<T>) => void
+  const promise = new Promise<T>((resolvePromise) => { resolve = resolvePromise })
+  return { promise, resolve }
+}
+
+function PersistenceProbe({ onValue }: { onValue: (value: PersistenceContextValue) => void }) {
+  const value = usePersistence()
+  if (value) onValue(value)
+  return null
+}
 
 describe('Milestone 4C-3 Settings localization', () => {
   it.each(supportedLocales)('has every non-empty Settings UI key in %s', (locale) => {
@@ -36,6 +57,12 @@ describe('Milestone 4C-3 Settings localization', () => {
     expect(Object.keys(exportAppDataMessages[locale])).toEqual(appDataExportKeys)
     for (const key of appDataExportKeys) {
       expect(messages[locale][key].trim(), `${locale} empty ${key}`).not.toBe('')
+    }
+  })
+
+  it.each(supportedLocales)('has every Restore and Merge data-management key in %s', (locale) => {
+    for (const key of Object.keys(importAppDataMessages['zh-TW']) as Array<keyof (typeof importAppDataMessages)['zh-TW']>) {
+      expect(importAppDataMessages[locale][key]).toBeTruthy()
     }
   })
 
@@ -253,6 +280,134 @@ describe('Milestone 4C-3 Settings localization', () => {
     expect(screen.getByText('可供之後匯入 App，不包含照片。')).toBeInTheDocument()
     expect(screen.queryByText('備份')).not.toBeInTheDocument()
   })
+
+  it('routes Restore and Merge file actions through separate confirmation flows', async () => {
+    const source = await initializePersistence({ adapter: new MemoryStorageAdapter(), defaultLocale: 'zh-TW', localDate: '2026-09-11' })
+    await source.profiles.updateProfile('user', { nickname: 'backup user' })
+    const content = serializeAppDataExport(await buildAppDataExport({ repositories: source, localDate: '2026-09-11', exportedAt: '2026-09-11T00:00:00.000Z' }))
+    const file = new File([content], 'backup.json', { type: 'application/json' }); Object.defineProperty(file, 'text', { value: async () => content })
+    const target = await initializePersistence({ adapter: new MemoryStorageAdapter(), defaultLocale: 'zh-TW', localDate: '2026-09-11' })
+    await target.profiles.updateProfile('user', { nickname: 'newer user' })
+    render(<PersistenceProvider runtime={target}><I18nProvider initialLocale="zh-TW"><MemoryRouter initialEntries={['/settings']}><SettingsPage /></MemoryRouter></I18nProvider></PersistenceProvider>)
+    fireEvent.click(screen.getByRole('button', { name: /匯入 App 資料/u })); fireEvent.change(screen.getByLabelText('選擇備份檔'), { target: { files: [file] } })
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent('取代目前 App 中的資料')
+    fireEvent.click(screen.getByRole('button', { name: '取消' })); expect((await target.profiles.getProfile('user'))?.nickname).toBe('newer user')
+    fireEvent.change(screen.getByLabelText('選擇備份檔'), { target: { files: [file] } }); expect(await screen.findByRole('alertdialog')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '確認匯入' })); await waitFor(async () => expect((await target.profiles.getProfile('user'))?.nickname).toBe('backup user'))
+    fireEvent.change(screen.getByLabelText('選擇備份檔'), { target: { files: [file] } }); expect(await screen.findByRole('alertdialog')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '取消' }))
+    cleanup()
+    const mergeTarget = await initializePersistence({ adapter: new MemoryStorageAdapter(), defaultLocale: 'zh-TW', localDate: '2026-09-11' })
+    await mergeTarget.profiles.updateProfile('user', { nickname: 'newer user' })
+    render(<PersistenceProvider runtime={mergeTarget}><I18nProvider initialLocale="zh-TW"><MemoryRouter initialEntries={['/settings']}><SettingsPage /></MemoryRouter></I18nProvider></PersistenceProvider>)
+    fireEvent.click(screen.getByRole('button', { name: /合併 App 資料/u })); fireEvent.change(screen.getByLabelText('選擇資料檔'), { target: { files: [file] } })
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent('保留較新的版本')
+    fireEvent.click(screen.getByRole('button', { name: '開始合併' })); await waitFor(async () => expect((await mergeTarget.profiles.getProfile('user'))?.nickname).toBe('newer user'))
+  })
+
+  it('allows Merge file reselection after cancel, error, and success', async () => {
+    const source = await initializePersistence({ adapter: new MemoryStorageAdapter(), defaultLocale: 'zh-TW', localDate: '2026-09-11' })
+    const content = serializeAppDataExport(await buildAppDataExport({ repositories: source, localDate: '2026-09-11' }))
+    const valid = new File([content], 'merge.json', { type: 'application/json' }); Object.defineProperty(valid, 'text', { value: async () => content })
+    const invalid = new File(['{}'], 'bad.json', { type: 'application/json' }); Object.defineProperty(invalid, 'text', { value: async () => '{}' })
+    const runtime = await initializePersistence({ adapter: new MemoryStorageAdapter(), defaultLocale: 'zh-TW', localDate: '2026-09-11' })
+    let persistence!: PersistenceContextValue
+    render(<PersistenceProvider runtime={runtime}><I18nProvider initialLocale="zh-TW"><MemoryRouter initialEntries={['/settings']}><SettingsPage /></MemoryRouter></I18nProvider><PersistenceProbe onValue={(value) => { persistence = value }} /></PersistenceProvider>)
+    const restoreSpy = vi.spyOn(persistence, 'restoreAppData')
+    fireEvent.click(screen.getByRole('button', { name: /合併 App 資料/u })); const input = screen.getByLabelText('選擇資料檔')
+    fireEvent.change(input, { target: { files: [valid] } }); expect(await screen.findByRole('alertdialog')).toBeInTheDocument(); fireEvent.click(screen.getByRole('button', { name: '取消' }))
+    fireEvent.change(input, { target: { files: [valid] } }); expect(await screen.findByRole('alertdialog')).toBeInTheDocument(); fireEvent.click(screen.getByRole('button', { name: '取消' }))
+    fireEvent.change(input, { target: { files: [invalid] } }); await waitFor(() => expect(screen.getByText('這不是星星戀愛日記資料檔。')).toBeInTheDocument())
+    fireEvent.change(input, { target: { files: [invalid] } }); await waitFor(() => expect(screen.getByText('這不是星星戀愛日記資料檔。')).toBeInTheDocument())
+    fireEvent.change(input, { target: { files: [valid] } }); expect(await screen.findByRole('alertdialog')).toBeInTheDocument(); expect(screen.queryByText('這不是星星戀愛日記資料檔。')).not.toBeInTheDocument(); fireEvent.click(screen.getByRole('button', { name: '開始合併' })); await waitFor(() => expect(screen.getByText('資料已檢查，沒有需要合併的新內容。')).toBeInTheDocument())
+    fireEvent.change(input, { target: { files: [valid] } }); expect(await screen.findByRole('alertdialog')).toBeInTheDocument()
+    expect(restoreSpy).not.toHaveBeenCalled()
+  })
+
+  it('rejects an invalid Restore file in Settings, then accepts a valid replacement file', async () => {
+    const runtime = await initializePersistence({ adapter: new MemoryStorageAdapter(), defaultLocale: 'zh-TW', localDate: '2026-09-11' })
+    const invalid = new File(['{"format":"starry-love-diary-data"}'], 'invalid.json', { type: 'application/json' }); Object.defineProperty(invalid, 'text', { value: async () => '{"format":"starry-love-diary-data"}' })
+    const content = serializeAppDataExport(await buildAppDataExport({ repositories: runtime, localDate: '2026-09-11' }))
+    const valid = new File([content], 'valid.json', { type: 'application/json' }); Object.defineProperty(valid, 'text', { value: async () => content })
+    render(<PersistenceProvider runtime={runtime}><I18nProvider initialLocale="zh-TW"><MemoryRouter initialEntries={['/settings']}><SettingsPage /></MemoryRouter></I18nProvider></PersistenceProvider>)
+    fireEvent.click(screen.getByRole('button', { name: /匯入 App 資料/u })); const input = screen.getByLabelText('選擇備份檔')
+    fireEvent.change(input, { target: { files: [invalid] } }); await waitFor(() => expect(screen.getByText('這個資料檔版本尚不支援。')).toBeInTheDocument()); expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    fireEvent.change(input, { target: { files: [invalid] } }); await waitFor(() => expect(screen.getByText('這個資料檔版本尚不支援。')).toBeInTheDocument())
+    fireEvent.change(input, { target: { files: [valid] } }); expect(await screen.findByRole('alertdialog')).toBeInTheDocument()
+  })
+
+  it('prevents Restore reentry and blocks Merge while Restore is pending', async () => {
+    const source = await initializePersistence({ adapter: new MemoryStorageAdapter(), defaultLocale: 'zh-TW', localDate: '2026-09-11' })
+    await source.profiles.updateProfile('user', { nickname: 'restore source' })
+    const content = serializeAppDataExport(await buildAppDataExport({ repositories: source, localDate: '2026-09-11' }))
+    const backup = createJsonFile('restore-pending.json', content)
+    const runtime = await initializePersistence({ adapter: new MemoryStorageAdapter(), defaultLocale: 'zh-TW', localDate: '2026-09-11' })
+    const releaseRestore = deferred<void>()
+    let persistence!: PersistenceContextValue
+    render(<PersistenceProvider runtime={runtime}><I18nProvider initialLocale="zh-TW"><MemoryRouter initialEntries={['/settings']}><SettingsPage /></MemoryRouter></I18nProvider><PersistenceProbe onValue={(value) => { persistence = value }} /></PersistenceProvider>)
+    const restoreOriginal = persistence.restoreAppData.bind(persistence)
+    const restoreSpy = vi.spyOn(persistence, 'restoreAppData').mockImplementation(async (...args) => {
+      await releaseRestore.promise
+      return restoreOriginal(...args)
+    })
+    const mergeSpy = vi.spyOn(persistence, 'applyAppDataImport')
+
+    fireEvent.click(screen.getByRole('button', { name: /匯入 App 資料/u }))
+    fireEvent.change(screen.getByLabelText('選擇備份檔'), { target: { files: [backup] } })
+    fireEvent.click(await screen.findByRole('button', { name: '確認匯入' }))
+    await waitFor(() => expect(restoreSpy).toHaveBeenCalledTimes(1))
+
+    const restoreRow = screen.getByText('匯入 App 資料').closest('.settings-row')!
+    const mergeRow = screen.getByText('合併 App 資料').closest('.settings-row')!
+    expect(screen.queryByRole('button', { name: /匯入 App 資料/u })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /合併 App 資料/u })).not.toBeInTheDocument()
+    fireEvent.click(restoreRow)
+    fireEvent.click(mergeRow)
+    expect(restoreSpy).toHaveBeenCalledTimes(1)
+    expect(mergeSpy).not.toHaveBeenCalled()
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('匯入 App 資料？')
+
+    releaseRestore.resolve()
+    await waitFor(() => expect(screen.getByText('App 資料已還原完成。')).toBeInTheDocument())
+  })
+
+  it('prevents Merge reentry and blocks Restore while Merge is pending', async () => {
+    const target = await initializePersistence({ adapter: new MemoryStorageAdapter(), defaultLocale: 'zh-TW', localDate: '2026-09-11' })
+    const source = await initializePersistence({ adapter: new MemoryStorageAdapter(), defaultLocale: 'zh-TW', localDate: '2026-09-11' })
+    await source.profiles.updateProfile('user', { nickname: 'newer merge source' })
+    const exported = JSON.parse(serializeAppDataExport(await buildAppDataExport({ repositories: source, localDate: '2026-09-11' })))
+    for (const profile of exported.data.profiles) profile.updatedAt = '2099-01-01T00:00:00.000Z'
+    const content = JSON.stringify(exported)
+    const backup = createJsonFile('merge-pending.json', content)
+    const releaseMerge = deferred<void>()
+    let persistence!: PersistenceContextValue
+    render(<PersistenceProvider runtime={target}><I18nProvider initialLocale="zh-TW"><MemoryRouter initialEntries={['/settings']}><SettingsPage /></MemoryRouter></I18nProvider><PersistenceProbe onValue={(value) => { persistence = value }} /></PersistenceProvider>)
+    const mergeOriginal = persistence.applyAppDataImport.bind(persistence)
+    const mergeSpy = vi.spyOn(persistence, 'applyAppDataImport').mockImplementation(async (...args) => {
+      await releaseMerge.promise
+      return mergeOriginal(...args)
+    })
+    const restoreSpy = vi.spyOn(persistence, 'restoreAppData')
+
+    fireEvent.click(screen.getByRole('button', { name: /合併 App 資料/u }))
+    fireEvent.change(screen.getByLabelText('選擇資料檔'), { target: { files: [backup] } })
+    fireEvent.click(await screen.findByRole('button', { name: '開始合併' }))
+    await waitFor(() => expect(mergeSpy).toHaveBeenCalledTimes(1))
+
+    const mergeRow = screen.getByText('合併 App 資料').closest('.settings-row')!
+    const restoreRow = screen.getByText('匯入 App 資料').closest('.settings-row')!
+    expect(screen.queryByRole('button', { name: /合併 App 資料/u })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /匯入 App 資料/u })).not.toBeInTheDocument()
+    fireEvent.click(mergeRow)
+    fireEvent.click(restoreRow)
+    expect(mergeSpy).toHaveBeenCalledTimes(1)
+    expect(restoreSpy).not.toHaveBeenCalled()
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('合併 App 資料？')
+
+    releaseMerge.resolve()
+    await waitFor(() => expect(screen.getByText('App 資料已合併。')).toBeInTheDocument())
+  })
+
 
   it('shows localized app data export failure feedback without changing Settings data', async () => {
     const runtime = await initializePersistence({ adapter: new MemoryStorageAdapter(), defaultLocale: 'zh-TW', localDate: '2026-09-11' })

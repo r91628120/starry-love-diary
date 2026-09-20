@@ -6,6 +6,7 @@ import { removeHeartRevealPhoto, replaceHeartRevealPhoto } from './photo/heartRe
 import { deleteMemoryMomentWithPhoto, removeMemoryMomentPhoto, replaceMemoryMomentPhoto } from './photo/memoryMomentPhotoActions'
 import { applyImportPlan, type AppDataImportPlan } from '../services/importAppData'
 import { clearCurrentRelationshipData } from '../services/clearCurrentRelationshipData'
+import { restoreAppData } from '../services/restoreAppData'
 
 export function PersistenceProvider({ runtime, children }: { runtime: PersistenceRuntime; children: ReactNode }) {
   const [userProfile, setUserProfile] = useState(runtime.initial.userProfile)
@@ -278,6 +279,15 @@ export function PersistenceProvider({ runtime, children }: { runtime: Persistenc
       setRememberedYouCards(nextRemembered)
       setDiaryCount(nextDiaries.length)
       return summary
+    },
+    async restoreAppData(plan) {
+      await restoreAppData(runtime, plan)
+      const [user, partner, nextMood, nextDiary, nextScore, nextStars, nextPhrases, nextImportantDates, nextMoments, nextMessage, nextMessageEntries, nextRemembered, nextDiaries] = await Promise.all([
+        runtime.profiles.getProfile('user'), runtime.profiles.getProfile('partner'), runtime.moods.getMoodByLocalDate(runtime.initial.currentLocalDate), runtime.diaries.getDiaryByLocalDate(runtime.initial.currentLocalDate), runtime.scores.getTotal(), runtime.stars.getStars(), runtime.heartPhrases.getHeartPhrases(), runtime.importantDates.getImportantDates(), runtime.memoryMoments.getMemoryMoments(), runtime.messageToYou.getMessage(), runtime.messageToYou.reconcileLegacy(), runtime.rememberedYou.getRememberedYouCards(), runtime.diaries.getDiaries(),
+      ])
+      if (user) setUserProfile(user); if (partner) setPartnerProfile(partner)
+      setTodayMoodState(nextMood); setTodayDiary(nextDiary); setStarHeartTotal(nextScore); setStars(nextStars); setHeartPhrases(nextPhrases); setHeartPhraseCount(nextPhrases.length); setImportantDates(nextImportantDates); setMemoryMoments(nextMoments); setMessageToYou(nextMessage); setMessageToYouEntries(nextMessageEntries); setRememberedYouCards(nextRemembered); setDiaryCount(nextDiaries.length)
+      setActiveHeartRevealProject(await runtime.heartRevealPhotos.getCycleState(nextPhrases))
     },
   }), [activeHeartRevealProject, diaryCount, heartPhraseCount, heartPhrases, importantDates, memoryMoments, messageToYou, messageToYouEntries, partnerProfile, rememberedYouCards, runtime, settings, starHeartTotal, stars, todayDiary, todayMood, userProfile])
 

@@ -2,6 +2,7 @@ import { createContext, useContext } from 'react'
 import type { PersistenceRuntime } from './persistence'
 import type { AppDataImportPlan, ImportSummary } from '../services/importAppData'
 import type { AppSettings, DiaryEntry, HeartPhrase, HeartRevealProject, HeartRevealTextPlacement, ImportantDate, ImportantDateType, MemoryMoment, MessageToYou, MessageToYouEntry, MessageToYouType, MoodKey, MoodRecord, PhotoPlacement, Profile, ProfileKind, RememberedYouCard, Star } from './types'
+import type { RestorePlan } from '../services/restoreAppData'
 
 export interface PersistenceContextValue {
   userProfile: Profile
@@ -58,6 +59,7 @@ export interface PersistenceContextValue {
   clearCurrentRelationshipData(): Promise<void>
   refreshScoreAndStars(): Promise<void>
   applyAppDataImport(plan: AppDataImportPlan): Promise<ImportSummary>
+  restoreAppData(plan: RestorePlan): Promise<void>
   repositories: Pick<PersistenceRuntime, 'adapter' | 'profiles' | 'moods' | 'diaries' | 'settings' | 'stars' | 'starDropPresentations' | 'diaryDrafts' | 'scores' | 'heartPhrases' | 'importantDates' | 'memoryMoments' | 'messageToYou' | 'rememberedYou' | 'clearRecords' | 'loveBoatAssessments' | 'loveBrainAssessments' | 'likeOrHabitReflections' | 'photos' | 'memoryWallLayouts' | 'profilePhotoPlacements' | 'heartRevealPhotos' | 'memoryMomentPhotoPlacements'>
 }
 

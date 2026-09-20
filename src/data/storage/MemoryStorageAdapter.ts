@@ -27,4 +27,14 @@ export class MemoryStorageAdapter implements StorageAdapter {
     this.backing.set(store, records)
   }
   async delete(store: StoreName, key: string) { this.backing.get(store)?.delete(key) }
+  async restoreStoresAtomically(replace: Partial<Record<StoreName, unknown[]>>, clearStores: readonly StoreName[]) {
+    const snapshot = new Map([...this.backing].map(([store, records]) => [store, new Map([...records].map(([id, value]) => [id, cloneMemoryValue(value)]))]))
+    try {
+      for (const store of Object.keys(replace) as StoreName[]) this.backing.set(store, new Map())
+      for (const store of clearStores) this.backing.set(store, new Map())
+      for (const [store, records] of Object.entries(replace) as [StoreName, unknown[]][]) {
+        for (const record of records) await this.put(store, record as { id: string } & Record<string, unknown>)
+      }
+    } catch (error) { this.backing.clear(); for (const [store, records] of snapshot) this.backing.set(store, records); throw error }
+  }
 }
