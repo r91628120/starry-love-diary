@@ -3,6 +3,7 @@ import { useI18n } from '../i18n/I18nContext'
 import type { TranslationKey } from '../i18n/messages'
 import { IconButton } from './IconButton'
 import { BackIcon, SettingsIcon } from './icons'
+import { qa12NavigationHandler } from '../services/qa12Diagnostics'
 
 interface PageHeaderProps {
   titleKey: TranslationKey
@@ -22,7 +23,7 @@ export function PageHeader({ titleKey, variant = 'main', brandOnly = false, back
   const navigate = useNavigate()
   const settingsState = location.state as SettingsLocationState | null
 
-  const openSettings = () => navigate('/settings', { state: { from: location.pathname } })
+  const openSettings = () => { qa12NavigationHandler('settings-button', '/settings'); navigate('/settings', { state: { from: location.pathname } }) }
   const goBack = () => navigate(settingsState?.from ?? backFallback, backState === undefined ? { replace: true } : { replace: true, state: backState })
 
   return (
@@ -34,7 +35,7 @@ export function PageHeader({ titleKey, variant = 'main', brandOnly = false, back
       )}
       <h1 className={brandOnly ? 'sr-only' : undefined}>{t(titleKey)}</h1>
       {variant === 'main' ? (
-        <IconButton ariaLabel={t('nav.settings')} onClick={openSettings}><SettingsIcon /></IconButton>
+        <IconButton ariaLabel={t('nav.settings')} data-qa12-navigation-source="settings-button" onClick={openSettings}><SettingsIcon /></IconButton>
       ) : (
         <span className="page-header__balance" aria-hidden="true" />
       )}

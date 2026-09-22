@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom'
 import { useI18n } from '../i18n/I18nContext'
 import { navigationAssets } from '../assets/uiAssets'
 import type { TranslationKey } from '../i18n/messages'
+import { qa12NavigationHandler } from '../services/qa12Diagnostics'
 
 const navigationItems: Array<{ path: string; labelKey: TranslationKey; icon: string }> = [
   { path: '/today', labelKey: 'nav.today', icon: navigationAssets.today },
@@ -18,7 +19,7 @@ export function BottomNavigation() {
     <nav className="bottom-navigation" aria-label={t('nav.primary')}>
       <div className="bottom-navigation__inner">
         {navigationItems.map(({ path, labelKey, icon }) => (
-          <NavLink key={path} to={path} className={({ isActive }) => `bottom-navigation__item ${isActive ? 'bottom-navigation__item--active' : ''}`}>
+          <NavLink key={path} to={path} data-qa12-navigation-source={`bottom-nav:${path.slice(1)}`} onClick={() => qa12NavigationHandler(`bottom-nav:${path.slice(1)}`, path)} className={({ isActive }) => `bottom-navigation__item ${isActive ? 'bottom-navigation__item--active' : ''}`}>
             <img className="bottom-navigation__icon" src={icon} alt="" aria-hidden="true" />
             <span>{t(labelKey)}</span>
           </NavLink>

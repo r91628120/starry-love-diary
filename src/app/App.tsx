@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { MainLayout } from './MainLayout'
 import { UpdateCheckNotice } from '../components'
 import { ClearPage } from '../pages/ClearPage'
@@ -14,7 +14,13 @@ import { MomentPhotoManagementPage } from '../pages/MomentPhotoManagementPage'
 import { SettingsInformationPage } from '../pages/SettingsInformationPage'
 import { usePersistence } from '../data/PersistenceStateContext'
 import { useEffect } from 'react'
-import { installQa12Diagnostics } from '../services/qa12Diagnostics'
+import { installQa12Diagnostics, qa12LocationCommitted } from '../services/qa12Diagnostics'
+
+function Qa12RouteCommitObserver() {
+  const location = useLocation()
+  useEffect(() => { qa12LocationCommitted(location.pathname) }, [location.pathname])
+  return null
+}
 
 export function App() {
   const persistence = usePersistence()
@@ -23,7 +29,7 @@ export function App() {
     return diagnostics.dispose
   }, [])
   if (persistence && !persistence.settings.onboardingCompleted) {
-    return <><UpdateCheckNotice /><Routes>
+    return <><UpdateCheckNotice /><Qa12RouteCommitObserver /><Routes>
       <Route path="/onboarding" element={<OnboardingPage />} />
       <Route path="*" element={<Navigate to="/onboarding" replace />} />
     </Routes></>
@@ -32,6 +38,7 @@ export function App() {
   return (
     <>
     <UpdateCheckNotice />
+    <Qa12RouteCommitObserver />
     <Routes>
       <Route element={<MainLayout />}>
         <Route path="/today" element={<TodayPage />} />

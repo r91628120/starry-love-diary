@@ -5,6 +5,7 @@ import { usePersistence } from '../../data/PersistenceStateContext'
 import { useI18n } from '../../i18n/I18nContext'
 import { toLocalDate } from '../../services/localDateService'
 import { formatUpcomingImportantDate, getNextUpcomingImportantDate } from './upcomingImportantDates'
+import { qa12NavigationHandler } from '../../services/qa12Diagnostics'
 
 export function UpcomingImportantDateCard() {
   const { locale, t } = useI18n()
@@ -14,17 +15,19 @@ export function UpcomingImportantDateCard() {
   const openImportantDates = (recordId?: string) => {
     const params = new URLSearchParams({ section: 'important-dates' })
     if (recordId) params.set('recordId', recordId)
-    navigate(`/our?${params.toString()}`)
+    const destination = `/our?${params.toString()}`
+    qa12NavigationHandler('recent-important-date-card', destination)
+    navigate(destination)
   }
 
   return (
     <SoftCard className="upcoming-date-card">
       <SectionHeader icon={<CalendarIcon />} title={t('today.upcomingImportantDate')} />
-      {nextImportantDate ? <div className="upcoming-date-card__events"><button className="upcoming-date-card__event" type="button" onClick={() => openImportantDates(nextImportantDate.id)} aria-label={t('today.upcoming.open', { title: nextImportantDate.title })}>
+      {nextImportantDate ? <div className="upcoming-date-card__events"><button className="upcoming-date-card__event" data-qa12-navigation-source="recent-important-date-card" type="button" onClick={() => openImportantDates(nextImportantDate.id)} aria-label={t('today.upcoming.open', { title: nextImportantDate.title })}>
         <strong>{nextImportantDate.title}</strong>
         <time dateTime={nextImportantDate.nextOccurrence}>{formatUpcomingImportantDate(nextImportantDate.nextOccurrence, locale)}</time>
         <span>{t('today.upcoming.daysRemaining', { days: new Intl.NumberFormat(locale).format(nextImportantDate.daysRemaining) })}</span>
-      </button></div> : <div className="upcoming-date-card__empty"><p>{t('today.upcoming.empty')}</p><SecondaryButton onClick={() => openImportantDates()}>{t('today.upcoming.add')}</SecondaryButton></div>}
+      </button></div> : <div className="upcoming-date-card__empty"><p>{t('today.upcoming.empty')}</p><SecondaryButton data-qa12-navigation-source="recent-important-date-card" onClick={() => openImportantDates()}>{t('today.upcoming.add')}</SecondaryButton></div>}
     </SoftCard>
   )
 }

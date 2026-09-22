@@ -3,147 +3,48 @@ import { Directory, Filesystem } from '@capacitor/filesystem'
 import { Share } from '@capacitor/share'
 import { encodeTextExportUtf8 } from './exportTextData'
 
-const STORAGE_KEY = 'starry-love-diary:qa12-diagnostics:v2'
-const MAX_CRITICAL_EVENTS = 96
-const MAX_INTERACTION_SNAPSHOTS = 32
-const INTERACTION_SNAPSHOT_INTERVAL_MS = 15_000
+const STORAGE_KEY = 'starry-love-diary:qa12-diagnostics:v3'
+const MAX_EVENTS = 160
+const NAVIGATION_OBSERVATION_MS = 1_500
 const OVERLAY_IDS = ['update-check', 'confirm-dialog', 'memory-lightbox', 'memory-wall-lightbox'] as const
-
-export type Qa12CriticalEventType = 'boot' | 'visibilitychange' | 'foreground-snapshot' | 'pageshow' | 'pagehide' | 'focus' | 'blur' | 'online' | 'offline' | 'error' | 'unhandledrejection' | 'overlay-state-change' | 'busy-state-change' | 'manual-snapshot'
-export type Qa12InteractionType = 'touchstart' | 'pointerdown' | 'click'
-export interface Qa12TopmostElement { point: 'center' | 'bottom-navigation' | 'content'; tag: string | null; category: string }
-export interface Qa12StateSnapshot { timestamp: string; visibility: DocumentVisibilityState | 'unknown'; focused: boolean; pathname: string; overlays: string[]; busyElementCount: number; interactionCounts: Record<Qa12InteractionType, number>; topmost: Qa12TopmostElement[] }
-export interface Qa12CriticalEvent extends Qa12StateSnapshot { type: Qa12CriticalEventType; persisted?: boolean; errorCategory?: 'error' | 'unhandledrejection'; errorName?: string }
-export interface Qa12InteractionSnapshot extends Qa12StateSnapshot { type: Qa12InteractionType; firstPostResume: boolean }
-export interface Qa12DiagnosticLog { format: 'starry-love-diary-qa12-diagnostics'; version: 2; criticalEvents: Qa12CriticalEvent[]; interaction: { totals: Record<Qa12InteractionType, number>; snapshots: Qa12InteractionSnapshot[] } }
-
+export type Qa12InteractionType = 'touchstart' | 'pointerdown' | 'pointerup' | 'pointercancel' | 'click'
+export type Qa12EventType = 'boot' | 'visibilitychange' | 'foreground-resume' | 'pageshow' | 'pagehide' | 'focus' | 'blur' | 'online' | 'offline' | 'error' | 'unhandledrejection' | 'overlay-state-change' | 'busy-state-change' | 'manual-snapshot' | 'input' | 'react-handler' | 'navigation-intent' | 'location-change' | 'destination-commit' | 'navigation-incomplete'
+export interface Qa12Rect { x: number; y: number; width: number; height: number }
+export interface Qa12Event { type: Qa12EventType; timestamp: string; sessionId: string; foregroundResumeId: string; pathname: string; navAttemptId?: string; source?: string; requestedDestination?: string; previousPathname?: string; destinationId?: string; input?: { eventType: Qa12InteractionType; pointerType?: string; target: string; actionableAncestor: string; clientX?: number; clientY?: number; hitTestTarget?: string; targetRect?: Qa12Rect; hitTestRect?: Qa12Rect }; visibility?: DocumentVisibilityState | 'unknown'; focused?: boolean; overlays?: string[]; busyElementCount?: number; backgroundDurationMs?: number; persisted?: boolean; errorCategory?: 'error' | 'unhandledrejection' | 'navigation-handler'; errorName?: string }
+export interface Qa12DiagnosticLog { format: 'starry-love-diary-qa12-diagnostics'; diagnosticSchemaVersion: 3; appVersion: '1.0.0'; build: 9; sessionId: string; events: Qa12Event[]; interactionTotals: Record<Qa12InteractionType, number> }
 type StorageLike = Pick<Storage, 'getItem' | 'setItem'>
 type Delivery = 'downloaded' | 'share-sheet-opened' | 'cancelled' | 'unsupported' | 'error'
-const emptyInteractionCounts = (): Record<Qa12InteractionType, number> => ({ touchstart: 0, pointerdown: 0, click: 0 })
+type PendingNavigation = { navAttemptId: string; source: string; requestedDestination: string; timer: ReturnType<typeof setTimeout> }
 
+let active: Qa12Runtime | undefined
+const emptyCounts = (): Record<Qa12InteractionType, number> => ({ touchstart: 0, pointerdown: 0, pointerup: 0, pointercancel: 0, click: 0 })
+const newSessionId = () => globalThis.crypto?.randomUUID?.() ?? `qa12-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
 function safeStorage(): StorageLike | undefined { try { return globalThis.localStorage } catch { return undefined } }
-function emptyLog(): Qa12DiagnosticLog { return { format: 'starry-love-diary-qa12-diagnostics', version: 2, criticalEvents: [], interaction: { totals: emptyInteractionCounts(), snapshots: [] } } }
-function readLog(storage: StorageLike | undefined = safeStorage()): Qa12DiagnosticLog {
-  if (!storage) return emptyLog()
-  try {
-    const value: unknown = JSON.parse(storage.getItem(STORAGE_KEY) ?? '')
-    if (!value || typeof value !== 'object') return emptyLog()
-    const candidate = value as Partial<Qa12DiagnosticLog>
-    if (candidate.format !== 'starry-love-diary-qa12-diagnostics' || candidate.version !== 2 || !Array.isArray(candidate.criticalEvents) || !candidate.interaction || typeof candidate.interaction !== 'object' || !Array.isArray(candidate.interaction.snapshots)) return emptyLog()
-    const totals = candidate.interaction.totals
-    if (!totals || typeof totals.touchstart !== 'number' || typeof totals.pointerdown !== 'number' || typeof totals.click !== 'number') return emptyLog()
-    return { ...emptyLog(), criticalEvents: candidate.criticalEvents.slice(-MAX_CRITICAL_EVENTS) as Qa12CriticalEvent[], interaction: { totals: { ...totals }, snapshots: candidate.interaction.snapshots.slice(-MAX_INTERACTION_SNAPSHOTS) as Qa12InteractionSnapshot[] } }
-  } catch { return emptyLog() }
-}
-function writeLog(log: Qa12DiagnosticLog, storage: StorageLike | undefined = safeStorage()) { try { storage?.setItem(STORAGE_KEY, JSON.stringify(log)) } catch { /* Diagnostics must never affect app behavior. */ } }
-
-function knownOverlayIds(documentRef: Document) {
-  const detected = new Set<string>()
-  for (const node of documentRef.querySelectorAll<HTMLElement>('[data-qa12-overlay]')) {
-    const id = node.dataset.qa12Overlay
-    if (OVERLAY_IDS.includes(id as typeof OVERLAY_IDS[number])) detected.add(id!)
-  }
-  if (documentRef.querySelector('.memory-lightbox')) detected.add('memory-lightbox')
-  if (documentRef.querySelector('.memory-wall-lightbox')) detected.add('memory-wall-lightbox')
-  return [...detected].sort()
-}
-function categoryFor(element: Element | null) {
-  if (!element) return 'none'
-  if (element.closest('[data-qa12-overlay="update-check"]')) return 'update-check'
-  if (element.closest('[data-qa12-overlay="confirm-dialog"]')) return 'confirm-dialog'
-  if (element.closest('.memory-lightbox')) return 'memory-lightbox'
-  if (element.closest('.memory-wall-lightbox')) return 'memory-wall-lightbox'
-  if (element.closest('.bottom-navigation')) return 'bottom-navigation'
-  return 'other'
-}
-function topmostElements(documentRef: Document): Qa12TopmostElement[] {
-  const view = documentRef.defaultView
-  if (!view || typeof documentRef.elementFromPoint !== 'function') return []
-  const width = view.innerWidth
-  const height = view.innerHeight
-  const points: Array<[Qa12TopmostElement['point'], number, number]> = [['center', width / 2, height / 2], ['bottom-navigation', width / 2, Math.max(0, height - 24)], ['content', width / 2, Math.min(Math.max(80, height * .28), Math.max(80, height - 80))]]
-  return points.map(([point, x, y]) => { const element = documentRef.elementFromPoint(x, y); return { point, tag: element?.tagName.toLowerCase() ?? null, category: categoryFor(element) } })
-}
+function emptyLog(): Qa12DiagnosticLog { return { format: 'starry-love-diary-qa12-diagnostics', diagnosticSchemaVersion: 3, appVersion: '1.0.0', build: 9, sessionId: newSessionId(), events: [], interactionTotals: emptyCounts() } }
+function readLog(storage: StorageLike | undefined = safeStorage()): Qa12DiagnosticLog { if (!storage) return emptyLog(); try { const value: unknown = JSON.parse(storage.getItem(STORAGE_KEY) ?? ''); if (!value || typeof value !== 'object') return emptyLog(); const candidate = value as Partial<Qa12DiagnosticLog>; if (candidate.format !== 'starry-love-diary-qa12-diagnostics' || candidate.diagnosticSchemaVersion !== 3 || candidate.appVersion !== '1.0.0' || candidate.build !== 9 || typeof candidate.sessionId !== 'string' || !Array.isArray(candidate.events) || !candidate.interactionTotals) return emptyLog(); return { ...emptyLog(), sessionId: candidate.sessionId, events: candidate.events.slice(-MAX_EVENTS) as Qa12Event[], interactionTotals: { ...emptyCounts(), ...candidate.interactionTotals } } } catch { return emptyLog() } }
+function writeLog(log: Qa12DiagnosticLog, storage: StorageLike | undefined = safeStorage()) { try { storage?.setItem(STORAGE_KEY, JSON.stringify(log)) } catch { /* Diagnostics never affect application behavior. */ } }
 function safeErrorName(value: unknown) { if (!(value instanceof Error)) return undefined; return ['Error', 'TypeError', 'ReferenceError', 'RangeError', 'SyntaxError', 'DOMException'].includes(value.name) ? value.name : 'other' }
-function stateSnapshot(documentRef: Document, windowRef: Window, counts: Record<Qa12InteractionType, number>): Qa12StateSnapshot {
-  return { timestamp: new Date().toISOString(), visibility: documentRef.visibilityState ?? 'unknown', focused: documentRef.hasFocus(), pathname: windowRef.location.pathname, overlays: knownOverlayIds(documentRef), busyElementCount: documentRef.querySelectorAll('[aria-busy="true"]').length, interactionCounts: { ...counts }, topmost: topmostElements(documentRef) }
-}
+function overlays(documentRef: Document) { return [...documentRef.querySelectorAll<HTMLElement>('[data-qa12-overlay]')].map((node) => node.dataset.qa12Overlay).filter((id): id is string => OVERLAY_IDS.includes(id as typeof OVERLAY_IDS[number])).sort() }
+function descriptor(node: Element | null) { if (!node) return 'none'; const source = node.closest<HTMLElement>('[data-qa12-navigation-source]')?.dataset.qa12NavigationSource; if (source) return source; if (node.closest('.bottom-navigation')) return 'bottom-navigation'; if (node.closest('button')) return 'button'; if (node.closest('a')) return 'link'; return node.tagName.toLowerCase() }
+function rect(node: Element | null): Qa12Rect | undefined { if (!node) return undefined; const value = node.getBoundingClientRect(); return { x: value.x, y: value.y, width: value.width, height: value.height } }
+function sourceFor(target: EventTarget | null) { return target instanceof Element ? target.closest<HTMLElement>('[data-qa12-navigation-source]')?.dataset.qa12NavigationSource : undefined }
 
+class Qa12Runtime {
+  log = readLog(); foregroundResumeSequence = 0; foregroundResumeId = 'initial'; hiddenAt: number | undefined; previousOverlayKey: string; previousBusyCount: number; attemptsBySource = new Map<string, string>(); pending = new Map<string, PendingNavigation>(); lastPathname: string
+  constructor(readonly documentRef: Document, readonly windowRef: Window) { this.log.sessionId = newSessionId(); this.previousOverlayKey = overlays(documentRef).join('|'); this.previousBusyCount = documentRef.querySelectorAll('[aria-busy="true"]').length; this.lastPathname = windowRef.location.pathname }
+  record(type: Qa12EventType, extra: Omit<Partial<Qa12Event>, 'type' | 'timestamp' | 'sessionId' | 'foregroundResumeId' | 'pathname'> = {}) { this.log.events.push({ type, timestamp: new Date().toISOString(), sessionId: this.log.sessionId, foregroundResumeId: this.foregroundResumeId, pathname: this.windowRef.location.pathname, visibility: this.documentRef.visibilityState ?? 'unknown', focused: this.documentRef.hasFocus(), overlays: overlays(this.documentRef), busyElementCount: this.documentRef.querySelectorAll('[aria-busy="true"]').length, ...extra }); this.log.events = this.log.events.slice(-MAX_EVENTS); writeLog(this.log) }
+  input(event: Event, type: Qa12InteractionType) { this.log.interactionTotals[type] += 1; const source = sourceFor(event.target); if (!source) { writeLog(this.log); return }; let navAttemptId = this.attemptsBySource.get(source); if (type === 'pointerdown' || !navAttemptId) { navAttemptId = `${this.log.sessionId}:nav:${Date.now()}:${Math.random().toString(36).slice(2, 7)}`; this.attemptsBySource.set(source, navAttemptId) }; const pointer = event as PointerEvent; const x = typeof pointer.clientX === 'number' ? pointer.clientX : undefined; const y = typeof pointer.clientY === 'number' ? pointer.clientY : undefined; const target = event.target instanceof Element ? event.target : null; const hit = x === undefined || y === undefined || typeof this.documentRef.elementFromPoint !== 'function' ? null : this.documentRef.elementFromPoint(x, y); this.record('input', { navAttemptId, source, input: { eventType: type, pointerType: typeof pointer.pointerType === 'string' && pointer.pointerType ? pointer.pointerType : undefined, target: descriptor(target), actionableAncestor: descriptor(target?.closest('button,a,[role="button"]') ?? null), clientX: x, clientY: y, hitTestTarget: descriptor(hit), targetRect: rect(target), hitTestRect: rect(hit) } }) }
+  handler(source: string, requestedDestination: string) { const navAttemptId = this.attemptsBySource.get(source) ?? `${this.log.sessionId}:nav:${Date.now()}:${Math.random().toString(36).slice(2, 7)}`; this.attemptsBySource.set(source, navAttemptId); this.record('react-handler', { navAttemptId, source, requestedDestination }); this.record('navigation-intent', { navAttemptId, source, requestedDestination }); const timer = setTimeout(() => { if (this.pending.has(navAttemptId)) { this.record('navigation-incomplete', { navAttemptId, source, requestedDestination }); this.pending.delete(navAttemptId) } }, NAVIGATION_OBSERVATION_MS); this.pending.set(navAttemptId, { navAttemptId, source, requestedDestination, timer }); return navAttemptId }
+  location(pathname: string) { const previousPathname = this.lastPathname; this.lastPathname = pathname; const pending = [...this.pending.values()].find((attempt) => new URL(attempt.requestedDestination, this.windowRef.location.origin).pathname === pathname); this.record('location-change', { previousPathname, requestedDestination: pending?.requestedDestination, navAttemptId: pending?.navAttemptId, source: pending?.source }); this.commit(pathname, pending) }
+  commit(pathname: string, pending = [...this.pending.values()].find((attempt) => new URL(attempt.requestedDestination, this.windowRef.location.origin).pathname === pathname)) { this.record('destination-commit', { destinationId: `route:${pathname}`, requestedDestination: pending?.requestedDestination, navAttemptId: pending?.navAttemptId, source: pending?.source }); if (pending) { clearTimeout(pending.timer); this.pending.delete(pending.navAttemptId) } }
+  lifecycle(type: Qa12EventType, persisted?: boolean) { if (type === 'visibilitychange' && this.documentRef.visibilityState === 'hidden') this.hiddenAt = Date.now(); this.record(type, { persisted }); if ((type === 'visibilitychange' || type === 'pageshow') && this.documentRef.visibilityState === 'visible' && this.hiddenAt !== undefined) { const backgroundDurationMs = Date.now() - this.hiddenAt; this.hiddenAt = undefined; this.foregroundResumeId = `resume:${++this.foregroundResumeSequence}`; this.record('foreground-resume', { backgroundDurationMs }) } }
+  observe() { const overlayKey = overlays(this.documentRef).join('|'); const busy = this.documentRef.querySelectorAll('[aria-busy="true"]').length; if (overlayKey !== this.previousOverlayKey) { this.previousOverlayKey = overlayKey; this.record('overlay-state-change') }; if (busy !== this.previousBusyCount) { this.previousBusyCount = busy; this.record('busy-state-change') } }
+  dispose() { for (const entry of this.pending.values()) clearTimeout(entry.timer); this.pending.clear() }
+}
 export function getQa12Diagnostics() { return readLog() }
 export function clearQa12DiagnosticsForTest(storage?: StorageLike) { writeLog(emptyLog(), storage) }
-
-export function installQa12Diagnostics(documentRef: Document = document, windowRef: Window = window) {
-  const log = readLog()
-  let waitingForPostResumeInteraction = documentRef.visibilityState === 'visible'
-  let lastInteractionSnapshotAt = 0
-  let previousOverlayKey = knownOverlayIds(documentRef).join('|')
-  let previousBusyCount = documentRef.querySelectorAll('[aria-busy="true"]').length
-  const persist = () => writeLog(log)
-  const recordCritical = (type: Qa12CriticalEventType, options: Pick<Qa12CriticalEvent, 'persisted' | 'errorCategory' | 'errorName'> = {}) => {
-    log.criticalEvents.push({ ...stateSnapshot(documentRef, windowRef, log.interaction.totals), type, ...options })
-    log.criticalEvents = log.criticalEvents.slice(-MAX_CRITICAL_EVENTS)
-    persist()
-  }
-  const recordInteraction = (type: Qa12InteractionType) => {
-    log.interaction.totals[type] += 1
-    const now = Date.now()
-    const firstPostResume = waitingForPostResumeInteraction
-    if (firstPostResume || now - lastInteractionSnapshotAt >= INTERACTION_SNAPSHOT_INTERVAL_MS) {
-      log.interaction.snapshots.push({ ...stateSnapshot(documentRef, windowRef, log.interaction.totals), type, firstPostResume })
-      log.interaction.snapshots = log.interaction.snapshots.slice(-MAX_INTERACTION_SNAPSHOTS)
-      lastInteractionSnapshotAt = now
-    }
-    if (firstPostResume) waitingForPostResumeInteraction = false
-    persist()
-  }
-  const observeStateTransition = () => {
-    const overlays = knownOverlayIds(documentRef).join('|')
-    const busyCount = documentRef.querySelectorAll('[aria-busy="true"]').length
-    if (overlays !== previousOverlayKey) { previousOverlayKey = overlays; recordCritical('overlay-state-change') }
-    if (busyCount !== previousBusyCount) { previousBusyCount = busyCount; recordCritical('busy-state-change') }
-  }
-  const lifecycle = (type: Exclude<Qa12CriticalEventType, 'pageshow' | 'pagehide' | 'error' | 'unhandledrejection'>) => () => {
-    recordCritical(type)
-    if ((type === 'visibilitychange' && documentRef.visibilityState === 'visible') || (type === 'focus' && documentRef.visibilityState === 'visible')) { waitingForPostResumeInteraction = true; recordCritical('foreground-snapshot') }
-  }
-  const pageLifecycle = (type: 'pageshow' | 'pagehide') => (event: PageTransitionEvent) => {
-    recordCritical(type, { persisted: event.persisted })
-    if (type === 'pageshow' && documentRef.visibilityState === 'visible') { waitingForPostResumeInteraction = true; recordCritical('foreground-snapshot') }
-  }
-  const onError = (event: ErrorEvent) => recordCritical('error', { errorCategory: 'error', errorName: safeErrorName(event.error) })
-  const onUnhandledRejection = (event: PromiseRejectionEvent) => recordCritical('unhandledrejection', { errorCategory: 'unhandledrejection', errorName: safeErrorName(event.reason) })
-  const listeners: Array<[EventTarget, string, EventListener, AddEventListenerOptions | boolean | undefined]> = [
-    [documentRef, 'visibilitychange', lifecycle('visibilitychange'), undefined], [windowRef, 'pageshow', pageLifecycle('pageshow') as EventListener, undefined], [windowRef, 'pagehide', pageLifecycle('pagehide') as EventListener, undefined], [windowRef, 'focus', lifecycle('focus'), undefined], [windowRef, 'blur', lifecycle('blur'), undefined], [windowRef, 'online', lifecycle('online'), undefined], [windowRef, 'offline', lifecycle('offline'), undefined],
-    [documentRef, 'touchstart', (() => recordInteraction('touchstart')) as EventListener, { capture: true, passive: true }], [documentRef, 'pointerdown', (() => recordInteraction('pointerdown')) as EventListener, { capture: true, passive: true }], [documentRef, 'click', (() => recordInteraction('click')) as EventListener, { capture: true, passive: true }], [windowRef, 'error', onError as EventListener, undefined], [windowRef, 'unhandledrejection', onUnhandledRejection as EventListener, undefined],
-  ]
-  for (const [target, name, listener, options] of listeners) target.addEventListener(name, listener, options)
-  const observer = typeof MutationObserver === 'undefined' || !documentRef.body ? undefined : new MutationObserver(observeStateTransition)
-  observer?.observe(documentRef.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['aria-busy', 'data-qa12-overlay', 'class'] })
-  recordCritical('boot')
-  return { snapshot: () => recordCritical('manual-snapshot'), dispose: () => { observer?.disconnect(); listeners.forEach(([target, name, listener, options]) => target.removeEventListener(name, listener, options)) } }
-}
-
+export function qa12NavigationHandler(source: string, requestedDestination: string) { return active?.handler(source, requestedDestination) }
+export function qa12LocationCommitted(pathname: string) { active?.location(pathname) }
+export function installQa12Diagnostics(documentRef: Document = document, windowRef: Window = window) { const runtime = new Qa12Runtime(documentRef, windowRef); active = runtime; const listeners: Array<[EventTarget, string, EventListener, AddEventListenerOptions | boolean | undefined]> = [[documentRef, 'visibilitychange', (() => runtime.lifecycle('visibilitychange')) as EventListener, undefined], [windowRef, 'pageshow', ((event: PageTransitionEvent) => runtime.lifecycle('pageshow', event.persisted)) as EventListener, undefined], [windowRef, 'pagehide', ((event: PageTransitionEvent) => runtime.lifecycle('pagehide', event.persisted)) as EventListener, undefined], [windowRef, 'focus', (() => runtime.lifecycle('focus')) as EventListener, undefined], [windowRef, 'blur', (() => runtime.lifecycle('blur')) as EventListener, undefined], [windowRef, 'online', (() => runtime.lifecycle('online')) as EventListener, undefined], [windowRef, 'offline', (() => runtime.lifecycle('offline')) as EventListener, undefined], ...(['touchstart', 'pointerdown', 'pointerup', 'pointercancel', 'click'] as Qa12InteractionType[]).map((type) => [documentRef, type, ((event: Event) => runtime.input(event, type)) as EventListener, { capture: true, passive: true }] as [EventTarget, string, EventListener, AddEventListenerOptions]), [windowRef, 'error', ((event: ErrorEvent) => runtime.record('error', { errorCategory: 'error', errorName: safeErrorName(event.error) })) as EventListener, undefined], [windowRef, 'unhandledrejection', ((event: PromiseRejectionEvent) => runtime.record('unhandledrejection', { errorCategory: 'unhandledrejection', errorName: safeErrorName(event.reason) })) as EventListener, undefined]]; for (const [target, name, listener, options] of listeners) target.addEventListener(name, listener, options); const observer = typeof MutationObserver === 'undefined' || !documentRef.body ? undefined : new MutationObserver(() => runtime.observe()); observer?.observe(documentRef.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['aria-busy', 'data-qa12-overlay', 'class'] }); runtime.record('boot'); return { snapshot: () => runtime.record('manual-snapshot'), dispose: () => { observer?.disconnect(); listeners.forEach(([target, name, listener, options]) => target.removeEventListener(name, listener, options)); runtime.dispose(); if (active === runtime) active = undefined } } }
 export function createQa12DiagnosticExport() { return { filename: 'starry-love-diary-qa12-diagnostics.json', content: JSON.stringify(getQa12Diagnostics(), null, 2) } }
-export async function exportQa12Diagnostics(options: { isNativePlatform?: () => boolean; canShare?: () => Promise<{ value: boolean }>; writeFile?: (options: { path: string; data: string; directory: Directory }) => Promise<{ uri: string }>; share?: (options: { files: string[] }) => Promise<unknown>; deleteFile?: (options: { path: string; directory: Directory }) => Promise<unknown>; download?: (content: string, filename: string) => void } = {}): Promise<Delivery> {
-  const result = createQa12DiagnosticExport()
-  const isNative = options.isNativePlatform ?? (() => Capacitor.isNativePlatform())
-  if (!isNative()) {
-    try {
-      if (options.download) options.download(result.content, result.filename)
-      else { const url = URL.createObjectURL(new Blob([result.content], { type: 'application/json;charset=utf-8' })); const anchor = document.createElement('a'); anchor.href = url; anchor.download = result.filename; anchor.style.display = 'none'; document.body.append(anchor); try { anchor.click() } finally { anchor.remove(); URL.revokeObjectURL(url) } }
-      return 'downloaded'
-    } catch { return 'error' }
-  }
-  const canShare = options.canShare ?? (() => Share.canShare())
-  const writeFile = options.writeFile ?? ((writeOptions) => Filesystem.writeFile(writeOptions))
-  const share = options.share ?? ((shareOptions) => Share.share(shareOptions))
-  const deleteFile = options.deleteFile ?? ((deleteOptions) => Filesystem.deleteFile(deleteOptions))
-  let written = false
-  try {
-    if (!(await canShare()).value) return 'unsupported'
-    const file = await writeFile({ path: result.filename, data: encodeTextExportUtf8(result.content), directory: Directory.Cache })
-    written = true
-    await share({ files: [file.uri] })
-    return 'share-sheet-opened'
-  } catch (error) { return error instanceof Error && /cancel/i.test(error.message) ? 'cancelled' : 'error' } finally { if (written) await deleteFile({ path: result.filename, directory: Directory.Cache }).catch(() => undefined) }
-}
+export async function exportQa12Diagnostics(options: { isNativePlatform?: () => boolean; canShare?: () => Promise<{ value: boolean }>; writeFile?: (options: { path: string; data: string; directory: Directory }) => Promise<{ uri: string }>; share?: (options: { files: string[] }) => Promise<unknown>; deleteFile?: (options: { path: string; directory: Directory }) => Promise<unknown>; download?: (content: string, filename: string) => void } = {}): Promise<Delivery> { const result = createQa12DiagnosticExport(); const isNative = options.isNativePlatform ?? (() => Capacitor.isNativePlatform()); if (!isNative()) { try { if (options.download) options.download(result.content, result.filename); else { const url = URL.createObjectURL(new Blob([result.content], { type: 'application/json;charset=utf-8' })); const anchor = document.createElement('a'); anchor.href = url; anchor.download = result.filename; anchor.style.display = 'none'; document.body.append(anchor); try { anchor.click() } finally { anchor.remove(); URL.revokeObjectURL(url) } }; return 'downloaded' } catch { return 'error' } }; const canShare = options.canShare ?? (() => Share.canShare()); const writeFile = options.writeFile ?? ((writeOptions) => Filesystem.writeFile(writeOptions)); const share = options.share ?? ((shareOptions) => Share.share(shareOptions)); const deleteFile = options.deleteFile ?? ((deleteOptions) => Filesystem.deleteFile(deleteOptions)); let written = false; try { if (!(await canShare()).value) return 'unsupported'; const file = await writeFile({ path: result.filename, data: encodeTextExportUtf8(result.content), directory: Directory.Cache }); written = true; await share({ files: [file.uri] }); return 'share-sheet-opened' } catch (error) { return error instanceof Error && /cancel/i.test(error.message) ? 'cancelled' : 'error' } finally { if (written) await deleteFile({ path: result.filename, directory: Directory.Cache }).catch(() => undefined) } }

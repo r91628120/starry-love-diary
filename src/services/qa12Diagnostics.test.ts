@@ -1,102 +1,36 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Directory } from '@capacitor/filesystem'
-import { clearQa12DiagnosticsForTest, createQa12DiagnosticExport, exportQa12Diagnostics, getQa12Diagnostics, installQa12Diagnostics } from './qa12Diagnostics'
+import { clearQa12DiagnosticsForTest, createQa12DiagnosticExport, exportQa12Diagnostics, getQa12Diagnostics, installQa12Diagnostics, qa12LocationCommitted, qa12NavigationHandler } from './qa12Diagnostics'
 
-afterEach(() => { clearQa12DiagnosticsForTest(); document.body.replaceChildren(); vi.restoreAllMocks() })
+afterEach(() => { clearQa12DiagnosticsForTest(); document.body.replaceChildren(); vi.useRealTimers(); vi.restoreAllMocks() })
+function navButton(source = 'bottom-nav:today') { const button = document.createElement('button'); button.dataset.qa12NavigationSource = source; button.textContent = 'private diary content'; document.body.append(button); return button }
+function dispatch(button: HTMLElement, type: string) { button.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, clientX: 12, clientY: 18 })) }
 
-function dispatchInteractionBurst(times: number) {
-  for (let index = 0; index < times; index += 1) {
-    document.body.dispatchEvent(new Event('touchstart', { bubbles: true, cancelable: true }))
-    document.body.dispatchEvent(new Event('pointerdown', { bubbles: true, cancelable: true }))
-    document.body.dispatchEvent(new Event('click', { bubbles: true, cancelable: true }))
-  }
-}
-
-describe('QA-12 local diagnostics retention', () => {
-  it('keeps background and foreground critical evidence after high-frequency interaction', () => {
-    const diagnostics = installQa12Diagnostics()
-    document.dispatchEvent(new Event('visibilitychange'))
-    window.dispatchEvent(new Event('blur'))
-    window.dispatchEvent(new Event('focus'))
-    dispatchInteractionBurst(200)
-    diagnostics.dispose()
-
-    const log = getQa12Diagnostics()
-    expect(log.version).toBe(2)
-    expect(log.criticalEvents.map((entry) => entry.type)).toEqual(expect.arrayContaining(['visibilitychange', 'blur', 'focus', 'foreground-snapshot']))
-    expect(log.interaction.totals).toEqual({ touchstart: 200, pointerdown: 200, click: 200 })
-    expect(log.interaction.snapshots.length).toBeLessThanOrEqual(32)
-  })
-
-  it('identifies the first post-resume interaction while preserving passive document receipt', () => {
-    const diagnostics = installQa12Diagnostics()
-    document.dispatchEvent(new Event('visibilitychange'))
-    const click = new Event('click', { bubbles: true, cancelable: true })
-    document.body.dispatchEvent(click)
-    diagnostics.dispose()
-
-    const firstPostResume = getQa12Diagnostics().interaction.snapshots.find((entry) => entry.firstPostResume)
-    expect(firstPostResume).toMatchObject({ type: 'click', interactionCounts: { click: 1 } })
+describe('QA-12 V3 navigation diagnostics', () => {
+  it('correlates input, handler, intent, location and destination commit without preventing navigation', () => {
+    const diagnostics = installQa12Diagnostics(); const button = navButton(); dispatch(button, 'pointerdown'); dispatch(button, 'pointerup'); const click = new MouseEvent('click', { bubbles: true, cancelable: true }); button.dispatchEvent(click); const id = qa12NavigationHandler('bottom-nav:today', '/today'); qa12LocationCommitted('/today'); diagnostics.dispose()
+    const events = getQa12Diagnostics().events.filter((event) => event.navAttemptId === id)
+    expect(events.map((event) => event.type)).toEqual(expect.arrayContaining(['input', 'react-handler', 'navigation-intent', 'location-change', 'destination-commit']))
     expect(click.defaultPrevented).toBe(false)
   })
-
-  it('bounds both retention buffers and excludes DOM text and values', () => {
-    const secret = document.createElement('input')
-    secret.value = 'private diary content must not appear'
-    document.body.append(secret)
-    const diagnostics = installQa12Diagnostics()
-    for (let index = 0; index < 140; index += 1) diagnostics.snapshot()
-    dispatchInteractionBurst(200)
-    diagnostics.dispose()
-
-    const exported = createQa12DiagnosticExport()
-    const log = getQa12Diagnostics()
-    expect(log.criticalEvents).toHaveLength(96)
-    expect(log.interaction.snapshots.length).toBeLessThanOrEqual(32)
-    expect(exported.content).not.toContain(secret.value)
-    expect(exported.content).not.toContain('innerHTML')
+  it('distinguishes pointerup and pointercancel and gives separate attempts separate identifiers', () => {
+    const diagnostics = installQa12Diagnostics(); const button = navButton('settings-button'); dispatch(button, 'pointerdown'); dispatch(button, 'pointerup'); const first = qa12NavigationHandler('settings-button', '/settings'); dispatch(button, 'pointerdown'); dispatch(button, 'pointercancel'); const second = qa12NavigationHandler('settings-button', '/settings'); diagnostics.dispose()
+    const log = getQa12Diagnostics(); expect(first).not.toBe(second); expect(log.events.filter((event) => event.type === 'input').map((event) => event.input?.eventType)).toEqual(expect.arrayContaining(['pointerup', 'pointercancel']))
   })
-
-  it('retains known overlay and busy-state transitions as critical evidence', async () => {
-    const diagnostics = installQa12Diagnostics()
-    const overlay = document.createElement('div')
-    overlay.dataset.qa12Overlay = 'confirm-dialog'
-    overlay.setAttribute('aria-busy', 'true')
-    overlay.textContent = 'private confirmation message'
-    document.body.append(overlay)
-    await Promise.resolve()
-    diagnostics.dispose()
-
-    const log = getQa12Diagnostics()
-    expect(log.criticalEvents.map((entry) => entry.type)).toEqual(expect.arrayContaining(['overlay-state-change', 'busy-state-change']))
-    expect(log.criticalEvents.at(-1)?.overlays).toEqual(['confirm-dialog'])
-    expect(JSON.stringify(log)).not.toContain('private confirmation message')
+  it('records navigation_incomplete only as a diagnostic after the observation window', () => {
+    vi.useFakeTimers(); const diagnostics = installQa12Diagnostics(); qa12NavigationHandler('recent-important-date-card', '/our?section=important-dates'); vi.advanceTimersByTime(1_500); diagnostics.dispose()
+    expect(getQa12Diagnostics().events.some((event) => event.type === 'navigation-incomplete')).toBe(true)
   })
-
-  it('stores runtime categories without arbitrary error messages', () => {
-    const diagnostics = installQa12Diagnostics()
-    window.dispatchEvent(new ErrorEvent('error', { error: new TypeError('private relationship message') }))
-    diagnostics.dispose()
-
-    const error = getQa12Diagnostics().criticalEvents.find((entry) => entry.type === 'error')
-    expect(error).toMatchObject({ errorCategory: 'error', errorName: 'TypeError' })
-    expect(JSON.stringify(error)).not.toContain('private relationship message')
+  it('correlates foreground resumes with a session and build identity', () => {
+    let visibility: DocumentVisibilityState = 'visible'; Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => visibility }); const diagnostics = installQa12Diagnostics(); visibility = 'hidden'; document.dispatchEvent(new Event('visibilitychange')); visibility = 'visible'; document.dispatchEvent(new Event('visibilitychange')); diagnostics.dispose()
+    const log = getQa12Diagnostics(); expect(log).toMatchObject({ diagnosticSchemaVersion: 3, appVersion: '1.0.0', build: 9 }); expect(log.sessionId).toBeTruthy(); expect(log.events.find((event) => event.type === 'foreground-resume')).toMatchObject({ foregroundResumeId: 'resume:1' })
   })
-
-  it('writes the bounded technical log to a native Cache file and shares only its URI', async () => {
-    const diagnostics = installQa12Diagnostics(); diagnostics.snapshot(); diagnostics.dispose()
-    const writeFile = vi.fn().mockResolvedValue({ uri: 'file:///cache/starry-love-diary-qa12-diagnostics.json' })
-    const share = vi.fn().mockResolvedValue(undefined)
-    const deleteFile = vi.fn().mockResolvedValue(undefined)
-    await expect(exportQa12Diagnostics({ isNativePlatform: () => true, canShare: vi.fn().mockResolvedValue({ value: true }), writeFile, share, deleteFile })).resolves.toBe('share-sheet-opened')
-    expect(writeFile).toHaveBeenCalledWith(expect.objectContaining({ path: 'starry-love-diary-qa12-diagnostics.json', directory: Directory.Cache }))
-    expect(share).toHaveBeenCalledWith({ files: ['file:///cache/starry-love-diary-qa12-diagnostics.json'] })
-    expect(deleteFile).toHaveBeenCalledWith({ path: 'starry-love-diary-qa12-diagnostics.json', directory: Directory.Cache })
+  it('keeps records bounded and never writes private element content', () => {
+    const diagnostics = installQa12Diagnostics(); const button = navButton(); for (let index = 0; index < 200; index += 1) { dispatch(button, 'pointerdown'); qa12NavigationHandler('bottom-nav:today', '/today') }; diagnostics.dispose()
+    const exported = createQa12DiagnosticExport(); expect(getQa12Diagnostics().events.length).toBeLessThanOrEqual(160); expect(exported.content).not.toContain('private diary content'); expect(JSON.parse(exported.content)).toMatchObject({ diagnosticSchemaVersion: 3, build: 9 })
   })
-
-  it('preserves the browser-only diagnostic download path', async () => {
-    const download = vi.fn()
-    await expect(exportQa12Diagnostics({ isNativePlatform: () => false, download })).resolves.toBe('downloaded')
-    expect(download).toHaveBeenCalledWith(expect.stringContaining('starry-love-diary-qa12-diagnostics'), 'starry-love-diary-qa12-diagnostics.json')
+  it('exports the readable V3 log through native and browser delivery paths', async () => {
+    const writeFile = vi.fn().mockResolvedValue({ uri: 'file:///cache/starry-love-diary-qa12-diagnostics.json' }); const share = vi.fn().mockResolvedValue(undefined); const deleteFile = vi.fn().mockResolvedValue(undefined)
+    await expect(exportQa12Diagnostics({ isNativePlatform: () => true, canShare: vi.fn().mockResolvedValue({ value: true }), writeFile, share, deleteFile })).resolves.toBe('share-sheet-opened'); expect(writeFile).toHaveBeenCalledWith(expect.objectContaining({ directory: Directory.Cache })); const download = vi.fn(); await expect(exportQa12Diagnostics({ isNativePlatform: () => false, download })).resolves.toBe('downloaded'); expect(JSON.parse(download.mock.calls[0][0])).toMatchObject({ diagnosticSchemaVersion: 3 })
   })
 })
