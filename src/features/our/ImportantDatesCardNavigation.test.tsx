@@ -16,6 +16,23 @@ afterEach(() => {
 })
 
 describe('ImportantDatesCard incoming Today navigation', () => {
+  it('keeps the legacy per-record preference compatible without rendering its unused checkbox', async () => {
+    const runtime = await initializePersistence({ adapter: new MemoryStorageAdapter(), defaultLocale: 'en', localDate: '2026-09-08' })
+    const legacy = await runtime.importantDates.createImportantDate({ type: 'custom', title: 'Legacy', date: '2026-09-09', reminderEnabled: true })
+    runtime.initial.importantDates = await runtime.importantDates.getImportantDates()
+    render(<PersistenceProvider runtime={runtime}><I18nProvider initialLocale="en"><MemoryRouter><ImportantDatesCard /></MemoryRouter></I18nProvider></PersistenceProvider>)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+    expect(screen.queryByText(/reminder preference/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Updated legacy' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(async () => expect(await runtime.importantDates.getImportantDate(legacy.id)).toMatchObject({ title: 'Updated legacy', reminderEnabled: true }))
+  })
+
   it('adds scoped spacing only when the conditional View all action is rendered', async () => {
     const runtime = await initializePersistence({ adapter: new MemoryStorageAdapter(), defaultLocale: 'en', localDate: '2026-09-08' })
     await runtime.importantDates.createImportantDate({ type: 'custom', title: 'First', date: '2026-09-09' })

@@ -21,7 +21,7 @@ const dateTypes: Array<{ value: ImportantDateType; label: TranslationKey }> = [
   { value: 'custom', label: 'our.importantDates.type.custom' },
 ]
 
-const emptyForm = () => ({ type: 'custom' as ImportantDateType, title: '', date: toLocalDate(), description: '', reminderEnabled: false })
+const emptyForm = () => ({ type: 'custom' as ImportantDateType, title: '', date: toLocalDate(), description: '' })
 
 export function ImportantDatesCard() {
   const { locale, t } = useI18n()
@@ -53,7 +53,7 @@ export function ImportantDatesCard() {
 
   const beginEdit = (record: ImportantDate) => {
     setEditingId(record.id)
-    setForm({ type: record.type, title: record.title, date: record.date, description: record.description ?? '', reminderEnabled: record.reminderEnabled ?? false })
+    setForm({ type: record.type, title: record.title, date: record.date, description: record.description ?? '' })
     setShowForm(true)
     setFeedbackKey(undefined)
   }
@@ -80,7 +80,6 @@ export function ImportantDatesCard() {
       <label>{t('our.fields.title')}<input required value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} /></label>
       <label>{t('our.fields.date')}<input required type="date" value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} /></label>
       <label className="our-data-form__wide">{t('our.fields.description')}<textarea value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /></label>
-      <label className="our-data-form__check"><input type="checkbox" checked={form.reminderEnabled} onChange={(event) => setForm({ ...form, reminderEnabled: event.target.checked })} />{t('our.importantDates.reminder')}</label>
       <div className="our-data-form__actions"><SecondaryButton onClick={() => setShowForm(false)}>{t('common.cancel')}</SecondaryButton><PrimaryButton type="submit">{t('our.actions.save')}</PrimaryButton></div>
     </form> : null}
     {dates.length === 0 ? <p className="our-empty-state">{t('our.importantDates.empty')}</p> : <div className="important-dates__list">{visibleDates.map((item) => <article className={`important-date${focusedRecordId === item.id ? ' important-date--focused' : ''}`} id={`important-date-${item.id}`} key={item.id} tabIndex={focusedRecordId === item.id ? -1 : undefined}><img src={item.type === 'birthday' ? ourAssets.importantDates.birthday : ourAssets.importantDates.anniversary} alt="" aria-hidden="true" /><div><strong>{item.title}</strong><time dateTime={item.date}>{formatOurLocalDate(item.date, locale)}</time><span>{item.description ?? t(dateTypes.find((type) => type.value === item.type)?.label ?? 'our.importantDates.type.custom')}</span><div className="our-inline-actions"><button type="button" onClick={() => beginEdit(item)}>{t('our.actions.edit')}</button><button type="button" onClick={() => setDeleteTarget(item)}>{t('our.actions.delete')}</button></div></div></article>)}</div>}
