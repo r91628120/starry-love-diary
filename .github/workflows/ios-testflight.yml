@@ -280,6 +280,8 @@ jobs:
           identity = json.loads((work / 'release-identity.json').read_text())
           for key, value in {'CFBundleIdentifier': identity['bundle_id'], 'CFBundleShortVersionString': identity['marketing_version'], 'CFBundleVersion': identity['build_number']}.items():
               assert info.get(key) == value, f'IPA mismatch: {key}'
+          expected_camera_description = '允許使用相機拍攝照片，加入星星戀愛日記的照片與回憶。'
+          assert info.get('NSCameraUsageDescription') == expected_camera_description, 'IPA mismatch: NSCameraUsageDescription'
           subprocess.run(['codesign', '--verify', '--deep', '--strict', str(apps[0])], check=True, capture_output=True)
           decoded = subprocess.run(['security', 'cms', '-D', '-i', str(apps[0] / 'embedded.mobileprovision')], check=True, capture_output=True)
           profile = plistlib.loads(decoded.stdout)
@@ -287,7 +289,7 @@ jobs:
           assert profile['UUID'] == signing['uuid'] and profile['Entitlements']['application-identifier'] == signing['app_id']
           assert profile['Entitlements']['get-task-allow'] is False
           (work / 'upload.json').write_text(json.dumps({'ipa': str(ipas[0].resolve())}))
-          print(f"IPA identity: {identity['bundle_id']} {identity['marketing_version']} ({identity['build_number']}), payload, signature and embedded profile: PASS")
+          print(f"IPA identity: {identity['bundle_id']} {identity['marketing_version']} ({identity['build_number']}), payload, signature, embedded profile and camera privacy description: PASS")
           PY
 
       - name: Preflight App Store Connect upload credentials

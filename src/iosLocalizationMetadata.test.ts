@@ -20,4 +20,8 @@ describe('iOS native localization metadata', () => {
     nativeLocalizations.forEach((locale) => expect(knownRegions).toContain(locale))
     expect(knownRegions).toContain('Base')
   })
+
+  it('includes a non-empty camera privacy description in the app target plist', () => {
+    expect(infoPlist).toMatch(/<key>NSCameraUsageDescription<\/key>\s*<string>允許使用相機拍攝照片，加入星星戀愛日記的照片與回憶。<\/string>/)
+  })
 })
