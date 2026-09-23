@@ -27,3 +27,4 @@
 /* Build 11: retain broad tablet cards while using the same vertical reading order. */
 .important-dates__list{grid-template-columns:1fr}.important-dates__view-all{justify-self:start}.moment-carousel .moment-form__date-input{box-sizing:border-box;width:100%;min-width:0;max-width:100%}
 .moment-form__photo-preview{display:block;max-width:100%;height:auto;aspect-ratio:4/3;border-radius:var(--radius-md);object-fit:cover}
+@media(max-width:28rem){.moment-carousel .our-data-form{grid-template-columns:1fr}}

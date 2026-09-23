@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
+import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { PersistenceProvider } from '../../data/PersistenceContext'
 import { initializePersistence } from '../../data/persistence'
@@ -8,8 +9,19 @@ import type { PhotoAsset } from '../../data/types'
 import { I18nProvider } from '../../i18n/I18nProvider'
 import { WebPhotoPickerService } from '../../services/photoPickerService'
 import { MomentCarousel } from './MomentCarousel'
+import { MomentPhotoManagementPage } from '../../pages/MomentPhotoManagementPage'
 
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
+
+function LocationProbe() {
+  const location = useLocation()
+  return <output data-testid="location">{JSON.stringify({ pathname: location.pathname, state: location.state })}</output>
+}
+
+function OurMomentEntry() {
+  const navigate = useNavigate()
+  return <MomentCarousel onManagePhoto={(momentId) => navigate('/settings/moments', { state: { from: '/our', momentId } })} />
+}
 
 describe('MomentCarousel', () => {
   it('keeps the native date input constrained to its own Moments form field', async () => {
@@ -22,7 +34,9 @@ describe('MomentCarousel', () => {
     expect(dateInput).toHaveAttribute('type', 'date')
     expect(dateInput).toHaveClass('moment-form__date-input')
     expect(dateInput.closest('label')).toHaveClass('moment-form__date-field')
-    expect(readFileSync('src/features/our/our.css', 'utf8')).toMatch(/\.moment-carousel \.moment-form__date-field\{min-width:0\}\.moment-carousel \.moment-form__date-input\{min-width:0;max-width:100%\}/u)
+    const css = readFileSync('src/features/our/our.css', 'utf8')
+    expect(css).toMatch(/\.moment-carousel \.moment-form__date-field\{min-width:0\}\.moment-carousel \.moment-form__date-input\{min-width:0;max-width:100%\}/u)
+    expect(css).toContain('@media(max-width:28rem){.moment-carousel .our-data-form{grid-template-columns:1fr}}')
     expect(view.container.querySelector('.important-dates .moment-form__date-input')).toBeNull()
   })
 
@@ -38,6 +52,35 @@ describe('MomentCarousel', () => {
     await waitFor(async () => expect(await runtime.memoryMoments.getMemoryMoments()).toMatchObject([{ localDate: '2026-09-07', content: 'A saved local date.' }]))
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
     expect(screen.getByLabelText('Date')).toHaveValue('2026-09-07')
+  })
+
+  it('opens a saved Moment in the existing Settings photo-management flow without discarding an edit draft', async () => {
+    const runtime = await initializePersistence({ adapter: new MemoryStorageAdapter(), defaultLocale: 'en', localDate: '2026-09-08' })
+    const saved = await runtime.memoryMoments.createMemoryMoment({ title: 'Saved moment', content: 'Keep this safe.', localDate: '2026-09-07' })
+    runtime.initial.memoryMoments = await runtime.memoryMoments.getMemoryMoments()
+    render(<PersistenceProvider runtime={runtime}><I18nProvider initialLocale={"en"}><MemoryRouter initialEntries={['/our']}><LocationProbe /><OurMomentEntry /></MemoryRouter></I18nProvider></PersistenceProvider>)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    const managePhotos = screen.getByRole('button', { name: 'Manage photos' })
+    expect(managePhotos).toBeEnabled()
+    fireEvent.change(screen.getByLabelText('Content'), { target: { value: 'Unsaved draft' } })
+    expect(managePhotos).toBeDisabled()
+    fireEvent.change(screen.getByLabelText('Content'), { target: { value: 'Keep this safe.' } })
+    expect(managePhotos).toBeEnabled()
+    fireEvent.click(managePhotos)
+    expect(screen.getByTestId('location')).toHaveTextContent(`"pathname":"/settings/moments"`)
+    expect(screen.getByTestId('location')).toHaveTextContent(`"momentId":"${saved.id}"`)
+  })
+
+  it('focuses the routed saved Moment in the existing photo-management page', async () => {
+    const runtime = await initializePersistence({ adapter: new MemoryStorageAdapter(), defaultLocale: 'en', localDate: '2026-09-08' })
+    await runtime.memoryMoments.createMemoryMoment({ title: 'First moment', content: 'First content', localDate: '2026-09-06' })
+    const target = await runtime.memoryMoments.createMemoryMoment({ title: 'Target moment', content: 'Target content', localDate: '2026-09-07' })
+    runtime.initial.memoryMoments = await runtime.memoryMoments.getMemoryMoments()
+    render(<PersistenceProvider runtime={runtime}><I18nProvider initialLocale="en"><MemoryRouter initialEntries={[{ pathname: '/settings/moments', state: { from: '/our', momentId: target.id } }]}><MomentPhotoManagementPage /></MemoryRouter></I18nProvider></PersistenceProvider>)
+
+    await waitFor(() => expect(screen.getByText('Target content')).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: 'Add photo' })).toBeInTheDocument()
   })
 
   it('makes the existing View all moments action render every persisted moment', async () => {

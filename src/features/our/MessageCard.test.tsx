@@ -20,7 +20,7 @@ describe('Message To You V1',()=>{
   it('defines seven stable keys and complete localized labels',()=>{
   expect(MESSAGE_TO_YOU_TYPES).toEqual(['miss_you','thank_you','sorry','dont_be_mad','tell_you','invite_out','free_message'])
   const keys=Object.keys(messageToYouV1Messages['zh-TW'])
-  for(const locale of supportedLocales){expect(Object.keys(messageToYouV1Messages[locale])).toEqual(keys);for(const type of MESSAGE_TO_YOU_TYPES)expect(messages[locale][`messageV1.type.${type}`].trim()).not.toBe('');expect(messages[locale]['heartCard.brand']).toBe('Starry Love Diary')}
+  for(const locale of supportedLocales){expect(Object.keys(messageToYouV1Messages[locale])).toEqual(keys);for(const type of MESSAGE_TO_YOU_TYPES){expect(messages[locale][`messageV1.type.${type}`].trim()).not.toBe('');const hint=messages[locale][`messageV1.hint.${type}`];expect(hint.trim()).not.toBe('');if(locale!=='zh-TW')expect(hint).not.toBe(messages['zh-TW'][`messageV1.hint.${type}`])}expect(messages[locale]['heartCard.brand']).toBe('Starry Love Diary')}
   })
   it('uses inclusive prompts in every locale without a masculine default',()=>{
    expect(messages['zh-TW']['messageV1.prompt']).toBe('今天，有什麼想對他／她說？')
