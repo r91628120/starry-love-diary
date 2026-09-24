@@ -37,6 +37,7 @@ describe('MomentCarousel', () => {
     const css = readFileSync('src/features/our/our.css', 'utf8')
     expect(css).toMatch(/\.moment-carousel \.moment-form__date-field\{min-width:0\}\.moment-carousel \.moment-form__date-input\{min-width:0;max-width:100%\}/u)
     expect(css).toContain('@media(max-width:28rem){.moment-carousel .our-data-form{grid-template-columns:1fr}}')
+    expect(css).toContain('@media(max-width:30rem){.moment-card__photo{aspect-ratio:16/9}.moment-card{grid-template-columns:1fr!important}}')
     expect(view.container.querySelector('.important-dates .moment-form__date-input')).toBeNull()
   })
 
