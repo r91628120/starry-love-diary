@@ -132,6 +132,22 @@ describe('Memory Wall editor', () => {
     }
   })
 
+  it('keeps selected-photo adjustment between the preview and a large photo library, before save actions', async () => {
+    const runtime = await createRuntime(undefined, 60)
+    const view = renderWall(runtime)
+    fireEvent.click(await screen.findByRole('button', { name: '編輯回憶牆' }))
+    fireEvent.click(galleryChoices(view.container)[0])
+
+    const preview = view.container.querySelector('.memory-wall__canvas')!
+    const adjustment = view.container.querySelector('.memory-wall-adjust')!
+    const library = view.container.querySelector('.memory-wall-picker')!
+    const actions = view.container.querySelector('.memory-wall-editor__actions')!
+    expect(preview.compareDocumentPosition(adjustment) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(adjustment.compareDocumentPosition(library) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(library.compareDocumentPosition(actions) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(galleryChoices(view.container)).toHaveLength(60)
+  })
+
   it('saves and reopens the active layout with stable order', async () => {
     const backing = createMemoryStorageBacking()
     const first = await createRuntime(backing, 3)

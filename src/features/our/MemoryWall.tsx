@@ -161,13 +161,6 @@ export function MemoryWall() {
       </div> : <div className="memory-wall__empty"><p>{t('memoryWallEditor.emptyWall')}</p></div>}
 
       {editing ? <section className="memory-wall-editor" aria-label={t('memoryWallEditor.edit')}>
-        <header><h3>{replaceSlotId ? t('memoryWallEditor.replaceHint') : t('memoryWallEditor.choose')}</h3><strong>{t('memoryWallEditor.selectedCount', { count: draftSlots.length, max: MAX_MEMORY_WALL_PHOTOS })}</strong></header>
-        <div className="memory-wall-picker">
-          {gallery.map((asset, index) => {
-            const selected = draftSlots.some((slot) => slot.photoAssetId === asset.id)
-            return <GalleryChoice key={asset.id} asset={asset} index={index + 1} selected={selected} repository={photos} onClick={() => choosePhoto(asset.id)} />
-          })}
-        </div>
         {selectedSlotId ? <div className="memory-wall-adjust" aria-label={t('memoryWallEditor.adjust')}>
           <strong>{t('memoryWallEditor.adjust')}</strong>
           <div>
@@ -179,6 +172,13 @@ export function MemoryWall() {
             <PrimaryButton onClick={() => { setSelectedSlotId(undefined); setReplaceSlotId(undefined) }}>{t('memoryWallEditor.done')}</PrimaryButton>
           </div>
         </div> : null}
+        <header><h3>{replaceSlotId ? t('memoryWallEditor.replaceHint') : t('memoryWallEditor.choose')}</h3><strong>{t('memoryWallEditor.selectedCount', { count: draftSlots.length, max: MAX_MEMORY_WALL_PHOTOS })}</strong></header>
+        <div className="memory-wall-picker">
+          {gallery.map((asset, index) => {
+            const selected = draftSlots.some((slot) => slot.photoAssetId === asset.id)
+            return <GalleryChoice key={asset.id} asset={asset} index={index + 1} selected={selected} repository={photos} onClick={() => choosePhoto(asset.id)} />
+          })}
+        </div>
         <p className="memory-wall-editor__feedback" role="status" aria-live="polite">{feedbackKey ? t(feedbackKey) : ''}</p>
         <div className="memory-wall-editor__actions"><SecondaryButton onClick={cancelEdit}>{t('memoryWallEditor.cancel')}</SecondaryButton><PrimaryButton onClick={() => void save()}>{t('memoryWallEditor.save')}</PrimaryButton></div>
       </section> : <p className="memory-wall-editor__feedback" role="status" aria-live="polite">{feedbackKey ? t(feedbackKey) : ''}</p>}
