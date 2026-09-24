@@ -132,7 +132,6 @@ export function BottleHeroCard({ stars, currentLocalDate = toLocalDate(), presen
           </div>
         </> : null}
       </div>
-      <p className="bottle-hero__ritual-message" role="status">{droppingStar ? t(droppingStar.type === 'mood' ? 'starBottle.ritual.mood' : 'starBottle.ritual.clear') : ''}</p>
       <p className="bottle-hero__tagline">{t('starBottle.hero.monthlyLabel')}</p>
     </section>
   )

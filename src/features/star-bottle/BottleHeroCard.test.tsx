@@ -57,6 +57,7 @@ describe('BottleHeroCard star-drop impact', () => {
     expect(document.querySelectorAll('[data-particle-glyph="♥"]')).toHaveLength(6)
     expect(document.querySelectorAll('[data-particle-glyph="dot"]')).toHaveLength(8)
     expect(document.querySelector('.bottle-hero__ritual-sparkles')).not.toBeInTheDocument()
+    expect(document.querySelector('.bottle-hero__ritual-message')).not.toBeInTheDocument()
     expect(document.querySelectorAll('.bottle-hero__collection .bottle-star')).toHaveLength(1)
     expect(Math.max(...STAR_DROP_IMPACT_PARTICLES.map(({ delay, duration }) => 2620 + milliseconds(delay) + milliseconds(duration)))).toBeLessThan(STAR_DROP_RITUAL_DURATION_MS)
   })
