@@ -102,14 +102,16 @@ describe('Today Page static UI', () => {
     expect(screen.getByRole('link', { name: '今天' })).toHaveClass('bottom-navigation__item--active')
   })
 
-  it('keeps the heart line within the 30-character UI limit', () => {
+  it('keeps the heart line within the Unicode-safe 80-code-point UI limit', () => {
     renderApp('/today')
 
     const input = screen.getByRole('textbox', { name: '今天，有什麼話想留下？' })
-    fireEvent.change(input, { target: { value: '這是一段刻意超過三十個字的測試內容，用來確認一句心話輸入框會確實限制長度並保持畫面穩定。' } })
+    const safeBoundary = `${'心'.repeat(79)}💗`
+    fireEvent.change(input, { target: { value: `${safeBoundary}😘` } })
 
-    expect(input).toHaveAttribute('maxlength', '30')
-    expect((input as HTMLTextAreaElement).value).toHaveLength(30)
+    expect(input).not.toHaveAttribute('maxlength')
+    expect((input as HTMLTextAreaElement).value).toBe(safeBoundary)
+    expect(Array.from((input as HTMLTextAreaElement).value)).toHaveLength(80)
   })
 })
 

@@ -89,6 +89,29 @@ describe('HeartLineCard ritual and phrase list', () => {
     expect(screen.getByTestId('heart-line-ritual-progress')).toHaveTextContent('第 0 / 7 次心意')
   })
 
+  it('keeps up to eighty Unicode code points intact from input through save', async () => {
+    const runtime = await createRuntime()
+    renderCard(runtime)
+    const safeBoundary = `${'心'.repeat(79)}💗`
+    const overBoundary = `${safeBoundary}😘`
+
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: overBoundary } })
+    expect(screen.getByRole('textbox')).toHaveValue(safeBoundary)
+    expect(screen.getByText('80 / 80')).toBeInTheDocument()
+    expect(safeBoundary).not.toContain('�')
+    pressHeart(7)
+    await waitFor(async () => expect((await runtime.heartPhrases.getHeartPhrases())[0]?.content).toBe(safeBoundary))
+  })
+
+  it.each(['Thinking of you makes me smile. ❤️', 'Penser à toi me fait sourire. ❤️', 'Pensar en ti me hace sonreír. ❤️', 'Even on the busiest days, somehow my thoughts still find you. ❤️'])('accepts a multilingual note within eighty code points: %s', async (content) => {
+    const runtime = await createRuntime()
+    renderCard(runtime)
+    typePhrase(content)
+    expect(screen.getByRole('textbox')).toHaveValue(content)
+    pressHeart(7)
+    await waitFor(async () => expect((await runtime.heartPhrases.getHeartPhrases())[0]?.content).toBe(content))
+  })
+
   it('keeps a stable, visible heart icon for keyboard activation and the saving-disabled state', async () => {
     const runtime = await createRuntime()
     renderCard(runtime)

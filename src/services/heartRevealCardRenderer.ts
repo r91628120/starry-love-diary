@@ -1,10 +1,11 @@
 import type { HeartRevealTextPlacement, PhotoPlacement } from '../data/types'
+import { heartPhraseCodePointLength, MAX_HEART_PHRASE_CODE_POINTS } from '../data/heartPhraseLimit'
 import { calculatePhotoPlacementGeometry } from './photoPlacementGeometry'
 import { normalizePhotoPlacement } from './photoPlacement'
 
 export const HEART_REVEAL_CARD_WIDTH = 1080
 export const HEART_REVEAL_CARD_HEIGHT = 1350
-export const HEART_REVEAL_CARD_MAX_CHARS = 30
+export const HEART_REVEAL_CARD_MAX_CHARS = MAX_HEART_PHRASE_CODE_POINTS
 
 type RevealLocale = 'zh-TW' | 'en' | 'ja' | 'ko' | 'es' | 'fr'
 export type HeartRevealCardOrientation = 'landscape' | 'portrait'
@@ -21,15 +22,14 @@ export interface HeartRevealOverlayLayout {
 }
 
 export interface HeartRevealCardCopy { locale: RevealLocale }
-export interface HeartRevealCardLayout { fontSize: number; lines: string[] }
+export interface HeartRevealCardLayout { fontSize: number; lines: string[]; maxLineWidth: number }
 export interface HeartRevealPanelLayout extends HeartRevealOverlayLayout { lineHeight: number; textHeight: number }
 
 const CARD_PADDING = 54
 const PANEL_VERTICAL_PADDING = 38
 const PANEL_HORIZONTAL_PADDING = 42
+const MIN_PANEL_WIDTH = 180
 const fontFamily = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-
-function isCjkLocale(locale: RevealLocale) { return locale === 'zh-TW' || locale === 'ja' || locale === 'ko' }
 
 export function getHeartRevealOrientation(sourceWidth: number, sourceHeight: number): HeartRevealCardOrientation {
   return sourceWidth > sourceHeight ? 'landscape' : 'portrait'
@@ -38,7 +38,7 @@ export function getHeartRevealOrientation(sourceWidth: number, sourceHeight: num
 export function getHeartRevealOverlayLayout(sourceWidth = HEART_REVEAL_CARD_WIDTH, sourceHeight = HEART_REVEAL_CARD_HEIGHT, textPlacement: HeartRevealTextPlacement = 'bottom-center'): HeartRevealOverlayLayout {
   const orientation = getHeartRevealOrientation(sourceWidth, sourceHeight)
   const isSquare = sourceWidth === sourceHeight
-  const widthRatio = orientation === 'landscape' ? .40 : isSquare ? .64 : .74
+  const widthRatio = isSquare ? .64 : .74
   const width = HEART_REVEAL_CARD_WIDTH * widthRatio
   const height = HEART_REVEAL_CARD_HEIGHT * (orientation === 'landscape' ? .27 : .26)
   const horizontal = textPlacement.endsWith('left') ? 'left' : textPlacement.endsWith('right') ? 'right' : 'center'
@@ -59,48 +59,54 @@ function splitLongUnit(unit: string, measure: (value: string) => number, maxWidt
   return parts
 }
 
-function wrapText(text: string, measure: (value: string) => number, maxWidth: number, locale: RevealLocale) {
+function wrapText(text: string, measure: (value: string) => number, maxWidth: number) {
   const lines: string[] = []
   for (const paragraph of text.split(/\r?\n/)) {
     if (!paragraph) { lines.push(' '); continue }
-    const units = isCjkLocale(locale) ? [...paragraph] : paragraph.split(/(\s+)/).filter(Boolean)
+    const units = paragraph.match(/\S+|\s+/gu) ?? []
     let line = ''
     for (const unit of units) {
-      const candidate = line + unit
-      if (line && measure(candidate) > maxWidth) {
+      if (/^\s+$/u.test(unit)) {
+        if (line) line += unit
+        continue
+      }
+      const token = unit.trimStart()
+      if (line && measure(line + token) > maxWidth) {
         lines.push(line.trimEnd())
-        const next = unit.trimStart()
-        if (measure(next) > maxWidth) {
-          const pieces = splitLongUnit(next, measure, maxWidth)
+        if (measure(token) > maxWidth) {
+          const pieces = splitLongUnit(token, measure, maxWidth)
           lines.push(...pieces.slice(0, -1)); line = pieces.at(-1) ?? ''
-        } else line = next
-      } else if (!line && measure(candidate) > maxWidth) {
-        const pieces = splitLongUnit(unit.trimStart(), measure, maxWidth)
+        } else line = token
+      } else if (!line && measure(token) > maxWidth) {
+        const pieces = splitLongUnit(token, measure, maxWidth)
         lines.push(...pieces.slice(0, -1)); line = pieces.at(-1) ?? ''
-      } else line = candidate
+      } else line += token
     }
     if (line) lines.push(line.trimEnd())
   }
   return lines
 }
 
-export function getHeartRevealCardTextLayout(text: string, measure: (value: string, fontSize: number) => number, maxWidth: number, locale: RevealLocale, maxLines: number): HeartRevealCardLayout {
+export function getHeartRevealCardTextLayout(text: string, measure: (value: string, fontSize: number) => number, maxWidth: number, maxLines: number): HeartRevealCardLayout {
   for (let fontSize = 64; fontSize >= 28; fontSize -= 2) {
-    const lines = wrapText(text, (value) => measure(value, fontSize), maxWidth, locale)
-    if (lines.length <= maxLines) return { fontSize, lines }
+    const lines = wrapText(text, (value) => measure(value, fontSize), maxWidth)
+    if (lines.length <= maxLines) return { fontSize, lines, maxLineWidth: Math.max(...lines.map((line) => measure(line, fontSize))) }
   }
-  // The input is limited to 30 characters. This guard is only for an unusual
+  // The input is limited to the product maximum. This guard is only for an unusual
   // single long token and retains every character instead of silently clipping it.
   const fontSize = 26
-  return { fontSize, lines: wrapText(text, (value) => measure(value, fontSize), maxWidth, locale) }
+  const lines = wrapText(text, (value) => measure(value, fontSize), maxWidth)
+  return { fontSize, lines, maxLineWidth: Math.max(...lines.map((line) => measure(line, fontSize))) }
 }
 
 export function getHeartRevealPanelLayout(overlay: HeartRevealOverlayLayout, textLayout: HeartRevealCardLayout): HeartRevealPanelLayout {
+  const width = Math.min(overlay.width, Math.max(MIN_PANEL_WIDTH, textLayout.maxLineWidth + PANEL_HORIZONTAL_PADDING * 2))
   const lineHeight = textLayout.fontSize * 1.38
   const textHeight = textLayout.lines.length * lineHeight
   const height = textHeight + PANEL_VERTICAL_PADDING * 2
+  const x = overlay.textAlign === 'left' ? CARD_PADDING : overlay.textAlign === 'right' ? HEART_REVEAL_CARD_WIDTH - width - CARD_PADDING : (HEART_REVEAL_CARD_WIDTH - width) / 2
   const y = overlay.vertical === 'top' ? CARD_PADDING : HEART_REVEAL_CARD_HEIGHT - height - CARD_PADDING
-  return { ...overlay, y, height, lineHeight, textHeight }
+  return { ...overlay, x, y, width, height, lineHeight, textHeight }
 }
 
 function drawRoundedRect(context: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) {
@@ -135,7 +141,7 @@ function drawPlacedPhoto(context: CanvasRenderingContext2D, image: CanvasImageSo
 
 function drawOverlay(context: CanvasRenderingContext2D, text: string, copy: HeartRevealCardCopy, sourceWidth: number, sourceHeight: number, textPlacement: HeartRevealTextPlacement) {
   const overlay = getHeartRevealOverlayLayout(sourceWidth, sourceHeight, textPlacement)
-  const textLayout = getHeartRevealCardTextLayout(text, (value, fontSize) => { context.font = `600 ${fontSize}px ${fontFamily}`; return context.measureText(value).width }, overlay.width - PANEL_HORIZONTAL_PADDING * 2, copy.locale, overlay.maxLines)
+  const textLayout = getHeartRevealCardTextLayout(text, (value, fontSize) => { context.font = `600 ${fontSize}px ${fontFamily}`; return context.measureText(value).width }, overlay.width - PANEL_HORIZONTAL_PADDING * 2, overlay.maxLines)
   const panel = getHeartRevealPanelLayout(overlay, textLayout)
   context.save()
   context.fillStyle = 'rgba(255, 250, 244, 0.78)'
@@ -149,7 +155,7 @@ function drawOverlay(context: CanvasRenderingContext2D, text: string, copy: Hear
 
 export async function renderHeartRevealCardPng(text: string, copy: HeartRevealCardCopy, photoUrl?: string, placement?: Partial<PhotoPlacement>, textPlacement: HeartRevealTextPlacement = 'bottom-center', suppliedPhoto?: CanvasImageSource & { width: number; height: number }): Promise<Blob> {
   const message = text.trim()
-  if (!message || [...message].length > HEART_REVEAL_CARD_MAX_CHARS) throw new Error('Invalid heart reveal card message')
+  if (!message || heartPhraseCodePointLength(message) > HEART_REVEAL_CARD_MAX_CHARS) throw new Error('Invalid heart reveal card message')
   if (typeof document === 'undefined') throw new Error('Canvas is unavailable')
   await document.fonts?.ready
   const canvas = document.createElement('canvas'); canvas.width = HEART_REVEAL_CARD_WIDTH; canvas.height = HEART_REVEAL_CARD_HEIGHT

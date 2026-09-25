@@ -6,8 +6,9 @@ import { useI18n } from '../../i18n/I18nContext'
 import { usePersistence } from '../../data/PersistenceStateContext'
 import { advanceHeartPhraseRitual } from './heartPhraseRitual'
 import type { TranslationKey } from '../../i18n/messages'
+import { heartPhraseCodePointLength, MAX_HEART_PHRASE_CODE_POINTS, truncateHeartPhrase } from '../../data/heartPhraseLimit'
 
-const MAX_HEART_LINE_LENGTH = 30
+const MAX_HEART_LINE_LENGTH = MAX_HEART_PHRASE_CODE_POINTS
 
 interface ContextualHelpReturnState {
   heartLineHelpReturn?: boolean
@@ -79,9 +80,9 @@ export function HeartLineCard() {
     <SoftCard className="heart-line-card">
       <SectionHeader icon={<span className="section-symbol" aria-hidden="true">♥</span>} title={t('today.heartLine.title')} titleAction={<IconButton className="heart-line-card__help" ariaLabel={t('today.heartLine.help')} onClick={openHelp}><InfoIcon /></IconButton>} action={<span className="heart-line-card__limit">{t('today.heartLine.maxLength', { max: MAX_HEART_LINE_LENGTH })}</span>} />
       <label className="sr-only" htmlFor="heart-line-input">{t('today.heartLine.placeholder')}</label>
-      <textarea id="heart-line-input" value={value} maxLength={MAX_HEART_LINE_LENGTH} placeholder={t('today.heartLine.placeholder')} onChange={(event) => setValue(event.target.value.slice(0, MAX_HEART_LINE_LENGTH))} />
+      <textarea id="heart-line-input" value={value} placeholder={t('today.heartLine.placeholder')} onChange={(event) => setValue(truncateHeartPhrase(event.target.value))} />
       <div className="heart-line-card__footer">
-        <span aria-live="polite">{new Intl.NumberFormat(locale).format(value.length)} / {new Intl.NumberFormat(locale).format(MAX_HEART_LINE_LENGTH)}</span>
+        <span aria-live="polite">{new Intl.NumberFormat(locale).format(heartPhraseCodePointLength(value))} / {new Intl.NumberFormat(locale).format(MAX_HEART_LINE_LENGTH)}</span>
         <span className="heart-line-card__ritual-progress" data-testid="heart-line-ritual-progress" aria-live="polite">{editingId ? '' : t('today.heartLine.progress', { current: new Intl.NumberFormat(locale).format(pressCount) })}</span>
         <IconButton className={pressCount > 0 ? 'heart-line-card__heart heart-line-card__heart--active' : 'heart-line-card__heart'} ariaLabel={editingId ? t('today.heartLine.saveEdit') : t('today.heartLine.heart')} data-ritual-progress={pressCount} disabled={isSaving} onClick={submit}><span className="heart-line-card__heart-glyph" data-testid="heart-line-icon" aria-hidden="true">♥</span></IconButton>
       </div>

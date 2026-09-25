@@ -4,6 +4,7 @@ import type { StorageAdapter } from '../storage/StorageAdapter'
 import type { StarPresentationWriter } from './starDropPresentationRepository'
 import { MESSAGE_TO_YOU_TYPES, type AppSettings, type AwardType, type DiaryEntry, type HeartPhrase, type ImportantDate, type ImportantDateType, type MemoryMoment, type MessageToYou, type MessageToYouEntry, type MessageToYouType, type MoodKey, type MoodRecord, type Profile, type ProfileKind, type RememberedYouCard, type ScoreAward, type Star, type StarType } from '../types'
 import { SCHEMA_VERSION } from '../storage/IndexedDbStorageAdapter'
+import { heartPhraseCodePointLength, MAX_HEART_PHRASE_CODE_POINTS } from '../heartPhraseLimit'
 
 const DEFAULT_NICKNAME = '星星'
 
@@ -243,7 +244,7 @@ export interface HeartPhraseRepository {
 function validateHeartPhrase(content: string) {
   const normalized = content.trim()
   if (!normalized) throw new Error('Heart phrase is required')
-  if ([...normalized].length > 30) throw new Error('Heart phrase must not exceed 30 characters')
+  if (heartPhraseCodePointLength(normalized) > MAX_HEART_PHRASE_CODE_POINTS) throw new Error(`Heart phrase must not exceed ${MAX_HEART_PHRASE_CODE_POINTS} characters`)
   return normalized
 }
 

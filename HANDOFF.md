@@ -1,3 +1,98 @@
+# Build 17 Pre-Release Handoff
+
+## Current Release State
+
+- Marketing version: `1.0.0`
+- Current released build: `16`
+- Next planned build: `17`
+- Build 17 is **not yet released**.
+
+## Build 16 Baseline
+
+- Release commit: `21d5557cc2c00d013dbc407d2d7ddc0dca4bd38c`
+
+## Newly Approved and Locked Work
+
+1. **Seven Heart Notes Phrase Limit V3**
+   - Final limit: **80 Unicode code points**.
+   - Approved and locked.
+   - Shared source: `src/data/heartPhraseLimit.ts`.
+   - UI, repository, and Canvas renderer use the same Unicode-safe count/limit.
+   - Native HTML `maxLength` is intentionally absent to avoid UTF-16 conflicts; truncation uses `Array.from`.
+
+2. **Heart Reveal Canvas Overlay V2**
+   - Approved and locked.
+   - Content-aware panel width and height; short text remains compact.
+   - Normal sentences remain single line when they fit.
+   - Long text wraps inside the maximum panel width.
+   - Six overlay placements remain supported, including final panel-width/height positioning.
+   - Emoji and symbols remain within the panel and image bounds.
+   - Existing font, visual style, and photo reveal behavior are unchanged.
+
+3. **Latin Word Wrapping**
+   - Approved and locked.
+   - Whitespace-delimited Latin words wrap at word boundaries.
+   - Chinese, Japanese, and Korean retain Unicode-safe character wrapping.
+   - Mixed CJK/Latin remains safe.
+   - A single token wider than the available width falls back to Unicode-safe character wrapping.
+
+## Manual Visual QA
+
+Passed on desktop localhost:
+
+- Emoji and symbols
+- English and long English notes
+- Left-bottom, center-bottom, and right-bottom overlay placements
+- Content-aware panel width and multiline height
+- Latin word-boundary wrapping
+
+Validated example:
+
+> Even on busy days, I always find a quiet moment to think of you. ❤️
+
+## Locked Areas
+
+Do not casually modify:
+
+- Seven Heart Notes 80-code-point limit
+- Heart Reveal Canvas layout and Latin wrapping
+- QA-12 V4 diagnostics; do not add speculative navigation fixes
+- Star Bottle Wish-Grow V3
+- Our Moments approved mobile layout
+- Memory Wall approved layout
+- Camera permission fix
+- Remote update reminder
+- Accepted date UI
+- Existing Backup/Restore behavior
+
+## Build 17 Release Rule
+
+Before an explicitly authorized Build 17 release:
+
+1. Audit the worktree and include only approved changes.
+2. Run focused tests, the full suite, lint, production build, and `git diff --check`.
+3. Only then bump the iOS build number, commit, push, and dispatch the existing TestFlight workflow.
+
+## Git Safety
+
+Never run `reset`, `revert`, `stash`, or `clean` without explicit approval. Preserve unrelated worktree files.
+
+## Build 17 Final I18n Responsive QA
+
+- Result: PASS; no product-code change was needed.
+- Six locales reviewed: zh-TW, en, ja, ko, es, and fr.
+- Narrow mobile behavior: .moment-card switches to a single column at max-width: 30rem, keeping the photo above the content.
+- Wide/tablet behavior: the base two-column grid remains active, keeping the photo left and content right.
+- The narrow and wide layouts intentionally differ.
+- The responsive rules retain min-width: 0, overflow-wrap: anywhere, wrapping actions, and full-width date constraints to prevent clipping and horizontal overflow.
+- Existing focused localization and Moment Carousel tests cover the surrounding Our-page controls and the responsive card rule.
+- No overflow, clipping, collision, or image-distortion defect was found in the inspected layout paths.
+- Build 17 remains ready pending explicit release authorization.
+## Current Stop Point
+
+Build 17 pre-release audit is in progress. No commit, push, build-number bump, Build 17 archive, or TestFlight upload has occurred.
+
+---
 # Starry Love Diary Mobile Test Handoff
 
 ## Current Release Candidate
