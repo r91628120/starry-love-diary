@@ -1,3 +1,15 @@
+# Build 18 QA-12 V5 Diagnostic Release
+
+- Version: `1.0.0`; iOS build: `18`.
+- QA-12 V5 is a real-device forensic diagnostic build only.
+- Adds a bounded `router-location-render` probe between browser pathname mutation and the existing effect/commit evidence.
+- Marks same-route diagnostic noise separately from cross-route attempts.
+- Reduces high-frequency `pointermove` / `touchmove` synchronous diagnostic persistence while retaining movement and cancellation evidence.
+- Preserves passive busy-state evidence.
+- No QA-12 production fix, recovery, retry, reload, remount, Router architecture change, or product UI change is included.
+
+---
+
 # Build 17 Pre-Release Handoff
 
 ## Current Release State

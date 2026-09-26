@@ -13,11 +13,16 @@ import { HeartRevealPhotoPage } from '../pages/HeartRevealPhotoPage'
 import { MomentPhotoManagementPage } from '../pages/MomentPhotoManagementPage'
 import { SettingsInformationPage } from '../pages/SettingsInformationPage'
 import { usePersistence } from '../data/PersistenceStateContext'
-import { useEffect } from 'react'
-import { installQa12Diagnostics, qa12LocationCommitted } from '../services/qa12Diagnostics'
+import { useEffect, useRef } from 'react'
+import { installQa12Diagnostics, qa12LocationCommitted, qa12RouterLocationRendered } from '../services/qa12Diagnostics'
 
 function Qa12RouteCommitObserver() {
   const location = useLocation()
+  const lastRenderedPathname = useRef<string | undefined>(undefined)
+  if (lastRenderedPathname.current !== location.pathname) {
+    qa12RouterLocationRendered(location.pathname)
+    lastRenderedPathname.current = location.pathname
+  }
   useEffect(() => { qa12LocationCommitted(location.pathname) }, [location.pathname])
   return null
 }
