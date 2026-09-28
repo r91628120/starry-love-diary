@@ -161,7 +161,7 @@ function LoveBrainAiHandoff({ record }: { record: LoveBrainAssessment }) {
     setRetryDestination(undefined)
   }
   return <section className="clear-brain-v2__ai">
-    <h3>{t('clear.brain.v2.ai.title')}</h3><p>{t('clear.brain.v2.ai.body')}</p><p>{t('clear.brain.v2.ai.steps')}</p>
+    <h3>{t('clear.brain.v2.ai.title')}</h3><p>{t('clear.brain.v2.ai.body')}</p><p>{t('clear.brain.v2.ai.steps')}</p><p>{t('clear.ai.returnSteps')}</p><p>{t('clear.ai.returnHint')}</p>
     <div className="clear-flow__actions"><SecondaryButton onClick={() => request('copy')}>{t('clear.brain.v2.ai.copy')}</SecondaryButton><PrimaryButton onClick={() => request('chatgpt')}>{t('clear.brain.v2.ai.chatgpt')}</PrimaryButton><SecondaryButton onClick={() => request('gemini')}>{t('clear.brain.v2.ai.gemini')}</SecondaryButton></div>
     <p className="clear-brain-v2__privacy">{t('clear.brain.v2.ai.reminder')}</p>
     {feedback ? <p role="status">{feedback}</p> : null}

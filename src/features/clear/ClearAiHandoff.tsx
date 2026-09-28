@@ -35,7 +35,7 @@ export function ClearAiHandoff({ buildText, presentation = 'result' }: { buildTe
   }
   const isFreeTalk = presentation === 'freeTalk'
   return <SoftCard className={`clear-ai-handoff ${isFreeTalk ? 'clear-ai-handoff--free-talk' : ''}`.trim()} tone="blue">
-    <h3>{t(isFreeTalk ? 'clear.freeTalk.ai.title' : 'clear.ai.title')}</h3><p>{t(isFreeTalk ? 'clear.freeTalk.ai.body' : 'clear.ai.body')}</p><p>{t('clear.ai.steps')}</p><p>{t('clear.ai.reminder')}</p>
+    <h3>{t(isFreeTalk ? 'clear.freeTalk.ai.title' : 'clear.ai.title')}</h3><p>{t(isFreeTalk ? 'clear.freeTalk.ai.body' : 'clear.ai.body')}</p><p>{t('clear.ai.steps')}</p><p>{t('clear.ai.reminder')}</p><p>{t('clear.ai.returnSteps')}</p><p>{t('clear.ai.returnHint')}</p>
     <div className="clear-flow__actions">
       <SecondaryButton onClick={() => request('copy')}>{t(isFreeTalk ? 'clear.freeTalk.ai.copy' : 'clear.ai.copy')}</SecondaryButton>
       <PrimaryButton onClick={() => request('chatgpt')}>{t('clear.ai.chatgpt')}</PrimaryButton>

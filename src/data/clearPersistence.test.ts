@@ -157,6 +157,41 @@ describe('Free Talk repository', () => {
   })
 })
 
+describe('AI handoff reflections', () => {
+  it('saves both fields on the original five completed records without changing their identities or source results', async () => {
+    const adapter = new MemoryStorageAdapter(); await adapter.open()
+    const clear = new LocalClearRecordRepository(adapter, new LocalScoreRepository(adapter))
+    const freeTalk = new LocalClearFreeTalkRepository(adapter)
+    const boat = new LocalLoveBoatAssessmentRepository(adapter)
+    const brain = new LocalLoveBrainAssessmentRepository(adapter)
+    const like = new LocalLikeOrHabitReflectionRepository(adapter)
+    const clearRecord = await clear.complete({ triggerType: 'no_reply', facts: '尚未收到回覆', emotions: ['anxious'], emotionIntensity: 3, nextActionType: 'take_a_walk' })
+    const freeTalkDraft = await freeTalk.createDraft('想慢慢說'); const freeTalkRecord = await freeTalk.complete(freeTalkDraft.id, '想慢慢說')
+    const boatDraft = await boat.createDraft(); await boat.updateDraft(boatDraft.id, { aAnswers: answeredA(1), bAnswers: answeredB(1) }); const boatRecord = await boat.complete(boatDraft.id)
+    const brainDraft = await brain.createDraft(); await brain.updateDraft(brainDraft.id, { answers: answeredBrain(1) }); const brainRecord = await brain.complete(brainDraft.id)
+    const likeDraft = await like.createDraft(); await like.updateDraft(likeDraft.id, { answers: completedLikeOrHabitAnswers() }); const likeRecord = await like.complete(likeDraft.id)
+    const sources = [
+      [clearRecord, (changes: { aiResponseExcerpt?: string; postChatReflection?: string }) => clear.updateAiHandoff(clearRecord.id, changes)],
+      [freeTalkRecord, (changes: { aiResponseExcerpt?: string; postChatReflection?: string }) => freeTalk.updateAiHandoff(freeTalkRecord.id, changes)],
+      [boatRecord, (changes: { aiResponseExcerpt?: string; postChatReflection?: string }) => boat.updateAiHandoff(boatRecord.id, changes)],
+      [brainRecord, (changes: { aiResponseExcerpt?: string; postChatReflection?: string }) => brain.updateAiHandoff(brainRecord.id, changes)],
+      [likeRecord, (changes: { aiResponseExcerpt?: string; postChatReflection?: string }) => like.updateAiHandoff(likeRecord.id, changes)],
+    ] as const
+    for (const [source, update] of sources) {
+      const updated = await update({ aiResponseExcerpt: 'A'.repeat(5000), postChatReflection: 'B'.repeat(2000) })
+      expect(updated).toMatchObject({ id: source.id, createdAt: source.createdAt, localDate: source.localDate, aiResponseExcerpt: 'A'.repeat(5000), postChatReflection: 'B'.repeat(2000) })
+      expect(updated.updatedAt >= source.updatedAt).toBe(true)
+      await expect(update({ aiResponseExcerpt: 'A'.repeat(5001), postChatReflection: 'ok' })).rejects.toMatchObject({ code: 'ai_response_excerpt_too_long' })
+      await expect(update({ aiResponseExcerpt: 'ok', postChatReflection: 'B'.repeat(2001) })).rejects.toMatchObject({ code: 'post_chat_reflection_too_long' })
+    }
+    expect(await adapter.getAll('clearRecords')).toHaveLength(1)
+    expect(await adapter.getAll('clearFreeTalkRecords')).toHaveLength(1)
+    expect(await adapter.getAll('loveBoatAssessments')).toHaveLength(1)
+    expect(await adapter.getAll('loveBrainAssessments')).toHaveLength(1)
+    expect(await adapter.getAll('likeOrHabitReflections')).toHaveLength(1)
+  })
+})
+
 describe('Clear completion local-date contract', () => {
   it('writes completion-day localDate for all four tools, including a draft that crosses midnight', async () => {
     vi.useFakeTimers({ toFake: ['Date'] })

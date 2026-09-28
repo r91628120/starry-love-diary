@@ -34,6 +34,7 @@ import { qa12DiagnosticsMessages } from './qa12DiagnosticsMessages'
 import { starBottleHelpMessages } from './starBottleHelpMessages'
 import { clearAiHandoffMessages } from './clearAiHandoffMessages'
 import { freeTalkMessages } from './freeTalkMessages'
+import { aiHandoffReflectionMessages } from './aiHandoffReflectionMessages'
 
 export const supportedLocales = ['zh-TW', 'en', 'ja', 'ko', 'es', 'fr'] as const
 
@@ -182,6 +183,7 @@ export const messages = {
     ...starBottleHelpMessages['zh-TW'],
     ...clearAiHandoffMessages['zh-TW'],
     ...freeTalkMessages['zh-TW'],
+    ...aiHandoffReflectionMessages['zh-TW'],
     ...importAppDataMessages['zh-TW'],
     ...clearRelationshipMessages['zh-TW'],
     ...settingsInformationMessages['zh-TW'],
@@ -313,6 +315,7 @@ export const messages = {
     ...starBottleHelpMessages.en,
     ...clearAiHandoffMessages.en,
     ...freeTalkMessages.en,
+    ...aiHandoffReflectionMessages.en,
     ...importAppDataMessages.en,
     ...clearRelationshipMessages.en,
     ...settingsInformationMessages.en,
@@ -444,6 +447,7 @@ export const messages = {
     ...starBottleHelpMessages.ja,
     ...clearAiHandoffMessages.ja,
     ...freeTalkMessages.ja,
+    ...aiHandoffReflectionMessages.ja,
     ...importAppDataMessages.ja,
     ...clearRelationshipMessages.ja,
     ...settingsInformationMessages.ja,
@@ -575,6 +579,7 @@ export const messages = {
     ...starBottleHelpMessages.ko,
     ...clearAiHandoffMessages.ko,
     ...freeTalkMessages.ko,
+    ...aiHandoffReflectionMessages.ko,
     ...importAppDataMessages.ko,
     ...clearRelationshipMessages.ko,
     ...settingsInformationMessages.ko,
@@ -706,6 +711,7 @@ export const messages = {
     ...starBottleHelpMessages.es,
     ...clearAiHandoffMessages.es,
     ...freeTalkMessages.es,
+    ...aiHandoffReflectionMessages.es,
     ...importAppDataMessages.es,
     ...clearRelationshipMessages.es,
     ...settingsInformationMessages.es,
@@ -837,6 +843,7 @@ export const messages = {
     ...starBottleHelpMessages.fr,
     ...clearAiHandoffMessages.fr,
     ...freeTalkMessages.fr,
+    ...aiHandoffReflectionMessages.fr,
     ...importAppDataMessages.fr,
     ...clearRelationshipMessages.fr,
     ...settingsInformationMessages.fr,

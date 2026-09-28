@@ -1,6 +1,11 @@
 export type ClearToolSourceType = 'clear_record' | 'love_boat_code' | 'love_brain_assessment' | 'like_or_habit' | 'free_talk'
 export type AssessmentStatus = 'draft' | 'completed'
 
+export interface AiHandoffReflection {
+  aiResponseExcerpt?: string
+  postChatReflection?: string
+}
+
 export type ClearTriggerType = 'no_reply' | 'attitude_changed' | 'social_media' | 'argument' | 'missing_them' | 'waiting_response' | 'overthinking' | 'other'
 export type ClearEmotion = 'missing' | 'anxious' | 'sad' | 'hurt' | 'angry' | 'jealous' | 'afraid' | 'lost' | 'confused' | 'hopeful'
 export type BodySensation = 'chest_tight' | 'heart_racing' | 'stomach_uncomfortable' | 'restless' | 'tired' | 'sleepless' | 'want_to_cry' | 'none' | 'other'
@@ -9,7 +14,7 @@ export type ClearObservationAnswer = 'yes' | 'no' | 'unknown'
 export type ClearNeed = 'reassurance' | 'understanding' | 'respect' | 'company' | 'space' | 'clarity' | 'boundaries' | 'rest' | 'return_to_life' | 'unknown'
 export type ClearActionType = 'put_phone_down' | 'stop_checking_social' | 'shower_or_rest' | 'take_a_walk' | 'continue_own_plan' | 'talk_to_trusted_person' | 'reply_when_calm' | 'decide_tomorrow' | 'write_diary' | 'custom'
 
-export interface ClearRecord {
+export interface ClearRecord extends AiHandoffReflection {
   id: string
   triggerType?: ClearTriggerType
   triggerText?: string
@@ -31,7 +36,7 @@ export interface ClearRecord {
   completedAt: string
 }
 
-export interface ClearFreeTalkRecord {
+export interface ClearFreeTalkRecord extends AiHandoffReflection {
   id: string
   text: string
   status: 'draft' | 'completed'
@@ -53,7 +58,7 @@ export type BoatCrossResultKey =
   | 'high_low' | 'high_mixed' | 'high_good' | 'high_high'
   | 'very_high_low' | 'very_high_mixed' | 'very_high_good' | 'very_high_high'
 
-export interface LoveBoatAssessment {
+export interface LoveBoatAssessment extends AiHandoffReflection {
   id: string
   status: AssessmentStatus
   currentSection: 'A' | 'B' | 'result'
@@ -108,7 +113,7 @@ export interface LoveBrainV2Scores {
   totalScore: number
 }
 
-export interface LoveBrainAssessment {
+export interface LoveBrainAssessment extends AiHandoffReflection {
   id: string
   status: AssessmentStatus
   answers: Partial<Record<LoveBrainQuestionKey, LoveBrainAnswer>>
@@ -180,7 +185,7 @@ export interface LikeOrHabitAnswers {
   }
 }
 
-export interface LikeOrHabitReflection {
+export interface LikeOrHabitReflection extends AiHandoffReflection {
   id: string
   status: AssessmentStatus
   currentSection: LikeOrHabitSection

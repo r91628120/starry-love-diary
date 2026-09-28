@@ -6,6 +6,7 @@ import { usePersistence } from '../../data/PersistenceStateContext'
 import { useI18n } from '../../i18n/I18nContext'
 import { buildClearFreeTalkAiHandoffText } from '../../services/clearAiHandoffBuilders'
 import { ClearAiHandoff } from './ClearAiHandoff'
+import { AiHandoffReflection } from './AiHandoffReflection'
 
 const MAX_LENGTH = 1500
 
@@ -86,6 +87,7 @@ export function ClearFreeTalkFlow({ recordId, onDone, onStartNew }: { recordId?:
     <header className="clear-free-talk-flow__header">{back}<div><h2>{t('clear.freeTalk.title')}</h2></div></header>
     <p className="clear-free-talk-flow__record">{record.text}</p>
     <ClearAiHandoff presentation="freeTalk" buildText={() => buildClearFreeTalkAiHandoffText(record.text, locale)} />
+    <AiHandoffReflection record={record} onSave={async (changes) => { const updated = await persistence!.repositories.clearFreeTalkRecords.updateAiHandoff(record.id, changes); recordRef.current = updated; setRecord(updated); return updated }} />
     <div className="clear-flow__actions clear-free-talk-flow__record-actions"><PrimaryButton onClick={() => setEditing(true)}>{t('clear.freeTalk.edit')}</PrimaryButton><SecondaryButton className="button--danger" onClick={() => setConfirmDelete(true)}>{t('clear.freeTalk.delete')}</SecondaryButton></div>
     <div className="clear-free-talk-flow__new-action"><SecondaryButton onClick={() => { onStartNew(); recordRef.current = undefined; textRef.current = ''; setRecord(undefined); setText(''); setEditing(true) }}>{t('clear.freeTalk.new')}</SecondaryButton></div>
     <ConfirmDialog open={confirmDelete} title={t('clear.freeTalk.deleteTitle')} description={t('clear.freeTalk.deleteBody')} onConfirm={() => void remove()} onCancel={() => setConfirmDelete(false)} />

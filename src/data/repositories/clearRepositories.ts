@@ -1,5 +1,6 @@
 import { getDeviceTimezone, toLocalDate } from '../../services/localDateService'
 import type {
+  AiHandoffReflection,
   BoatCrossResultKey,
   BoatInvestmentAnswer,
   BoatInvestmentQuestionKey,
@@ -49,6 +50,25 @@ function validateText(value: string | undefined, max: number, code: string) {
   if (count(value) > max) throw new ClearDataValidationError('Text exceeds ' + max + ' characters', code)
   const normalized = value?.trim()
   return normalized || undefined
+}
+
+export const MAX_AI_RESPONSE_EXCERPT_CHARACTERS = 5000
+export const MAX_POST_CHAT_REFLECTION_CHARACTERS = 2000
+export type AiHandoffReflectionInput = Pick<AiHandoffReflection, 'aiResponseExcerpt' | 'postChatReflection'>
+
+function normalizeAiHandoffReflection(input: AiHandoffReflectionInput): AiHandoffReflection {
+  return {
+    aiResponseExcerpt: validateText(input.aiResponseExcerpt, MAX_AI_RESPONSE_EXCERPT_CHARACTERS, 'ai_response_excerpt_too_long'),
+    postChatReflection: validateText(input.postChatReflection, MAX_POST_CHAT_REFLECTION_CHARACTERS, 'post_chat_reflection_too_long'),
+  }
+}
+
+async function saveAiHandoffReflection<T extends AiHandoffReflection & { id: string; updatedAt: string }>(storage: StorageAdapter, store: StoreName, existing: T | undefined | Promise<T | undefined>, label: string, changes: AiHandoffReflectionInput): Promise<T> {
+  const current = await existing
+  if (!current) throw new ClearDataValidationError(label + ' not found', 'not_found')
+  const updated = { ...current, ...normalizeAiHandoffReflection(changes), updatedAt: now() }
+  await storage.put(store, updated)
+  return updated
 }
 
 function requireDraft<T extends { status: 'draft' | 'completed' }>(record: T | undefined, label: string): T {
@@ -157,6 +177,7 @@ export class LocalClearRecordRepository {
   }
   getById(recordId: string) { return this.storage.get<ClearRecord>('clearRecords', recordId) }
   async list() { return listNewest<ClearRecord>(this.storage, 'clearRecords') }
+  updateAiHandoff(recordId: string, changes: AiHandoffReflectionInput) { return saveAiHandoffReflection(this.storage, 'clearRecords', this.getById(recordId), 'Clear record', changes) }
   async delete(recordId: string, deleteStar = false) { await deleteLinkedRecord(this.storage, 'clearRecords', await this.getById(recordId), deleteStar, this.presentations) }
   async saveAsClearMindStar(recordId: string) {
     const record = await this.getById(recordId)
@@ -191,6 +212,11 @@ export class LocalClearFreeTalkRepository {
     const record = await this.getById(id); if (!record || record.status !== 'completed') throw new ClearDataValidationError('Free Talk record not found', 'free_talk_completed_unavailable')
     const value = validateText(text, 1500, 'free_talk_text_too_long'); if (!value) throw new ClearDataValidationError('Free Talk text is required', 'free_talk_text_required')
     const updated = { ...record, text: value, updatedAt: now() }; await this.storage.put('clearFreeTalkRecords', updated); return updated
+  }
+  async updateAiHandoff(recordId: string, changes: AiHandoffReflectionInput) {
+    const record = await this.getById(recordId)
+    if (record?.status !== 'completed') throw new ClearDataValidationError('Free Talk record not found', 'free_talk_completed_unavailable')
+    return saveAiHandoffReflection(this.storage, 'clearFreeTalkRecords', record, 'Free Talk record', changes)
   }
   delete(id: string) { return this.storage.delete('clearFreeTalkRecords', id) }
 }
@@ -303,6 +329,11 @@ export class LocalLoveBoatAssessmentRepository {
     const updated: LoveBoatAssessment = { ...existing, noteToSay: validateText(noteToSay, 500, 'love_boat_note_too_long'), updatedAt: now() }
     await this.storage.put('loveBoatAssessments', updated)
     return updated
+  }
+  async updateAiHandoff(recordId: string, changes: AiHandoffReflectionInput) {
+    const record = await this.getById(recordId)
+    if (record?.status !== 'completed') throw new ClearDataValidationError('Love boat assessment not found', 'love_boat_handoff_unavailable')
+    return saveAiHandoffReflection(this.storage, 'loveBoatAssessments', record, 'Love boat assessment', changes)
   }
   async delete(recordId: string, deleteStar = false) { await deleteLinkedRecord(this.storage, 'loveBoatAssessments', await this.getById(recordId), deleteStar, this.presentations) }
   async saveAsClearMindStar(recordId: string) {
@@ -438,6 +469,11 @@ export class LocalLoveBrainAssessmentRepository {
     const updated: LoveBrainAssessment = { ...existing, noteToSay: validateText(noteToSay, 500, 'love_brain_note_too_long'), updatedAt: now() }
     await this.storage.put('loveBrainAssessments', updated)
     return updated
+  }
+  async updateAiHandoff(recordId: string, changes: AiHandoffReflectionInput) {
+    const record = await this.getById(recordId)
+    if (record?.status !== 'completed') throw new ClearDataValidationError('Love brain assessment not found', 'love_brain_handoff_unavailable')
+    return saveAiHandoffReflection(this.storage, 'loveBrainAssessments', record, 'Love brain assessment', changes)
   }
   async delete(recordId: string, deleteStar = false) { await deleteLinkedRecord(this.storage, 'loveBrainAssessments', await this.getById(recordId), deleteStar, this.presentations) }
   async saveAsClearMindStar(recordId: string) {
@@ -585,6 +621,11 @@ export class LocalLikeOrHabitReflectionRepository {
     const completed: LikeOrHabitReflection = { ...existing, ...result, status: 'completed', currentSection: 'result', localDate: toLocalDate(), timezone: getDeviceTimezone(), completedAt: timestamp, updatedAt: timestamp }
     await this.storage.put('likeOrHabitReflections', completed)
     return completed
+  }
+  async updateAiHandoff(recordId: string, changes: AiHandoffReflectionInput) {
+    const record = await this.getById(recordId)
+    if (record?.status !== 'completed') throw new ClearDataValidationError('Like or habit reflection not found', 'like_or_habit_handoff_unavailable')
+    return saveAiHandoffReflection(this.storage, 'likeOrHabitReflections', record, 'Like or habit reflection', changes)
   }
   async delete(recordId: string, deleteStar = false) { await deleteLinkedRecord(this.storage, 'likeOrHabitReflections', await this.getById(recordId), deleteStar, this.presentations) }
   async saveAsClearMindStar(recordId: string) {

@@ -45,7 +45,7 @@ describe('Clear six-language localization', () => {
 
   it('has the same complete Clear UI key set for every locale', () => {
     const canonicalClearKeys = Object.keys(messages['zh-TW']).filter((key) => key.startsWith('clear.')).sort()
-    expect(canonicalClearKeys).toHaveLength(551)
+    expect(canonicalClearKeys).toHaveLength(564)
     for (const locale of supportedLocales) {
       const localeKeys = Object.keys(messages[locale]).filter((key) => key.startsWith('clear.')).sort()
       expect(localeKeys, locale).toEqual(canonicalClearKeys)
