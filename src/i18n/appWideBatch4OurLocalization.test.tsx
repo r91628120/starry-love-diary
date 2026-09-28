@@ -113,7 +113,7 @@ describe('Milestone 4C-3 Batch 4 Our localization', () => {
     expect((await runtime.settings.getSettings())?.locale).toBe('en')
   })
 
-  it('shows repository validation as localized system copy without changing limits', async () => {
+  it('keeps the localized editor from accepting a 301st grapheme', async () => {
     const runtime = await initializePersistence({ adapter: new MemoryStorageAdapter(), defaultLocale: 'en', localDate: '2026-08-31' })
     render(
       <PersistenceProvider runtime={runtime}>
@@ -123,9 +123,11 @@ describe('Milestone 4C-3 Batch 4 Our localization', () => {
       </PersistenceProvider>,
     )
 
-    fireEvent.change(screen.getByRole('textbox', { name: 'Write what you want to say' }), { target: { value: 'x'.repeat(301) } })
+    const editor = screen.getByRole('textbox', { name: 'Write what you want to say' })
+    fireEvent.change(editor, { target: { value: 'x'.repeat(301) } })
+    expect(editor).toHaveValue('')
     fireEvent.click(screen.getByRole('button', { name: 'Save this message' }))
-    expect(await screen.findByText('Your message can contain up to 300 characters.')).toBeInTheDocument()
+    expect(await screen.findByText('The message cannot be blank.')).toBeInTheDocument()
     expect(await runtime.messageToYou.getMessage()).toBeUndefined()
   })
 })

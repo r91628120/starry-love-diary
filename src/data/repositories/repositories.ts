@@ -5,6 +5,7 @@ import type { StarPresentationWriter } from './starDropPresentationRepository'
 import { MESSAGE_TO_YOU_TYPES, type AppSettings, type AwardType, type DiaryEntry, type HeartPhrase, type ImportantDate, type ImportantDateType, type MemoryMoment, type MessageToYou, type MessageToYouEntry, type MessageToYouType, type MoodKey, type MoodRecord, type Profile, type ProfileKind, type RememberedYouCard, type ScoreAward, type Star, type StarType } from '../types'
 import { SCHEMA_VERSION } from '../storage/IndexedDbStorageAdapter'
 import { heartPhraseCodePointLength, MAX_HEART_PHRASE_CODE_POINTS } from '../heartPhraseLimit'
+import { countGraphemes } from '../../services/graphemes'
 
 const DEFAULT_NICKNAME = '星星'
 
@@ -371,7 +372,7 @@ export class LocalMessageToYouRepository implements MessageToYouRepository {
   getMessage() { return this.storage.get<MessageToYou>('messageToYou', 'message-to-you') }
   async saveMessage(content: string) {
     const normalized = requiredText(content, 'Message')
-    if ([...normalized].length > 300) throw new OurDataValidationError('Message to you must not exceed 300 characters', 'message_too_long')
+    if (countGraphemes(normalized) > 300) throw new OurDataValidationError('Message to you must not exceed 300 characters', 'message_too_long')
     const existing = await this.getMessage()
     const timestamp = now()
     const message: MessageToYou = existing ? { ...existing, content: normalized, updatedAt: timestamp } : { id: 'message-to-you', content: normalized, createdAt: timestamp, updatedAt: timestamp }
@@ -408,7 +409,7 @@ export class LocalMessageToYouRepository implements MessageToYouRepository {
   deleteEntry(entryId: string) { return this.storage.delete('messageToYou', entryId) }
   private validateContent(content: string) {
     const normalized = requiredText(content, 'Message')
-    if ([...normalized].length > 300) throw new OurDataValidationError('Message to you must not exceed 300 characters', 'message_too_long')
+    if (countGraphemes(normalized) > 300) throw new OurDataValidationError('Message to you must not exceed 300 characters', 'message_too_long')
     return normalized
   }
 }
