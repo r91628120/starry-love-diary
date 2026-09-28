@@ -126,4 +126,26 @@ describe('Footprints Runtime Fix Batch 1', () => {
     expect(await screen.findByRole('heading', { level: 1, name: '清醒' })).toBeInTheDocument()
     expect((await screen.findAllByText('真實清醒紀錄')).length).toBeGreaterThan(0)
   })
+
+  it('keeps full Clear content for its detail route while marking its Footprints preview for one-line visual truncation', async () => {
+    const runtime = await initializePersistence({ adapter: new MemoryStorageAdapter(), defaultLocale: 'zh-TW', localDate: '2026-08-31' })
+    const longText = '由於我們常不聯絡，他在遠地工作，所以我很想要每天看到他，也很希望能常跟他聯絡，並且想好好說出我現在的感受。'
+    const draft = await runtime.clearFreeTalkRecords.createDraft(longText)
+    await runtime.clearFreeTalkRecords.complete(draft.id, longText)
+    render(<PersistenceProvider runtime={runtime}><I18nProvider initialLocale="zh-TW"><MemoryRouter initialEntries={['/footprints']}><Routes><Route path="/footprints" element={<FootprintsPage />} /><Route path="/clear" element={<ClearPage />} /></Routes></MemoryRouter></I18nProvider></PersistenceProvider>)
+
+    const preview = await screen.findByText(longText)
+    expect(preview).toHaveClass('recent-footprint__summary')
+    expect(preview.closest('.recent-footprint')).toHaveClass('recent-footprint--clear')
+    fireEvent.click(preview.closest('button') as HTMLButtonElement)
+    expect((await screen.findAllByText(longText)).length).toBeGreaterThan(0)
+  })
+
+  it('uses a one-line ellipsis rule only for Clear previews in Footprints', () => {
+    const styles = readFileSync('src/features/footprints/footprints.css', 'utf8')
+
+    expect(styles).toMatch(
+      /\.recent-footprint--clear \.recent-footprint__summary\s*\{[^}]*overflow:hidden[^}]*overflow-wrap:normal[^}]*text-overflow:ellipsis[^}]*white-space:nowrap/,
+    )
+  })
 })

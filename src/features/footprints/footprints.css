@@ -84,6 +84,7 @@
 .recent-footprint--clear .recent-footprint__tag { background:var(--color-blue-100);color:#547da9; }
 .recent-footprint__tag img { width:1.55rem;height:1.55rem;flex:0 0 1.55rem;object-fit:contain; }
 .recent-footprint__summary { min-width:0;line-height:1.4;overflow-wrap:anywhere; }
+.recent-footprint--clear .recent-footprint__summary { overflow:hidden;overflow-wrap:normal;text-overflow:ellipsis;white-space:nowrap; }
 .recent-footprint__summary--expanded { white-space:pre-wrap; }
 .recent-footprint__summary-toggle { grid-column:3;justify-self:start;min-width:0;padding:0;border:0;background:transparent;color:var(--color-pink-500);font:inherit;font-size:var(--font-size-caption);font-weight:var(--font-weight-semibold);text-decoration:underline;cursor:pointer;overflow-wrap:anywhere; }
 .recent-footprint__summary-toggle:hover { color:var(--color-pink-600); }

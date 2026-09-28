@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { PersistenceProvider } from '../../data/PersistenceContext'
@@ -38,6 +39,28 @@ describe('Clear year and month grouped history', () => {
     expect(within(historySection()).queryByText('喜歡？習慣？')).not.toBeInTheDocument()
     expect(screen.queryByText('boat-draft')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: '查看全部清醒紀錄' })).toBeInTheDocument()
+  })
+
+  it('keeps a full free-talk record value in the card while using the list preview class', async () => {
+    const runtime = await createRuntime()
+    const longText = 'This is a long English message that must stay intact for the detail flow while its history card remains a compact one-line preview.'
+    const draft = await runtime.clearFreeTalkRecords.createDraft(longText)
+    await runtime.clearFreeTalkRecords.complete(draft.id, longText)
+    renderHistory(runtime)
+    const preview = (await screen.findAllByText(longText)).find((element) => element.closest('.clear-record-button'))
+    expect(preview).toBeDefined()
+    expect(preview?.tagName).toBe('P')
+    expect(preview?.closest('button')).toHaveClass('clear-record-button')
+    fireEvent.click(preview?.closest('button') as HTMLButtonElement)
+    expect((await screen.findAllByText(longText)).length).toBeGreaterThan(0)
+  })
+
+  it('defines a single-line ellipsis rule for Clear history previews', () => {
+    const styles = readFileSync('src/features/clear/clear.css', 'utf8')
+
+    expect(styles).toMatch(
+      /\.clear-record-button p\{[^}]*min-width:0[^}]*overflow:hidden[^}]*overflow-wrap:normal[^}]*text-overflow:ellipsis[^}]*white-space:nowrap/,
+    )
   })
 
   it('groups all completed records by descending year and month with independent toggles', async () => {
