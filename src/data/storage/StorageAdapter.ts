@@ -2,7 +2,8 @@ export const LEGACY_V4_STORE_NAMES = ['profiles', 'settings', 'moods', 'diaries'
 export const PHOTO_V5_STORE_NAMES = ['photoAssets', 'photoAssetBlobs', 'diaryPhotos', 'photoLayouts', 'heartRevealProjects', 'heartRevealLines', 'heartRevealCards'] as const
 export const STAR_DROP_V6_STORE_NAMES = ['starDropPresentations'] as const
 export const DIARY_DRAFT_V7_STORE_NAMES = ['diaryDrafts'] as const
-export const STORE_NAMES = [...LEGACY_V4_STORE_NAMES, ...PHOTO_V5_STORE_NAMES, ...STAR_DROP_V6_STORE_NAMES, ...DIARY_DRAFT_V7_STORE_NAMES] as const
+export const FREE_TALK_V8_STORE_NAMES = ['clearFreeTalkRecords'] as const
+export const STORE_NAMES = [...LEGACY_V4_STORE_NAMES, ...PHOTO_V5_STORE_NAMES, ...STAR_DROP_V6_STORE_NAMES, ...DIARY_DRAFT_V7_STORE_NAMES, ...FREE_TALK_V8_STORE_NAMES] as const
 export type StoreName = (typeof STORE_NAMES)[number]
 
 export interface StorageAdapter {

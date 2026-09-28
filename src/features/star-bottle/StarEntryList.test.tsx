@@ -44,6 +44,30 @@ afterEach(() => {
 })
 
 describe('Star Bottle full list', () => {
+  it('keeps the help concise by default and reveals the two star types and score rules on demand', async () => {
+    await renderPage()
+
+    expect(screen.getByText('星星瓶記錄了什麼？')).toBeInTheDocument()
+    expect(document.querySelector('.star-bottle-help__disclosure')).not.toHaveAttribute('open')
+    expect(document.querySelector('.star-bottle-help__score-disclosure')).not.toHaveAttribute('open')
+
+    fireEvent.click(screen.getByText('星星瓶記錄了什麼？'))
+    expect(screen.getByText('🌷 心情星星')).toBeInTheDocument()
+    expect(screen.getByText('✨ 清醒星星')).toBeInTheDocument()
+    expect(screen.getByText(/看到飛進星星瓶裡的星星，就是這顆「心情星星」/)).toBeInTheDocument()
+    expect(screen.getByText(/清醒星星會直接收藏在星星瓶的紀錄裡，不會播放心情星星的入瓶動畫/)).toBeInTheDocument()
+    expect(screen.getByText('星心值和星星數量不一樣。')).toBeInTheDocument()
+    expect(document.querySelector('.star-bottle-help__score-disclosure')).not.toHaveAttribute('open')
+    expect(screen.queryByText(/每顆星.*一點星心值/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/所有清醒工具.*\+5/)).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('💗 星心值是什麼？'))
+    for (const [label, points] of [['每日首次開啟 App', '+1'], ['記錄當日心情', '+2'], ['完成「開始整理心情」', '+5'], ['建立一篇日記', '+7'], ['分享每日語錄', '+10']] as const) {
+      expect(screen.getByText(label)).toBeInTheDocument()
+      expect(screen.getByText(points)).toBeInTheDocument()
+    }
+  })
+
   it('groups all real stars by descending year and month, with only the latest month expanded by default', async () => {
     const runtime = await renderPage()
     expect(document.querySelectorAll('.star-entry')).toHaveLength(1)

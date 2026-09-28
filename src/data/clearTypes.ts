@@ -1,4 +1,4 @@
-export type ClearToolSourceType = 'clear_record' | 'love_boat_code' | 'love_brain_assessment' | 'like_or_habit'
+export type ClearToolSourceType = 'clear_record' | 'love_boat_code' | 'love_brain_assessment' | 'like_or_habit' | 'free_talk'
 export type AssessmentStatus = 'draft' | 'completed'
 
 export type ClearTriggerType = 'no_reply' | 'attitude_changed' | 'social_media' | 'argument' | 'missing_them' | 'waiting_response' | 'overthinking' | 'other'
@@ -31,6 +31,16 @@ export interface ClearRecord {
   completedAt: string
 }
 
+export interface ClearFreeTalkRecord {
+  id: string
+  text: string
+  status: 'draft' | 'completed'
+  localDate: string
+  timezone: string
+  createdAt: string
+  updatedAt: string
+}
+
 export type BoatInvestmentQuestionKey = 'a01' | 'a02' | 'a03' | 'a04' | 'a05' | 'a06' | 'a07' | 'a08' | 'a09' | 'a10' | 'a11' | 'a12'
 export type BoatResponseQuestionKey = 'b01' | 'b02' | 'b03' | 'b04' | 'b05' | 'b06' | 'b07' | 'b08' | 'b09' | 'b10'
 export type BoatInvestmentAnswer = 0 | 1 | 2 | 3
@@ -59,6 +69,8 @@ export interface LoveBoatAssessment {
   bLevel?: ResponseLevel
   crossResultKey?: BoatCrossResultKey
   resultVariantIndex?: number
+  /** Optional user-provided context for a completed Love Boat result. */
+  noteToSay?: string
   clearMindStarId?: string
   localDate: string
   timezone: string
@@ -68,6 +80,7 @@ export interface LoveBoatAssessment {
 }
 
 export type LoveBrainPattern = 'rumination' | 'message_dependency' | 'over_interpretation' | 'detective' | 'self_sacrifice'
+export type LoveBrainQuizVersion = 1 | 2
 export type LoveBrainQuestionKey =
   | 'rumination_01' | 'rumination_02' | 'rumination_03' | 'rumination_04' | 'rumination_05'
   | 'message_dependency_01' | 'message_dependency_02' | 'message_dependency_03' | 'message_dependency_04' | 'message_dependency_05'
@@ -85,12 +98,27 @@ export interface LoveBrainScores {
   total: number
 }
 
+/** Clean V2 labels coexist with stable legacy persistence keys. */
+export interface LoveBrainV2Scores {
+  rumination: number
+  messagePull: number
+  overInterpretation: number
+  checking: number
+  selfNeglect: number
+  totalScore: number
+}
+
 export interface LoveBrainAssessment {
   id: string
   status: AssessmentStatus
   answers: Partial<Record<LoveBrainQuestionKey, LoveBrainAnswer>>
   currentQuestionIndex: number
+  /** Missing means a completed legacy V1 assessment. */
+  quizVersion?: LoveBrainQuizVersion
   scores?: LoveBrainScores
+  v2Scores?: LoveBrainV2Scores
+  /** Optional free-form context attached to this completed V2 assessment only. */
+  noteToSay?: string
   primaryPattern?: LoveBrainPattern
   primaryPatterns?: LoveBrainPattern[]
   secondaryPattern?: LoveBrainPattern

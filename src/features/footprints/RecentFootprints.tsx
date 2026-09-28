@@ -43,17 +43,22 @@ export function RecentFootprints({ search }: { search: string }) {
       persistence.repositories.diaries.getDiaries(),
       persistence.repositories.moods.getMoods(),
       persistence.repositories.clearRecords.list(),
+      persistence.repositories.clearFreeTalkRecords.list(),
       persistence.repositories.loveBoatAssessments.list(),
       persistence.repositories.loveBrainAssessments.list(),
       persistence.repositories.likeOrHabitReflections.list(),
-    ]).then(([diaries, moods, clearRecords, boats, brains, reflections]) => {
+    ]).then(([diaries, moods, clearRecords, freeTalks, boats, brains, reflections]) => {
       if (!active) return
       setEntries(sortRecentFootprints([
         ...diaries.map((record) => ({ id: `diary:${record.id}`, recordId: record.id, type: 'diary' as const, localDate: record.localDate, occurredAt: record.updatedAt, summary: record.title?.trim() || record.content })),
         ...moods.map((record) => ({ id: `mood:${record.id}`, recordId: record.id, type: 'mood' as const, localDate: record.localDate, occurredAt: record.updatedAt, summary: t(`today.mood.${record.mood}` as TranslationKey), mood: record.mood })),
         ...clearRecords.map((record) => ({ id: `clear_record:${record.id}`, recordId: record.id, type: 'clear' as const, sourceType: 'clear_record' as const, localDate: record.localDate, occurredAt: record.completedAt, summary: record.triggerText || record.facts || t('clear.history.clearRecord') })),
+        ...freeTalks.map((record) => ({ id: `free_talk:${record.id}`, recordId: record.id, type: 'clear' as const, sourceType: 'free_talk' as const, localDate: record.localDate, occurredAt: record.updatedAt, summary: record.text })),
         ...boats.filter((record) => record.status === 'completed').map((record) => ({ id: `love_boat_code:${record.id}`, recordId: record.id, type: 'clear' as const, sourceType: 'love_boat_code' as const, localDate: record.localDate, occurredAt: record.completedAt ?? record.updatedAt, summary: t('clear.history.loveBoat') })),
-        ...brains.filter((record) => record.status === 'completed').map((record) => ({ id: `love_brain_assessment:${record.id}`, recordId: record.id, type: 'clear' as const, sourceType: 'love_brain_assessment' as const, localDate: record.localDate, occurredAt: record.completedAt ?? record.updatedAt, summary: t('clear.history.loveBrain') })),
+        ...brains.filter((record) => record.status === 'completed').map((record) => {
+          const noteSummary = record.noteToSay ? getRecentDiarySummary(record.noteToSay) : undefined
+          return { id: `love_brain_assessment:${record.id}`, recordId: record.id, type: 'clear' as const, sourceType: 'love_brain_assessment' as const, localDate: record.localDate, occurredAt: record.updatedAt, summary: noteSummary ? `${t('clear.brain.v2.note.title')} ${noteSummary.isLong ? noteSummary.collapsed : noteSummary.normalized}` : t('clear.history.loveBrain') }
+        }),
         ...reflections.filter((record) => record.status === 'completed').map((record) => ({ id: `like_or_habit:${record.id}`, recordId: record.id, type: 'clear' as const, sourceType: 'like_or_habit' as const, localDate: record.localDate, occurredAt: record.completedAt ?? record.updatedAt, summary: t('clear.history.likeOrHabit') })),
       ]))
     })
@@ -73,7 +78,7 @@ export function RecentFootprints({ search }: { search: string }) {
 
   const openEntry = (entry: RecentFootprintEntry) => {
     if (entry.type === 'clear' && entry.sourceType) {
-      navigate(`/clear?sourceType=${entry.sourceType}&recordId=${encodeURIComponent(entry.recordId)}`)
+      navigate(`/clear?sourceType=${entry.sourceType}&recordId=${encodeURIComponent(entry.recordId)}&returnTo=footprints`)
       return
     }
     navigate(`/footprints?date=${entry.localDate}&entry=${entry.type}&recordId=${encodeURIComponent(entry.recordId)}`)

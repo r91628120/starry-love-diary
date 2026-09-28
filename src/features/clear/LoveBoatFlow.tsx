@@ -5,9 +5,11 @@ import { BOAT_A_KEYS, BOAT_B_KEYS } from '../../data/repositories/clearRepositor
 import { usePersistence } from '../../data/PersistenceStateContext'
 import { useI18n } from '../../i18n/I18nContext'
 import type { TranslationKey } from '../../i18n/messages'
+import { ClearAiHandoff } from './ClearAiHandoff'
+import { buildLoveBoatAiHandoffText } from '../../services/clearAiHandoffBuilders'
 
 export function LoveBoatFlow({ onDone }: { onDone: () => void }) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const persistence = usePersistence()
   const [draft, setDraft] = useState<LoveBoatAssessment>()
   const [loading, setLoading] = useState(true)
@@ -95,11 +97,17 @@ export function LoveBoatFlow({ onDone }: { onDone: () => void }) {
     await persistence.refreshScoreAndStars()
     setSavedStar(true)
   }
+  async function saveNote(noteToSay: string | undefined) {
+    if (!persistence || !completed) return
+    setCompleted(await persistence.repositories.loveBoatAssessments.updateNote(completed.id, noteToSay))
+  }
 
   if (loading) return null
   if (completed) return <SoftCard className="clear-flow clear-result" tone="green">
     <h2>{t('clear.boat.completed')}</h2>
     <BoatResult record={completed} />
+    <BoatNote record={completed} onSave={saveNote} />
+    <ClearAiHandoff buildText={() => buildLoveBoatAiHandoffText(completed, locale, t)} />
     <div className="clear-flow__actions"><PrimaryButton onClick={saveStar} disabled={savedStar}>{t(savedStar ? 'clear.common.savedStar' : 'clear.common.saveStar')}</PrimaryButton><SecondaryButton onClick={onDone}>{t('clear.common.finishAndReturn')}</SecondaryButton></div>
   </SoftCard>
   if (!draft) return <SoftCard className="clear-flow clear-intro clear-tool-intro" tone="blue">
@@ -135,6 +143,20 @@ export function LoveBoatFlow({ onDone }: { onDone: () => void }) {
     <SecondaryButton onClick={() => setConfirmRestart(true)}>{t('clear.common.restart')}</SecondaryButton>
     <p>{t('clear.common.savedDraft')}</p>
     <ConfirmDialog open={confirmRestart} title={t('clear.common.restartTitle')} description={t('clear.common.restartBody')} onConfirm={restart} onCancel={() => setConfirmRestart(false)} />
+  </section>
+}
+
+function BoatNote({ record, onSave }: { record: LoveBoatAssessment; onSave: (note: string | undefined) => Promise<void> }) {
+  const { t } = useI18n()
+  const [editing, setEditing] = useState(!record.noteToSay)
+  const [value, setValue] = useState(record.noteToSay ?? '')
+  const [confirmClear, setConfirmClear] = useState(false)
+  const count = [...value].length
+  async function save() { await onSave(value.trim() || undefined); setEditing(false) }
+  async function clear() { await onSave(undefined); setValue(''); setEditing(false); setConfirmClear(false) }
+  return <section className="clear-note"><h3>{t('clear.boat.note.title')}</h3><p>{t('clear.boat.note.body')}</p>
+    {editing ? <><textarea maxLength={1000} value={value} placeholder={t('clear.boat.note.placeholder')} onChange={(event) => setValue([...event.target.value].slice(0, 500).join(''))} /><span>{t('clear.boat.note.count', { count, max: 500 })}</span><div className="clear-flow__actions"><PrimaryButton onClick={() => void save()}>{t('clear.boat.note.save')}</PrimaryButton>{record.noteToSay ? <SecondaryButton onClick={() => setEditing(false)}>{t('common.cancel')}</SecondaryButton> : null}</div></> : <><p>{record.noteToSay}</p><div className="clear-flow__actions"><SecondaryButton onClick={() => setEditing(true)}>{t('clear.boat.note.edit')}</SecondaryButton><SecondaryButton onClick={() => setConfirmClear(true)}>{t('clear.boat.note.clear')}</SecondaryButton></div></>}
+    <ConfirmDialog open={confirmClear} title={t('clear.boat.note.clearTitle')} description={t('clear.boat.note.clearBody')} onConfirm={() => void clear()} onCancel={() => setConfirmClear(false)} />
   </section>
 }
 

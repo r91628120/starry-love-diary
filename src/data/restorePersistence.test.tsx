@@ -13,7 +13,7 @@ function dayOne(): AppDataExport {
     profiles: [{ id: 'user', kind: 'user', nickname: 'Day 1 user', createdAt: stamp, updatedAt: stamp }, { id: 'partner', kind: 'partner', nickname: 'Day 1 partner', createdAt: stamp, updatedAt: stamp }],
     moods: [{ id: '2026-09-01', localDate: '2026-09-01', mood: 'happy', timezone: 'UTC', createdAt: stamp, updatedAt: stamp }],
     diaries: [{ id: 'day1-diary', localDate: '2026-09-01', content: 'Day 1 diary', savedAsStar: false, timezone: 'UTC', createdAt: stamp, updatedAt: stamp }],
-    clearRecords: { organizeFeelings: [], loveBoatAssessments: [], loveBrainAssessments: [], likeOrHabitReflections: [] },
+    clearRecords: { organizeFeelings: [], freeTalkRecords: [], loveBoatAssessments: [], loveBrainAssessments: [], likeOrHabitReflections: [] },
     stars: [{ id: 'day1-star', type: 'mood', content: 'Day 1 star', mood: 'happy', localDate: '2026-09-01', timezone: 'UTC', createdAt: stamp, updatedAt: stamp }],
     scoreAwards: [{ id: 'day1-award', awardType: 'diary_created', points: 7, localDate: '2026-09-01', timezone: 'UTC', createdAt: stamp, updatedAt: stamp }],
     heartPhrases: [{ id: 'day1-heart', content: 'Day 1 heart', order: 1, acceptedAt: stamp, createdAt: stamp, updatedAt: stamp }],

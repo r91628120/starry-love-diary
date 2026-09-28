@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { clearAssets } from '../../assets/uiAssets'
 import { ConfirmDialog, PrimaryButton, SecondaryButton, SectionHeader, SoftCard } from '../../components'
 import type { ClearToolSourceType, ClearTriggerType } from '../../data/clearTypes'
@@ -7,10 +8,11 @@ import { useI18n } from '../../i18n/I18nContext'
 import type { TranslationKey } from '../../i18n/messages'
 import { LikeOrHabitFlow } from './LikeOrHabitFlow'
 import { LoveBoatFlow } from './LoveBoatFlow'
-import { LoveBrainFlow } from './LoveBrainFlow'
+import { LoveBrainFlow, LoveBrainRecordResult } from './LoveBrainFlow'
 import { OrganizeFeelingsFlow } from './OrganizeFeelingsFlow'
+import { ClearFreeTalkFlow } from './ClearFreeTalkFlow'
 
-type Tool = 'home' | 'organize' | 'boat' | 'brain' | 'like'
+type Tool = 'home' | 'organize' | 'boat' | 'brain' | 'like' | 'freeTalk'
 interface HistoryView {
   id: string
   sourceType: ClearToolSourceType
@@ -51,6 +53,8 @@ export function ClearContent() {
   const searchParams = new URLSearchParams(window.location.search)
   const requestedRecordId = searchParams.get('recordId')
   const requestedSourceType = searchParams.get('sourceType')
+  const requestedReturnTo = searchParams.get('returnTo')
+  const requestedNewFreeTalk = searchParams.get('freeTalk') === 'new'
   const [tool, setTool] = useState<Tool>('home')
   const [selectedScenario, setSelectedScenario] = useState<number | null>(null)
   const [history, setHistory] = useState<HistoryView[]>([])
@@ -68,17 +72,20 @@ export function ClearContent() {
 
   const loadHistory = useCallback(async () => {
     if (!persistence) { setHistory([]); return }
-    const [clearRecords, boats, brains, reflections, boatDraft, brainDraft, reflectionDraft] = await Promise.all([
+    const [clearRecords, freeTalks, boats, brains, reflections, freeTalkDraft, boatDraft, brainDraft, reflectionDraft] = await Promise.all([
       persistence.repositories.clearRecords.list(),
+      persistence.repositories.clearFreeTalkRecords.list(),
       persistence.repositories.loveBoatAssessments.list(),
       persistence.repositories.loveBrainAssessments.list(),
       persistence.repositories.likeOrHabitReflections.list(),
+      persistence.repositories.clearFreeTalkRecords.getActiveDraft(),
       persistence.repositories.loveBoatAssessments.getActiveDraft(),
       persistence.repositories.loveBrainAssessments.getActiveDraft(),
       persistence.repositories.likeOrHabitReflections.getActiveDraft(),
     ])
     const entries: HistoryView[] = [
       ...clearRecords.map((record) => ({ id: record.id, sourceType: 'clear_record' as const, localDate: record.localDate, title: t('clear.history.clearRecord'), subtitle: record.triggerText || record.facts || t('clear.organize.closing'), createdAt: record.createdAt, hasStar: Boolean(record.clearMindStarId) })),
+      ...freeTalks.map((record) => ({ id: record.id, sourceType: 'free_talk' as const, localDate: record.localDate, title: t('clear.freeTalk.title'), subtitle: record.text, createdAt: record.createdAt, hasStar: false })),
       ...boats.map((record) => ({ id: record.id, sourceType: 'love_boat_code' as const, localDate: record.localDate, title: t('clear.history.loveBoat'), subtitle: record.crossResultKey ? t(key('clear.boat.result.' + record.crossResultKey)) : t('clear.boat.level.response_insufficient_observation'), createdAt: record.createdAt, hasStar: Boolean(record.clearMindStarId) })),
       ...brains.map((record) => ({ id: record.id, sourceType: 'love_brain_assessment' as const, localDate: record.localDate, title: t('clear.history.loveBrain'), subtitle: record.isLowOverall ? t('clear.brain.low') : record.primaryPattern ? t(key('clear.brain.pattern.' + record.primaryPattern)) : t('clear.brain.tie'), createdAt: record.createdAt, hasStar: Boolean(record.clearMindStarId) })),
       ...reflections.map((record) => ({ id: record.id, sourceType: 'like_or_habit' as const, localDate: record.localDate, title: t('clear.history.likeOrHabit'), subtitle: t(key('clear.like.result.' + (record.resultVariantKey ?? 'unclear.v1') + '.title')), createdAt: record.createdAt, hasStar: Boolean(record.clearMindStarId) })),
@@ -87,6 +94,7 @@ export function ClearContent() {
     const requestedRecord = entries.find((entry) => entry.id === requestedRecordId && entry.sourceType === requestedSourceType)
     if (requestedRecord) setSelectedRecord(requestedRecord)
     setDraftProgress({
+      freeTalk: freeTalkDraft ? t('clear.freeTalk.continue') : undefined,
       boat: boatDraft ? t('clear.common.draftProgress', { current: boatDraft.currentQuestionIndex + 1, total: boatDraft.currentSection === 'A' ? 12 : 10 }) : undefined,
       brain: brainDraft ? t('clear.common.draftProgress', { current: brainDraft.currentQuestionIndex + 1, total: 25 }) : undefined,
       like: reflectionDraft ? t('clear.common.draftProgress', { current: Math.max(1, ['real_person', 'habit', 'fear_of_loss', 'imagined_relationship'].indexOf(reflectionDraft.currentSection) + 1), total: 4 }) : undefined,
@@ -98,6 +106,7 @@ export function ClearContent() {
   async function deleteSelected() {
     if (!persistence || !deleteRecord) return
     if (deleteRecord.sourceType === 'clear_record') await persistence.repositories.clearRecords.delete(deleteRecord.id, deleteStarToo)
+    if (deleteRecord.sourceType === 'free_talk') await persistence.repositories.clearFreeTalkRecords.delete(deleteRecord.id)
     if (deleteRecord.sourceType === 'love_boat_code') await persistence.repositories.loveBoatAssessments.delete(deleteRecord.id, deleteStarToo)
     if (deleteRecord.sourceType === 'love_brain_assessment') await persistence.repositories.loveBrainAssessments.delete(deleteRecord.id, deleteStarToo)
     if (deleteRecord.sourceType === 'like_or_habit') await persistence.repositories.likeOrHabitReflections.delete(deleteRecord.id, deleteStarToo)
@@ -129,10 +138,13 @@ export function ClearContent() {
   if (tool === 'boat') return <ClearToolContext title={t('clear.tools.boatGuide.title')}><LoveBoatFlow onDone={returnHome} /></ClearToolContext>
   if (tool === 'brain') return <ClearToolContext title={t('clear.tools.loveBrain.title')}><LoveBrainFlow onDone={returnHome} /></ClearToolContext>
   if (tool === 'like') return <ClearToolContext title={t('clear.tools.likeOrHabit.title')}><LikeOrHabitFlow onDone={returnHome} /></ClearToolContext>
+  if (tool === 'freeTalk') return <ClearToolContext title={t('clear.freeTalk.title')}><FreeTalkRoute recordId={selectedRecord?.sourceType === 'free_talk' ? selectedRecord.id : requestedSourceType === 'free_talk' ? requestedRecordId ?? undefined : undefined} returnTo={requestedReturnTo} routedRecord={Boolean(requestedRecordId)} onHome={returnHome} /></ClearToolContext>
+
+  if (requestedSourceType === 'free_talk' && requestedRecordId || requestedNewFreeTalk) return <ClearToolContext title={t('clear.freeTalk.title')}><FreeTalkRoute recordId={requestedRecordId ?? undefined} returnTo={requestedReturnTo} routedRecord={Boolean(requestedRecordId)} onHome={returnHome} /></ClearToolContext>
 
   if (selectedRecord) {
     const saved = selectedRecord.hasStar || savedSourceIds.includes(selectedRecord.id)
-    return <section className="clear-flow"><SecondaryButton onClick={() => setSelectedRecord(undefined)}>{t('clear.home')}</SecondaryButton><SoftCard className="clear-result" tone="blue"><p className="clear-flow__eyebrow">{formatDate(selectedRecord.localDate, locale)}</p><h2>{selectedRecord.title}</h2><p>{selectedRecord.subtitle}</p><div className="clear-flow__actions"><PrimaryButton disabled={saved} onClick={saveSelectedStar}>{t(saved ? 'clear.common.savedStar' : 'clear.common.saveStar')}</PrimaryButton><SecondaryButton onClick={() => setDeleteRecord(selectedRecord)}>{t('clear.history.delete')}</SecondaryButton></div></SoftCard><DeleteDialog record={deleteRecord} deleteStarToo={deleteStarToo} setDeleteStarToo={setDeleteStarToo} onConfirm={deleteSelected} onCancel={() => setDeleteRecord(undefined)} /></section>
+    return <section className="clear-flow"><SecondaryButton onClick={() => setSelectedRecord(undefined)}>{t('clear.home')}</SecondaryButton><SoftCard className="clear-result" tone="blue"><p className="clear-flow__eyebrow">{formatDate(selectedRecord.localDate, locale)}</p><h2>{selectedRecord.title}</h2>{selectedRecord.sourceType === 'love_brain_assessment' ? <LoveBrainHistoryResult recordId={selectedRecord.id} onUpdated={loadHistory} /> : <p>{selectedRecord.subtitle}</p>}<div className="clear-flow__actions">{selectedRecord.sourceType !== 'free_talk' ? <PrimaryButton disabled={saved} onClick={saveSelectedStar}>{t(saved ? 'clear.common.savedStar' : 'clear.common.saveStar')}</PrimaryButton> : <PrimaryButton onClick={() => setTool('freeTalk')}>編輯</PrimaryButton>}<SecondaryButton onClick={() => setDeleteRecord(selectedRecord)}>{t('clear.history.delete')}</SecondaryButton></div></SoftCard><DeleteDialog record={deleteRecord} deleteStarToo={deleteStarToo} setDeleteStarToo={setDeleteStarToo} onConfirm={deleteSelected} onCancel={() => setDeleteRecord(undefined)} /></section>
   }
 
   const latest = history[0]
@@ -142,6 +154,7 @@ export function ClearContent() {
   return <>
     <SoftCard className="clear-scenarios"><SectionHeader title={t('clear.scenarios.title')} /><div className="clear-scenarios__rail" role="group" aria-label={t('clear.scenarios.title')}>{scenarios.map((item, index) => <button type="button" className={selectedScenario === index ? 'is-active' : ''} aria-pressed={selectedScenario === index} onClick={() => setSelectedScenario(index)} key={item.key}><img src={item.icon} alt="" /><span>{t(item.key)}</span></button>)}</div>{scenario && recommendedTool ? <section className="clear-scenario-recommendation" aria-label={t('clear.scenarios.recommendation.label')} aria-live="polite"><p className="clear-flow__eyebrow">{t('clear.scenarios.selected', { scenario: t(scenario.key) })}</p><div className="clear-scenario-recommendation__heading"><img src={recommendedTool.icon} alt="" /><div><span>{t('clear.scenarios.recommendation.label')}</span><h3>{t(recommendedTool.title)}</h3></div></div><p>{t(scenario.recommendation)}</p><div className="clear-scenario-recommendation__actions"><PrimaryButton onClick={() => setTool(recommendedTool.id)}>{t('clear.scenarios.recommendation.cta', { tool: t(recommendedTool.title) })}</PrimaryButton></div></section> : null}</SoftCard>
     <section id="clear-tools" className="clear-tools" aria-label={t('clear.tools.label')}>{tools.map((item, index) => <button type="button" className={index === 0 ? 'clear-tool clear-tool--primary' : 'clear-tool'} onClick={() => setTool(item.id)} key={item.id}><img src={item.icon} alt="" /><div><h2>{t(item.title)}</h2><p>{draftProgress[item.id] ?? t(item.description)}</p></div></button>)}</section>
+    <SoftCard className="clear-free-talk"><h2>{t('clear.freeTalk.title')}</h2><p>{t('clear.freeTalk.homeBody')}</p><p>{t('clear.freeTalk.homeHint')}</p><PrimaryButton onClick={() => setTool('freeTalk')}>{draftProgress.freeTalk ?? t('clear.freeTalk.start')}</PrimaryButton></SoftCard>
     <SoftCard className="clear-latest"><SectionHeader title={t('clear.latest.title')} />{latest ? <><div className="clear-latest__body"><img src={clearAssets.recentSummaryThumbnail} alt={t('clear.latest.imageAlt')} /><div><time dateTime={latest.localDate}>{formatDate(latest.localDate, locale)}</time><h3>{latest.title}</h3><strong>{t('clear.latest.summaryLabel')}</strong><p>{latest.subtitle}</p><span>{t('clear.latest.saved')}</span></div></div><SecondaryButton onClick={() => setSelectedRecord(latest)}>{t('clear.latest.viewDetails')}</SecondaryButton></> : <p className="clear-empty">{t('clear.empty')}</p>}</SoftCard>
     <section className="clear-records"><SectionHeader title={t('clear.history.title')} />
       {history.length === 0 ? <p className="clear-empty">{t('clear.empty')}</p> : showAllHistory ? <ClearHistoryGroups groups={historyGroups} locale={locale} t={t} onSelect={setSelectedRecord} expandedYears={expandedHistoryYears} touchedYears={touchedHistoryYears} setExpandedYears={setExpandedHistoryYears} setTouchedYears={setTouchedHistoryYears} expandedMonths={expandedHistoryMonths} touchedMonths={touchedHistoryMonths} setExpandedMonths={setExpandedHistoryMonths} setTouchedMonths={setTouchedHistoryMonths} /> : <ClearHistoryCards records={history.slice(0, 3)} locale={locale} onSelect={setSelectedRecord} />}
@@ -150,6 +163,26 @@ export function ClearContent() {
     <SoftCard className="clear-quote"><img className="clear-quote__background" src={clearAssets.quoteBanner} alt="" /><div><SectionHeader title={t('clear.quote.title')} /><blockquote>{t('clear.quote.text')}</blockquote></div></SoftCard>
     <SoftCard className="clear-tip"><img src={clearAssets.tip} alt="" /><div><h2>{t('clear.tip.title')}</h2><p>{t('clear.tip.text')}</p></div></SoftCard>
   </>
+}
+
+export function FreeTalkRoute({ recordId, returnTo, routedRecord, onHome }: { recordId?: string; returnTo: string | null; routedRecord: boolean; onHome: () => void }) {
+  const navigate = useNavigate()
+  function onDone() {
+    if (returnTo === 'footprints') { navigate('/footprints'); return }
+    if (routedRecord) { navigate('/clear'); return }
+    onHome()
+  }
+  function onStartNew() {
+    if (returnTo === 'footprints' || routedRecord) navigate('/clear?freeTalk=new')
+  }
+  return <ClearFreeTalkFlow recordId={recordId} onDone={onDone} onStartNew={onStartNew} />
+}
+
+function LoveBrainHistoryResult({ recordId, onUpdated }: { recordId: string; onUpdated: () => Promise<void> }) {
+  const persistence = usePersistence()
+  const [record, setRecord] = useState<import('../../data/clearTypes').LoveBrainAssessment>()
+  useEffect(() => { void persistence?.repositories.loveBrainAssessments.getById(recordId).then(setRecord) }, [persistence, recordId])
+  return record ? <LoveBrainRecordResult record={record} onRecordChange={(updated) => { setRecord(updated); void onUpdated() }} /> : null
 }
 
 function ClearToolContext({ title, children }: { title: string; children: ReactNode }) {

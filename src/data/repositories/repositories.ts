@@ -119,7 +119,7 @@ function validateDiaryContent(content: string) {
 export interface SettingsRepository {
   ensureDefault(locale: Locale, dailyLoveQuoteActivationDate?: string): Promise<AppSettings>
   getSettings(): Promise<AppSettings | undefined>
-  updateSettings(changes: Partial<Pick<AppSettings, 'locale' | 'onboardingCompleted' | 'dailyLoveQuoteActivationDate' | 'loveQuoteReminderEnabled' | 'importantDateReminderEnabled' | 'reminderTime'>>): Promise<AppSettings>
+  updateSettings(changes: Partial<Pick<AppSettings, 'locale' | 'onboardingCompleted' | 'dailyLoveQuoteActivationDate' | 'loveQuoteReminderEnabled' | 'importantDateReminderEnabled' | 'reminderTime' | 'externalAiHandoffConsentVersion'>>): Promise<AppSettings>
 }
 
 export class LocalSettingsRepository implements SettingsRepository {
@@ -146,7 +146,7 @@ export class LocalSettingsRepository implements SettingsRepository {
     await this.storage.put('settings', settings)
     return settings
   }
-  async updateSettings(changes: Partial<Pick<AppSettings, 'locale' | 'onboardingCompleted' | 'dailyLoveQuoteActivationDate' | 'loveQuoteReminderEnabled' | 'importantDateReminderEnabled' | 'reminderTime'>>) {
+  async updateSettings(changes: Partial<Pick<AppSettings, 'locale' | 'onboardingCompleted' | 'dailyLoveQuoteActivationDate' | 'loveQuoteReminderEnabled' | 'importantDateReminderEnabled' | 'reminderTime' | 'externalAiHandoffConsentVersion'>>) {
     const existing = await this.getSettings()
     if (!existing) throw new Error('Settings have not been initialized')
     if (changes.reminderTime !== undefined && !/^([01]\d|2[0-3]):[0-5]\d$/.test(changes.reminderTime)) throw new Error('Reminder time must use HH:mm')

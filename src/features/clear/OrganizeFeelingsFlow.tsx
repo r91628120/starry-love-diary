@@ -4,6 +4,8 @@ import type { BodySensation, ClearActionType, ClearEmotion, ClearNeed, ClearObse
 import { usePersistence } from '../../data/PersistenceStateContext'
 import { useI18n } from '../../i18n/I18nContext'
 import type { TranslationKey } from '../../i18n/messages'
+import { ClearAiHandoff } from './ClearAiHandoff'
+import { buildOrganizeFeelingsAiHandoffText } from '../../services/clearAiHandoffBuilders'
 
 const triggerTypes: ClearTriggerType[] = ['no_reply', 'attitude_changed', 'social_media', 'argument', 'missing_them', 'waiting_response', 'overthinking', 'other']
 const emotions: ClearEmotion[] = ['missing', 'anxious', 'sad', 'hurt', 'angry', 'jealous', 'afraid', 'lost', 'confused', 'hopeful']
@@ -28,7 +30,7 @@ interface FormState {
 }
 
 export function OrganizeFeelingsFlow({ initialTrigger, onDone }: { initialTrigger?: ClearTriggerType; onDone: () => void }) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const persistence = usePersistence()
   const [step, setStep] = useState(1)
   const [form, setForm] = useState<FormState>({ triggerType: initialTrigger, triggerText: '', facts: '', interpretation: '', unknown: '', emotions: [], emotionIntensity: 3, bodySensations: [], observations: {}, needs: [], nextActionText: '' })
@@ -73,6 +75,7 @@ export function OrganizeFeelingsFlow({ initialTrigger, onDone }: { initialTrigge
   if (completed) return <SoftCard className="clear-flow clear-result" tone="green">
     <h2>{t('clear.organize.completed')}</h2>
     <p>{t('clear.organize.closing')}</p>
+    <ClearAiHandoff buildText={() => buildOrganizeFeelingsAiHandoffText(completed, locale, t)} />
     <div className="clear-flow__actions">
       <PrimaryButton onClick={saveStar} disabled={savedStar}>{t(savedStar ? 'clear.common.savedStar' : 'clear.common.saveStar')}</PrimaryButton>
       <SecondaryButton onClick={onDone}>{t('clear.common.finishAndReturn')}</SecondaryButton>

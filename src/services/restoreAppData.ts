@@ -4,7 +4,7 @@ import type { AppSettings } from '../data/types'
 import { parseAppDataFile, parseAppDataFileText } from './importAppData'
 import type { AppDataExport } from './exportAppData'
 
-export const RESTORE_REPLACE_STORES = ['profiles', 'moods', 'diaries', 'stars', 'scoreAwards', 'heartPhrases', 'importantDates', 'memoryMoments', 'messageToYou', 'rememberedYouCards', 'clearRecords', 'loveBoatAssessments', 'loveBrainAssessments', 'likeOrHabitReflections'] as const
+export const RESTORE_REPLACE_STORES = ['profiles', 'moods', 'diaries', 'stars', 'scoreAwards', 'heartPhrases', 'importantDates', 'memoryMoments', 'messageToYou', 'rememberedYouCards', 'clearRecords', 'clearFreeTalkRecords', 'loveBoatAssessments', 'loveBrainAssessments', 'likeOrHabitReflections'] as const
 export const RESTORE_CLEAR_STORES = ['diaryDrafts', 'starDropPresentations'] as const
 export type RestorePlan = { data: AppDataExport; replace: Partial<Record<StoreName, unknown[]>> }
 
@@ -20,7 +20,7 @@ export function buildRestorePlan(data: AppDataExport): RestorePlan {
     profiles, moods: data.data.moods, diaries: data.data.diaries, stars: data.data.stars, scoreAwards: data.data.scoreAwards,
     heartPhrases: data.data.heartPhrases, importantDates: data.data.importantDates, memoryMoments: data.data.memoryMoments,
     messageToYou: data.data.messageToYouEntries, rememberedYouCards: data.data.rememberedYouCards,
-    clearRecords: data.data.clearRecords.organizeFeelings, loveBoatAssessments: data.data.clearRecords.loveBoatAssessments,
+    clearRecords: data.data.clearRecords.organizeFeelings, clearFreeTalkRecords: data.data.clearRecords.freeTalkRecords, loveBoatAssessments: data.data.clearRecords.loveBoatAssessments,
     loveBrainAssessments: data.data.clearRecords.loveBrainAssessments, likeOrHabitReflections: data.data.clearRecords.likeOrHabitReflections,
   }
   for (const store of RESTORE_REPLACE_STORES) assertUnique((replace[store] ?? []) as Array<{ id: string }>, store)

@@ -4,6 +4,8 @@ import type { FearOfLossOption, LikeOrHabitAnswers, LikeOrHabitDimension, LikeOr
 import { usePersistence } from '../../data/PersistenceStateContext'
 import { useI18n } from '../../i18n/I18nContext'
 import type { TranslationKey } from '../../i18n/messages'
+import { ClearAiHandoff } from './ClearAiHandoff'
+import { buildLikeOrHabitAiHandoffText } from '../../services/clearAiHandoffBuilders'
 
 const sections: Exclude<LikeOrHabitSection, 'result'>[] = ['real_person', 'habit', 'fear_of_loss', 'imagined_relationship']
 const singleQuestions = {
@@ -34,7 +36,7 @@ type Preview = {
 }
 
 export function LikeOrHabitFlow({ onDone }: { onDone: () => void }) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const persistence = usePersistence()
   const [draft, setDraft] = useState<LikeOrHabitReflection>()
   const [loading, setLoading] = useState(true)
@@ -130,7 +132,7 @@ export function LikeOrHabitFlow({ onDone }: { onDone: () => void }) {
   }
 
   if (loading) return null
-  if (completed) return <SoftCard className="clear-flow clear-result clear-like-result-page" tone="green"><h2>{t('clear.like.completed')}</h2><LikeResult modules={completed.activeResultModules ?? []} variantKey={completed.resultVariantKey ?? 'unclear.v1'} /><div className="clear-flow__actions"><PrimaryButton onClick={saveStar} disabled={savedStar || Boolean(completed.clearMindStarId)}>{t(savedStar || completed.clearMindStarId ? 'clear.common.savedStar' : 'clear.common.saveStar')}</PrimaryButton><SecondaryButton onClick={onDone}>{t('clear.common.finishAndReturn')}</SecondaryButton></div></SoftCard>
+  if (completed) return <SoftCard className="clear-flow clear-result clear-like-result-page" tone="green"><h2>{t('clear.like.completed')}</h2><LikeResult modules={completed.activeResultModules ?? []} variantKey={completed.resultVariantKey ?? 'unclear.v1'} /><ClearAiHandoff buildText={() => buildLikeOrHabitAiHandoffText(completed, locale, t)} /><div className="clear-flow__actions"><PrimaryButton onClick={saveStar} disabled={savedStar || Boolean(completed.clearMindStarId)}>{t(savedStar || completed.clearMindStarId ? 'clear.common.savedStar' : 'clear.common.saveStar')}</PrimaryButton><SecondaryButton onClick={onDone}>{t('clear.common.finishAndReturn')}</SecondaryButton></div></SoftCard>
   if (!draft) return <SoftCard className="clear-flow clear-intro clear-tool-intro" tone="green"><SecondaryButton onClick={onDone}>{t('clear.home')}</SecondaryButton><p>{t('clear.like.intro')}</p><PrimaryButton onClick={start}>{t('clear.like.start')}</PrimaryButton></SoftCard>
   if (preview) return <section className="clear-flow"><div className="clear-flow__top"><SecondaryButton onClick={() => move(3)}>{t('clear.common.previous')}</SecondaryButton><SecondaryButton onClick={onDone}>{t('clear.common.continueLater')}</SecondaryButton></div><SoftCard className="clear-result clear-like-result-page" tone="green"><LikeResult modules={preview.activeResultModules} variantKey={preview.resultVariantKey} /><PrimaryButton onClick={finish}>{t('clear.like.finish')}</PrimaryButton></SoftCard><p>{t('clear.common.savedDraft')}</p></section>
 

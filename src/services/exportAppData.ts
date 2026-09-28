@@ -1,13 +1,13 @@
 import { Capacitor } from '@capacitor/core'
 import { Directory, Filesystem } from '@capacitor/filesystem'
 import { Share } from '@capacitor/share'
-import type { ClearRecord, LikeOrHabitReflection, LoveBoatAssessment, LoveBrainAssessment } from '../data/clearTypes'
+import type { ClearFreeTalkRecord, ClearRecord, LikeOrHabitReflection, LoveBoatAssessment, LoveBrainAssessment } from '../data/clearTypes'
 import type { PersistenceRuntime } from '../data/persistence'
 import { SCHEMA_VERSION } from '../data/storage/IndexedDbStorageAdapter'
 import type { AppSettings, DiaryEntry, HeartPhrase, ImportantDate, MemoryMoment, MessageToYouEntry, MoodRecord, Profile, RememberedYouCard, ScoreAward, Star } from '../data/types'
 import { encodeTextExportUtf8 } from './exportTextData'
 
-type ExportRepositories = Pick<PersistenceRuntime, 'profiles' | 'moods' | 'diaries' | 'settings' | 'stars' | 'scores' | 'heartPhrases' | 'importantDates' | 'memoryMoments' | 'messageToYou' | 'rememberedYou' | 'clearRecords' | 'loveBoatAssessments' | 'loveBrainAssessments' | 'likeOrHabitReflections'>
+type ExportRepositories = Pick<PersistenceRuntime, 'profiles' | 'moods' | 'diaries' | 'settings' | 'stars' | 'scores' | 'heartPhrases' | 'importantDates' | 'memoryMoments' | 'messageToYou' | 'rememberedYou' | 'clearRecords' | 'clearFreeTalkRecords' | 'loveBoatAssessments' | 'loveBrainAssessments' | 'likeOrHabitReflections'>
 
 export const STARLOVE_EXPORT_FORMAT = 'starry-love-diary-data'
 export const STARLOVE_EXPORT_VERSION = 1
@@ -24,6 +24,7 @@ export interface AppDataExport {
     diaries: DiaryEntry[]
     clearRecords: {
       organizeFeelings: ClearRecord[]
+      freeTalkRecords: ClearFreeTalkRecord[]
       loveBoatAssessments: LoveBoatAssessment[]
       loveBrainAssessments: LoveBrainAssessment[]
       likeOrHabitReflections: LikeOrHabitReflection[]
@@ -73,7 +74,7 @@ function withoutMomentPhoto({ photoAssetId, ...moment }: MemoryMoment): Omit<Mem
 /** Builds a portable, JSON-only snapshot. Photos, blobs, asset ids, and layout metadata are deliberately excluded. */
 export async function buildAppDataExport(options: AppDataExportOptions): Promise<AppDataExport> {
   const { repositories, localDate } = options
-  const [user, partner, moods, diaries, settings, stars, scoreAwards, heartPhrases, importantDates, memoryMoments, messageToYou, messageToYouEntries, rememberedYouCards, organizeFeelings, loveBoatAssessments, loveBrainAssessments, likeOrHabitReflections] = await Promise.all([
+  const [user, partner, moods, diaries, settings, stars, scoreAwards, heartPhrases, importantDates, memoryMoments, messageToYou, messageToYouEntries, rememberedYouCards, organizeFeelings, freeTalkRecords, loveBoatAssessments, loveBrainAssessments, likeOrHabitReflections] = await Promise.all([
     repositories.profiles.getProfile('user'),
     repositories.profiles.getProfile('partner'),
     repositories.moods.getMoods(),
@@ -88,6 +89,7 @@ export async function buildAppDataExport(options: AppDataExportOptions): Promise
     repositories.messageToYou.getEntries(),
     repositories.rememberedYou.getRememberedYouCards(),
     repositories.clearRecords.list(),
+    repositories.clearFreeTalkRecords.listAll(),
     repositories.loveBoatAssessments.listAll(),
     repositories.loveBrainAssessments.listAll(),
     repositories.likeOrHabitReflections.listAll(),
@@ -107,6 +109,7 @@ export async function buildAppDataExport(options: AppDataExportOptions): Promise
       diaries: sortByLocalDate(diaries),
       clearRecords: {
         organizeFeelings: sortByLocalDate(organizeFeelings),
+        freeTalkRecords: sortByLocalDate(freeTalkRecords),
         loveBoatAssessments: sortByLocalDate(loveBoatAssessments),
         loveBrainAssessments: sortByLocalDate(loveBrainAssessments),
         likeOrHabitReflections: sortByLocalDate(likeOrHabitReflections),

@@ -8,6 +8,7 @@ import type {
   ClearActionType,
   ClearEmotion,
   ClearNeed,
+  ClearFreeTalkRecord,
   ClearRecord,
   ClearToolSourceType,
   ClearTriggerType,
@@ -20,9 +21,12 @@ import type {
   LikeOrHabitSection,
   LoveBoatAssessment,
   LoveBrainAssessment,
+  LoveBrainAnswer,
   LoveBrainPattern,
   LoveBrainQuestionKey,
+  LoveBrainQuizVersion,
   LoveBrainScores,
+  LoveBrainV2Scores,
   ResponseLevel,
 } from '../clearTypes'
 import type { StorageAdapter, StoreName } from '../storage/StorageAdapter'
@@ -161,6 +165,36 @@ export class LocalClearRecordRepository {
   }
 }
 
+export class LocalClearFreeTalkRepository {
+  constructor(private readonly storage: StorageAdapter) {}
+  getById(id: string) { return this.storage.get<ClearFreeTalkRecord>('clearFreeTalkRecords', id) }
+  async listAll() { return listNewest<ClearFreeTalkRecord>(this.storage, 'clearFreeTalkRecords') }
+  async list() { return (await this.listAll()).filter((record) => record.status === 'completed') }
+  async getActiveDraft() { return (await this.listAll()).find((record) => record.status === 'draft') }
+  async createDraft(text: string) {
+    const existing = await this.getActiveDraft(); if (existing) return existing
+    const value = validateText(text, 1500, 'free_talk_text_too_long'); if (!value) throw new ClearDataValidationError('Free Talk text is required', 'free_talk_text_required')
+    const timestamp = now(); const record: ClearFreeTalkRecord = { id: id('clear-free-talk'), text: value, status: 'draft', localDate: toLocalDate(), timezone: getDeviceTimezone(), createdAt: timestamp, updatedAt: timestamp }
+    await this.storage.put('clearFreeTalkRecords', record); return record
+  }
+  async updateDraft(id: string, text: string) {
+    const record = await this.getById(id); if (!record || record.status !== 'draft') throw new ClearDataValidationError('Free Talk draft not found', 'free_talk_draft_unavailable')
+    const value = validateText(text, 1500, 'free_talk_text_too_long'); if (!value) { await this.delete(id); return undefined }
+    const updated = { ...record, text: value, updatedAt: now() }; await this.storage.put('clearFreeTalkRecords', updated); return updated
+  }
+  async complete(id: string, text: string) {
+    const record = await this.getById(id); if (!record || record.status !== 'draft') throw new ClearDataValidationError('Free Talk draft not found', 'free_talk_draft_unavailable')
+    const value = validateText(text, 1500, 'free_talk_text_too_long'); if (!value) throw new ClearDataValidationError('Free Talk text is required', 'free_talk_text_required')
+    const updated: ClearFreeTalkRecord = { ...record, text: value, status: 'completed', updatedAt: now() }; await this.storage.put('clearFreeTalkRecords', updated); return updated
+  }
+  async updateCompleted(id: string, text: string) {
+    const record = await this.getById(id); if (!record || record.status !== 'completed') throw new ClearDataValidationError('Free Talk record not found', 'free_talk_completed_unavailable')
+    const value = validateText(text, 1500, 'free_talk_text_too_long'); if (!value) throw new ClearDataValidationError('Free Talk text is required', 'free_talk_text_required')
+    const updated = { ...record, text: value, updatedAt: now() }; await this.storage.put('clearFreeTalkRecords', updated); return updated
+  }
+  delete(id: string) { return this.storage.delete('clearFreeTalkRecords', id) }
+}
+
 export const BOAT_A_KEYS: BoatInvestmentQuestionKey[] = ['a01', 'a02', 'a03', 'a04', 'a05', 'a06', 'a07', 'a08', 'a09', 'a10', 'a11', 'a12']
 export const BOAT_B_KEYS: BoatResponseQuestionKey[] = ['b01', 'b02', 'b03', 'b04', 'b05', 'b06', 'b07', 'b08', 'b09', 'b10']
 
@@ -262,6 +296,14 @@ export class LocalLoveBoatAssessmentRepository {
     await this.storage.put('loveBoatAssessments', completed)
     return completed
   }
+  async updateNote(recordId: string, noteToSay: string | undefined) {
+    const existing = await this.getById(recordId)
+    if (!existing) throw new ClearDataValidationError('Love boat assessment not found', 'not_found')
+    if (existing.status !== 'completed') throw new ClearDataValidationError('Only completed assessments support notes', 'love_boat_note_unavailable')
+    const updated: LoveBoatAssessment = { ...existing, noteToSay: validateText(noteToSay, 500, 'love_boat_note_too_long'), updatedAt: now() }
+    await this.storage.put('loveBoatAssessments', updated)
+    return updated
+  }
   async delete(recordId: string, deleteStar = false) { await deleteLinkedRecord(this.storage, 'loveBoatAssessments', await this.getById(recordId), deleteStar, this.presentations) }
   async saveAsClearMindStar(recordId: string) {
     const record = await this.getById(recordId)
@@ -271,14 +313,42 @@ export class LocalLoveBoatAssessmentRepository {
 }
 
 export const LOVE_BRAIN_PATTERNS: LoveBrainPattern[] = ['rumination', 'message_dependency', 'over_interpretation', 'detective', 'self_sacrifice']
-export const LOVE_BRAIN_KEYS: LoveBrainQuestionKey[] = LOVE_BRAIN_PATTERNS.flatMap((pattern) =>
-  ['01', '02', '03', '04', '05'].map((number) => (pattern + '_' + number) as LoveBrainQuestionKey),
+export interface LoveBrainQuestionDefinition {
+  number: number
+  key: LoveBrainQuestionKey
+  pattern: LoveBrainPattern
+  reverseScored: boolean
+}
+
+const LOVE_BRAIN_V1_QUESTION_DEFINITIONS: LoveBrainQuestionDefinition[] = LOVE_BRAIN_PATTERNS.flatMap((pattern, patternIndex) =>
+  ['01', '02', '03', '04', '05'].map((suffix, index) => ({
+    number: patternIndex * 5 + index + 1,
+    key: (pattern + '_' + suffix) as LoveBrainQuestionKey,
+    pattern,
+    reverseScored: false,
+  })),
 )
 
-export function calculateLoveBrain(answers: LoveBrainAssessment['answers']) {
-  const scoreFor = (pattern: LoveBrainPattern) => LOVE_BRAIN_KEYS
-    .filter((key) => key.startsWith(pattern + '_'))
-    .reduce((total, key) => total + (answers[key] ?? 0), 0)
+export const LOVE_BRAIN_V2_QUESTION_DEFINITIONS: LoveBrainQuestionDefinition[] = LOVE_BRAIN_PATTERNS.flatMap((pattern, patternIndex) =>
+  ['01', '02', '03', '04', '05'].map((suffix, index) => ({
+    number: patternIndex * 5 + index + 1,
+    key: (pattern + '_' + suffix) as LoveBrainQuestionKey,
+    pattern,
+    reverseScored: index >= 3,
+  })),
+)
+
+export const LOVE_BRAIN_KEYS: LoveBrainQuestionKey[] = LOVE_BRAIN_V2_QUESTION_DEFINITIONS.map((question) => question.key)
+
+export function scoreLoveBrainAnswer(answer: LoveBrainAnswer, reverseScored: boolean) {
+  return reverseScored ? 3 - answer : answer
+}
+
+export function calculateLoveBrain(answers: LoveBrainAssessment['answers'], quizVersion: LoveBrainQuizVersion = 1) {
+  const definitions = quizVersion === 2 ? LOVE_BRAIN_V2_QUESTION_DEFINITIONS : LOVE_BRAIN_V1_QUESTION_DEFINITIONS
+  const scoreFor = (pattern: LoveBrainPattern) => definitions
+    .filter((question) => question.pattern === pattern)
+    .reduce((total, question) => total + scoreLoveBrainAnswer(answers[question.key] ?? 0, question.reverseScored), 0)
   const scores: LoveBrainScores = {
     rumination: scoreFor('rumination'),
     messageDependency: scoreFor('message_dependency'),
@@ -295,13 +365,22 @@ export function calculateLoveBrain(answers: LoveBrainAssessment['answers']) {
     detective: scores.detective,
     self_sacrifice: scores.selfSacrifice,
   }
-  const isLowOverall = scores.total <= 18
-  if (isLowOverall) return { scores, isLowOverall, primaryPatterns: [] as LoveBrainPattern[] }
+  const v2Scores: LoveBrainV2Scores | undefined = quizVersion === 2 ? {
+    rumination: scores.rumination,
+    messagePull: scores.messageDependency,
+    overInterpretation: scores.overInterpretation,
+    checking: scores.detective,
+    selfNeglect: scores.selfSacrifice,
+    totalScore: scores.total,
+  } : undefined
+  // V1's total threshold is retained only for legacy records. V2 has no total-score classification.
+  const isLowOverall = quizVersion === 1 && scores.total <= 18
+  if (isLowOverall) return { scores, v2Scores, isLowOverall, primaryPatterns: [] as LoveBrainPattern[] }
   const ranked = LOVE_BRAIN_PATTERNS.map((pattern) => ({ pattern, score: byPattern[pattern] })).sort((a, b) => b.score - a.score)
   const primaryPatterns = ranked.filter((item) => item.score === ranked[0].score).map((item) => item.pattern)
   const primaryPattern = primaryPatterns.length === 1 ? primaryPatterns[0] : undefined
   const secondaryPattern = primaryPattern && ranked[0].score - ranked[1].score <= 3 ? ranked[1].pattern : undefined
-  return { scores, isLowOverall, primaryPatterns, primaryPattern, secondaryPattern }
+  return { scores, v2Scores, isLowOverall, primaryPatterns, primaryPattern, secondaryPattern }
 }
 
 export class LocalLoveBrainAssessmentRepository {
@@ -310,7 +389,7 @@ export class LocalLoveBrainAssessmentRepository {
     const active = await this.getActiveDraft()
     if (active) return active
     const timestamp = now()
-    const draft: LoveBrainAssessment = { id: id('love-brain'), status: 'draft', answers: {}, currentQuestionIndex: 0, localDate: toLocalDate(), timezone: getDeviceTimezone(), createdAt: timestamp, updatedAt: timestamp }
+    const draft: LoveBrainAssessment = { id: id('love-brain'), status: 'draft', answers: {}, currentQuestionIndex: 0, quizVersion: 2, localDate: toLocalDate(), timezone: getDeviceTimezone(), createdAt: timestamp, updatedAt: timestamp }
     await this.storage.put('loveBrainAssessments', draft)
     return draft
   }
@@ -327,7 +406,7 @@ export class LocalLoveBrainAssessmentRepository {
     if (changes.currentQuestionIndex !== undefined && (!Number.isInteger(changes.currentQuestionIndex) || changes.currentQuestionIndex < 0 || changes.currentQuestionIndex > 24)) {
       throw new ClearDataValidationError('Love brain question index is invalid', 'love_brain_question_index_invalid')
     }
-    const calculated = calculateLoveBrain(answers)
+    const calculated = calculateLoveBrain(answers, existing.quizVersion ?? 1)
     const updated: LoveBrainAssessment = { ...existing, ...changes, answers, ...calculated, updatedAt: now() }
     await this.storage.put('loveBrainAssessments', updated)
     return updated
@@ -340,16 +419,25 @@ export class LocalLoveBrainAssessmentRepository {
   async complete(recordId: string) {
     const existing = requireDraft(await this.getById(recordId), 'Love brain assessment')
     if (LOVE_BRAIN_KEYS.some((key) => existing.answers[key] === undefined)) throw new ClearDataValidationError('All 25 questions are required', 'love_brain_answers_incomplete')
-    const calculated = calculateLoveBrain(existing.answers)
+    const quizVersion = existing.quizVersion ?? 1
+    const calculated = calculateLoveBrain(existing.answers, quizVersion)
     const timestamp = now()
     const resultVariantKey = calculated.isLowOverall
       ? 'low_overall.v1' as const
       : calculated.primaryPattern
         ? `${calculated.primaryPattern}.v1` as const
         : 'tie.v1' as const
-    const completed: LoveBrainAssessment = { ...existing, ...calculated, status: 'completed', resultVariantIndex: 0, resultVariantKey, localDate: toLocalDate(), timezone: getDeviceTimezone(), completedAt: timestamp, updatedAt: timestamp }
+    const completed: LoveBrainAssessment = { ...existing, quizVersion, ...calculated, status: 'completed', resultVariantIndex: 0, resultVariantKey, localDate: toLocalDate(), timezone: getDeviceTimezone(), completedAt: timestamp, updatedAt: timestamp }
     await this.storage.put('loveBrainAssessments', completed)
     return completed
+  }
+  async updateNote(recordId: string, noteToSay: string | undefined) {
+    const existing = await this.getById(recordId)
+    if (!existing) throw new ClearDataValidationError('Love brain assessment not found', 'not_found')
+    if (existing.status !== 'completed' || existing.quizVersion !== 2) throw new ClearDataValidationError('Only completed V2 assessments support notes', 'love_brain_note_unavailable')
+    const updated: LoveBrainAssessment = { ...existing, noteToSay: validateText(noteToSay, 500, 'love_brain_note_too_long'), updatedAt: now() }
+    await this.storage.put('loveBrainAssessments', updated)
+    return updated
   }
   async delete(recordId: string, deleteStar = false) { await deleteLinkedRecord(this.storage, 'loveBrainAssessments', await this.getById(recordId), deleteStar, this.presentations) }
   async saveAsClearMindStar(recordId: string) {

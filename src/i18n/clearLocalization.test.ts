@@ -11,6 +11,17 @@ import { messages, supportedLocales } from './messages'
 
 describe('Clear six-language localization', () => {
   it.each([
+    ['zh-TW', '複製結果與內容'],
+    ['en', 'Copy results and content'],
+    ['ja', '結果と内容をコピー'],
+    ['ko', '결과와 내용 복사'],
+    ['es', 'Copiar resultados y contenido'],
+    ['fr', 'Copier les résultats et le contenu'],
+  ] as const)('uses a complete AI handoff copy label in %s', (locale, expected) => {
+    expect(messages[locale]['clear.brain.v2.ai.copy']).toBe(expected)
+  })
+
+  it.each([
     ['zh-TW', '← 回到清醒首頁'],
     ['en', '← Back to Clarity'],
     ['ja', '← 気づきのホームへ'],
@@ -23,7 +34,7 @@ describe('Clear six-language localization', () => {
 
   it('has every canonical key and no empty value in all six locales', () => {
     const canonicalKeys = Object.keys(clearMilestone4Messages).sort()
-    expect(canonicalKeys).toHaveLength(400)
+    expect(canonicalKeys).toHaveLength(450)
 
     for (const locale of supportedLocales) {
       const catalog = locale === 'zh-TW' ? clearMilestone4Messages : clearMilestone4LocalizedMessages[locale]
@@ -34,7 +45,7 @@ describe('Clear six-language localization', () => {
 
   it('has the same complete Clear UI key set for every locale', () => {
     const canonicalClearKeys = Object.keys(messages['zh-TW']).filter((key) => key.startsWith('clear.')).sort()
-    expect(canonicalClearKeys).toHaveLength(456)
+    expect(canonicalClearKeys).toHaveLength(551)
     for (const locale of supportedLocales) {
       const localeKeys = Object.keys(messages[locale]).filter((key) => key.startsWith('clear.')).sort()
       expect(localeKeys, locale).toEqual(canonicalClearKeys)

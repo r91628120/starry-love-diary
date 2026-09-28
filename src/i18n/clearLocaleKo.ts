@@ -1,4 +1,5 @@
 import { adaptClearLocale } from './clearLocaleAdapt'
+import { loveBrainV2LocaleGenerated } from './loveBrainV2LocaleGenerated'
 import { boatResultBodies, entries, likeResults } from './clearLocaleFactory'
 
 const seq = (prefix: string, count: number) => Array.from({ length: count }, (_, i) => prefix + String(i + 1).padStart(2, '0'))
@@ -22,7 +23,7 @@ Object.assign(ko,
  entries('clear.organize.action.',['put_phone_down','stop_checking_social','shower_or_rest','take_a_walk','continue_own_plan','talk_to_trusted_person','reply_when_calm','decide_tomorrow','write_diary','custom'],['잠시 휴대폰 내려놓기','당분간 게시물 확인하지 않기','씻거나 쉬기','산책하기','원래 계획 계속하기','믿는 사람과 이야기하기','진정된 뒤 답하기','내일 결정하기','오늘 일기에 쓰기','나만의 행동 쓰기']),
  entries('clear.boat.q.',seq('a',12),['답장이 왔는지 반복해서 확인한다.','답이 오래 없으면 내 일에 집중하기 어렵다.','답장이 오면 기분이 바로 크게 좋아진다.','대화나 함께한 장면을 머릿속에서 자주 되돌린다.','말 한마디, 이모지, 읽음 표시의 뜻을 계속 추측한다.','SNS, 게시물, 접속 상태를 자꾸 확인한다.','나를 신경 쓰는지, 좋아하는지 확인하고 싶다.','조금 차가워지면 내가 잘못했는지 의심한다.','답을 기다리느라 내 계획을 미룬 적이 있다.','관계가 아직 멀리 가지 않았는데 먼 미래를 자주 상상한다.','새로운 일이 없어도 계속 그 사람이 생각난다.','최근 이 사람이나 관계가 내 관심과 감정을 많이 차지한다.']),
  entries('clear.boat.q.',seq('b',10),['항상 내가 먼저 하지 않아도 상대가 먼저 연락한다.','나와 함께할 시간을 마련한다.','약속한 일을 대체로 지킨다.','내 감정이나 생각을 말할 때 들어 준다.','내가 말한 중요한 것을 기억한다.','대화가 필요할 때 이유 없이 사라지지 않는다.','행동과 말이 대체로 일치한다.','이 상호작용을 유지하는 사람이 나뿐은 아니다.','현재 관계에서 내 위치를 대체로 안다.','상대의 뜻을 계속 추측하지 않아도 된다.']),
- entries('clear.brain.pattern.',patterns,['생각 반복 패턴','메시지 의존 패턴','과도한 해석 패턴','단서 확인 패턴','자기희생 패턴']),
+ entries('clear.brain.pattern.',patterns,['반추','메시지에 흔들림','과도한 해석','확인을 위한 찾아보기','자신을 뒤로 미루기']),
  entries('clear.brain.q.',patterns.flatMap((p)=>seq(p+'_',5)),['대화가 끝난 뒤 했던 말을 여러 번 되돌린다.','상호작용이 조금 어긋나면 내가 잘못했는지 계속 생각한다.','일이 끝난 뒤에도 당시 장면이나 감정을 반복해 떠올린다.','더 생각해도 답이 없다는 걸 알지만 멈추기 어렵다.','다른 일을 하다가도 생각이 이 관계로 돌아온다.','메시지가 왔는지 무의식적으로 반복 확인한다.','답장이 늦으면 기분이 쉽게 흔들린다.','메시지나 알림을 보면 감정이 크게 달라진다.','답을 기다리느라 하던 일에 집중하기 어렵다.','답장 속도, 길이, 말투의 변화가 특히 신경 쓰인다.','평범한 말에도 다른 뜻이 있는지 오래 생각한다.','이모지, 말투, 문장 끝을 자세히 분석한다.','조금 차가우면 무슨 일이 생겼는지 추측한다.','작은 상호작용에서 많은 가능성을 떠올린다.','분명한 근거가 없어도 행동의 의미를 상상한다.','최근 무엇을 하는지 알기 위해 SNS를 본다.','접속 시간, 좋아요, 누구와 소통하는지 살핀다.','이상하다고 느끼면 단서를 더 찾는다.','상황을 알기 위해 생각보다 많은 게시물을 본 적이 있다.','새로운 일이 없어도 게시물을 다시 확인한다.','상대에게 맞추려고 내 계획을 바꾼 적이 있다.','불편하거나 원하지 않아도 상대의 필요를 먼저 둘 때가 있다.','거절하거나 다른 의견을 말하면 멀어질까 걱정한다.','상대의 기분을 내 감정보다 먼저 둘 때가 있다.','관계를 유지하려고 하고 싶은 말을 참은 적이 있다.']),
  entries('clear.like.q.',likeQ,['상상이 아니라 실제로 있었던 좋아하는 점을 세 가지 이상 말할 수 있나요?','썸이나 교제 기대가 없어도 이 사람과 함께하는 것이 좋을까요?','지금의 모습을 좋아하나요, 앞으로 되길 바라는 모습을 좋아하나요?','매일 정해진 연락이나 상호작용을 기대하나요?','연락이나 존재가 없으면 일상의 한 부분이 빠진 것 같나요?','그리운 것의 일부는 매일 있던 느낌 자체인가요?','관계가 이어지지 않으면 무엇이 가장 힘들까요?','이 사람을 잃는 것과 함께함이나 관심받는 느낌을 잃는 것 중 무엇이 더 힘들까요?','잃을까 봐 불편한 상호작용을 인정하지 못한 적이 있나요?','실제로 함께하는 시간보다 미래를 상상하는 시간이 더 많은가요?','“언젠가는”이라는 생각으로 지금 없는 것을 채우나요?','기대를 빼고 일어난 일만 보면 지금 관계를 어떻게 표현할까요?']),
  entries('clear.like.answer.',['yes','some','not_really','not_sure','probably_yes','probably_no','mostly_present','both','mostly_future','often','sometimes','rarely','somewhat','no','maybe','mostly_person','mostly_feeling'],['예','조금 있음','별로 그렇지 않음','아직 잘 모르겠음','아마 그럴 것 같음','아마 아닐 것 같음','주로 지금의 모습','둘 다','주로 앞으로 바라는 모습','자주','때때로','거의 없음','조금','없음','어쩌면','주로 이 사람을 잃는 것','주로 함께함이나 관심받는 느낌을 잃는 것'])
@@ -40,4 +41,5 @@ Object.assign(ko,
  entries('clear.like.option.',['lose_this_person','lose_daily_companionship','lose_feeling_cared_for','be_alone','investment_feels_wasted','no_result','uncertainty','other'],['이 사람을 잃는 것','매일의 함께함을 잃는 것','관심받는 느낌을 잃는 것','다시 혼자가 되는 것','그동안의 노력이 헛되게 느껴지는 것','결과 없이 끝나는 것','아직 모름','기타']),
  entries('clear.like.module.',['real_person.title','real_person.body','habit.title','habit.body','fear_of_loss.title','fear_of_loss.body','imagined_relationship.title','imagined_relationship.body'],['실제의 이 사람에게 호감이 있어요','지금 실제로 존재하는 이 사람의 모습을 보고 있어요.','일상에서 상대의 존재가 습관이 되었어요','정기적인 상호작용도 놓기 어려운 이유가 될 수 있어요.','잃을까 봐 두려운 마음도 있어요','잃을까 봐 두려우면 감정을 더 놓기 어려울 수 있어요.','기대가 현실보다 앞서 있을 수 있어요','아직 일어나지 않은 기대가 현재 현실보다 앞서 있을 수 있어요.'])
 )
+Object.assign(ko, loveBrainV2LocaleGenerated.ko)
 export const clearMilestone4MessagesKo=adaptClearLocale('ko',ko)

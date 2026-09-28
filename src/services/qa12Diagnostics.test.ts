@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Directory } from '@capacitor/filesystem'
 import { fireEvent, render } from '@testing-library/react'
 import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom'
-import { createElement } from 'react'
-import { clearQa12DiagnosticsForTest, createQa12DiagnosticExport, exportQa12Diagnostics, getQa12Diagnostics, installQa12Diagnostics, qa12LocationCommitted, qa12NavigationHandler, qa12RouterLocationRendered } from './qa12Diagnostics'
+import { createElement, useEffect, useRef } from 'react'
+import { clearQa12DiagnosticsForTest, createQa12DiagnosticExport, exportQa12Diagnostics, getQa12Diagnostics, installQa12Diagnostics, qa12LocationCommitted, qa12NavigationHandler, qa12RouteObserverMounted, qa12RouteObserverUnmounted, qa12RouterLocationRendered } from './qa12Diagnostics'
 
 afterEach(() => { clearQa12DiagnosticsForTest(); document.body.replaceChildren(); vi.useRealTimers(); vi.restoreAllMocks() })
 function navButton(source = 'bottom-nav:today') { const button = document.createElement('button'); button.dataset.qa12NavigationSource = source; button.textContent = 'private diary content'; document.body.append(button); return button }
@@ -12,7 +12,12 @@ function dispatch(button: HTMLElement, type: string) { button.dispatchEvent(new 
 function RouterRenderProbe() {
   const location = useLocation()
   const navigate = useNavigate()
+  const observerMountId = useRef<string | undefined>(undefined)
   qa12RouterLocationRendered(location.pathname)
+  useEffect(() => {
+    const mountId = qa12RouteObserverMounted(); observerMountId.current = mountId
+    return () => { if (mountId) qa12RouteObserverUnmounted(mountId) }
+  }, [])
   return createElement('div', undefined,
     createElement('output', { 'data-testid': 'router-path' }, location.pathname),
     createElement('button', { type: 'button', onClick: () => navigate('/settings') }, 'route'),
@@ -20,7 +25,7 @@ function RouterRenderProbe() {
   )
 }
 
-describe('QA-12 V5 touch and pointer diagnostics', () => {
+describe('QA-12 V6 touch and pointer diagnostics', () => {
   it('observes overlay and busy transitions once, then disconnects on disposal', async () => {
     const diagnostics = installQa12Diagnostics()
     const baseline = getQa12Diagnostics().events.length
@@ -55,15 +60,15 @@ describe('QA-12 V5 touch and pointer diagnostics', () => {
   })
   it('correlates foreground resumes with a session and build identity', () => {
     let visibility: DocumentVisibilityState = 'visible'; Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => visibility }); const diagnostics = installQa12Diagnostics(); visibility = 'hidden'; document.dispatchEvent(new Event('visibilitychange')); visibility = 'visible'; document.dispatchEvent(new Event('visibilitychange')); diagnostics.dispose()
-    const log = getQa12Diagnostics(); expect(log).toMatchObject({ diagnosticSchemaVersion: 5, appVersion: '1.0.0', build: 13 }); expect(log.sessionId).toBeTruthy(); expect(log.events.find((event) => event.type === 'foreground-resume')).toMatchObject({ foregroundResumeId: 'resume:1' })
+    const log = getQa12Diagnostics(); expect(log).toMatchObject({ diagnosticSchemaVersion: 6, appVersion: '1.0.0', build: 13 }); expect(log.sessionId).toBeTruthy(); expect(log.events.find((event) => event.type === 'foreground-resume')).toMatchObject({ foregroundResumeId: 'resume:1' })
   })
   it('keeps records bounded and never writes private element content', () => {
     const diagnostics = installQa12Diagnostics(); const button = navButton(); for (let index = 0; index < 200; index += 1) { dispatch(button, 'pointerdown'); qa12NavigationHandler('bottom-nav:today', '/today') }; diagnostics.dispose()
-    const exported = createQa12DiagnosticExport(); expect(getQa12Diagnostics().events.length).toBeLessThanOrEqual(160); expect(exported.content).not.toContain('private diary content'); expect(JSON.parse(exported.content)).toMatchObject({ diagnosticSchemaVersion: 5, build: 13 })
+    const exported = createQa12DiagnosticExport(); expect(getQa12Diagnostics().events.length).toBeLessThanOrEqual(160); expect(exported.content).not.toContain('private diary content'); expect(JSON.parse(exported.content)).toMatchObject({ diagnosticSchemaVersion: 6, build: 13 })
   })
-  it('exports the readable V4 log through native and browser delivery paths', async () => {
+  it('exports the readable V6 log through native and browser delivery paths', async () => {
     const writeFile = vi.fn().mockResolvedValue({ uri: 'file:///cache/starry-love-diary-qa12-diagnostics.json' }); const share = vi.fn().mockResolvedValue(undefined); const deleteFile = vi.fn().mockResolvedValue(undefined)
-    await expect(exportQa12Diagnostics({ isNativePlatform: () => true, canShare: vi.fn().mockResolvedValue({ value: true }), writeFile, share, deleteFile })).resolves.toBe('share-sheet-opened'); expect(writeFile).toHaveBeenCalledWith(expect.objectContaining({ directory: Directory.Cache })); const download = vi.fn(); await expect(exportQa12Diagnostics({ isNativePlatform: () => false, download })).resolves.toBe('downloaded'); expect(JSON.parse(download.mock.calls[0][0])).toMatchObject({ diagnosticSchemaVersion: 5 })
+    await expect(exportQa12Diagnostics({ isNativePlatform: () => true, canShare: vi.fn().mockResolvedValue({ value: true }), writeFile, share, deleteFile })).resolves.toBe('share-sheet-opened'); expect(writeFile).toHaveBeenCalledWith(expect.objectContaining({ directory: Directory.Cache })); const download = vi.fn(); await expect(exportQa12Diagnostics({ isNativePlatform: () => false, download })).resolves.toBe('downloaded'); expect(JSON.parse(download.mock.calls[0][0])).toMatchObject({ diagnosticSchemaVersion: 6 })
   })
   it('records one router-location-render for an actual Router pathname change, not ordinary rerenders', () => {
     const diagnostics = installQa12Diagnostics()
@@ -74,6 +79,28 @@ describe('QA-12 V5 touch and pointer diagnostics', () => {
     const renders = getQa12Diagnostics().events.filter((event) => event.type === 'router-location-render')
     expect(renders.map((event) => event.routerPathname)).toEqual(['/today', '/settings'])
     expect(renders[1]).toMatchObject({ previousRouterPathname: '/today', pathnameChanged: true })
+  })
+  it('records an observer that mounts before the parent diagnostics effect installs', () => {
+    const mountId = qa12RouteObserverMounted(); qa12RouterLocationRendered('/today'); const diagnostics = installQa12Diagnostics()
+    expect(getQa12Diagnostics().events.find((event) => event.type === 'router-observer-mount')).toMatchObject({ observerMountId: mountId, observerMounted: true, lastRouterPathname: '/today' })
+    diagnostics.dispose()
+  })
+  it('keeps one observer mount identity across route renders and records its real lifecycle', () => {
+    const diagnostics = installQa12Diagnostics(); const mountId = qa12RouteObserverMounted(); qa12RouterLocationRendered('/today'); qa12RouterLocationRendered('/settings'); qa12RouteObserverUnmounted(mountId!); diagnostics.dispose()
+    const log = getQa12Diagnostics(); const mount = log.events.find((event) => event.type === 'router-observer-mount'); const renders = log.events.filter((event) => event.type === 'router-location-render'); const unmount = log.events.find((event) => event.type === 'router-observer-unmount')
+    expect(mount?.observerMountId).toBeTruthy(); expect(renders).toHaveLength(2); expect(renders.map((event) => event.observerMountId)).toEqual([mount?.observerMountId, mount?.observerMountId]); expect(unmount).toMatchObject({ observerMountId: mount?.observerMountId, observerMounted: false, lastRouterPathname: '/settings' })
+  })
+  it('snapshots browser and observer state only when navigation becomes incomplete', () => {
+    vi.useFakeTimers(); window.history.replaceState({}, '', '/today'); const diagnostics = installQa12Diagnostics(); const mountId = qa12RouteObserverMounted(); qa12RouterLocationRendered('/today'); const attempt = qa12NavigationHandler('bottom-nav:settings', '/settings'); expect(getQa12Diagnostics().events.find((event) => event.type === 'navigation-intent' && event.navAttemptId === attempt)?.lastRouterPathname).toBeUndefined(); window.history.replaceState({}, '', '/settings'); vi.advanceTimersByTime(1_500); diagnostics.dispose()
+    expect(getQa12Diagnostics().events.find((event) => event.type === 'navigation-incomplete' && event.navAttemptId === attempt)).toMatchObject({ browserPathname: '/settings', lastRouterPathname: '/today', observerMountId: mountId, observerMounted: true })
+  })
+  it('retains V5 stored evidence when reading it as a V6 diagnostic log', () => {
+    localStorage.removeItem('starry-love-diary:qa12-diagnostics:v6'); localStorage.setItem('starry-love-diary:qa12-diagnostics:v5', JSON.stringify({ format: 'starry-love-diary-qa12-diagnostics', diagnosticSchemaVersion: 5, appVersion: '1.0.0', build: 13, sessionId: 'legacy-session', events: [{ type: 'boot', timestamp: '2026-09-28T00:00:00.000Z', sessionId: 'legacy-session', foregroundResumeId: 'initial', pathname: '/today' }], interactionTotals: {} }))
+    expect(getQa12Diagnostics()).toMatchObject({ diagnosticSchemaVersion: 6, sessionId: 'legacy-session', events: [expect.objectContaining({ type: 'boot' })] })
+  })
+  it('still clears a normal navigation attempt after destination commit', () => {
+    vi.useFakeTimers(); const diagnostics = installQa12Diagnostics(); qa12RouteObserverMounted(); qa12RouterLocationRendered('/today'); const attempt = qa12NavigationHandler('settings-button', '/settings'); qa12RouterLocationRendered('/settings'); qa12LocationCommitted('/settings'); vi.advanceTimersByTime(1_500); diagnostics.dispose()
+    expect(getQa12Diagnostics().events.some((event) => event.type === 'navigation-incomplete' && event.navAttemptId === attempt)).toBe(false)
   })
   it('marks same-route attempts separately from cross-route attempts', () => {
     window.history.replaceState({}, '', '/today')

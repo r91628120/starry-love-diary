@@ -55,12 +55,12 @@ export interface PersistenceContextValue {
   updateRememberedYouCard(id: string, changes: Partial<Pick<RememberedYouCard, 'title' | 'content'>>): Promise<RememberedYouCard>
   deleteRememberedYouCard(id: string): Promise<void>
   toggleRememberedYouFavorite(id: string): Promise<RememberedYouCard>
-  updateSettings(changes: Partial<Pick<AppSettings, 'locale' | 'onboardingCompleted' | 'dailyLoveQuoteActivationDate' | 'loveQuoteReminderEnabled' | 'importantDateReminderEnabled' | 'reminderTime'>>): Promise<AppSettings>
+  updateSettings(changes: Partial<Pick<AppSettings, 'locale' | 'onboardingCompleted' | 'dailyLoveQuoteActivationDate' | 'loveQuoteReminderEnabled' | 'importantDateReminderEnabled' | 'reminderTime' | 'externalAiHandoffConsentVersion'>>): Promise<AppSettings>
   clearCurrentRelationshipData(): Promise<void>
   refreshScoreAndStars(): Promise<void>
   applyAppDataImport(plan: AppDataImportPlan): Promise<ImportSummary>
   restoreAppData(plan: RestorePlan): Promise<void>
-  repositories: Pick<PersistenceRuntime, 'adapter' | 'profiles' | 'moods' | 'diaries' | 'settings' | 'stars' | 'starDropPresentations' | 'diaryDrafts' | 'scores' | 'heartPhrases' | 'importantDates' | 'memoryMoments' | 'messageToYou' | 'rememberedYou' | 'clearRecords' | 'loveBoatAssessments' | 'loveBrainAssessments' | 'likeOrHabitReflections' | 'photos' | 'memoryWallLayouts' | 'profilePhotoPlacements' | 'heartRevealPhotos' | 'memoryMomentPhotoPlacements'>
+  repositories: Pick<PersistenceRuntime, 'adapter' | 'profiles' | 'moods' | 'diaries' | 'settings' | 'stars' | 'starDropPresentations' | 'diaryDrafts' | 'scores' | 'heartPhrases' | 'importantDates' | 'memoryMoments' | 'messageToYou' | 'rememberedYou' | 'clearRecords' | 'clearFreeTalkRecords' | 'loveBoatAssessments' | 'loveBrainAssessments' | 'likeOrHabitReflections' | 'photos' | 'memoryWallLayouts' | 'profilePhotoPlacements' | 'heartRevealPhotos' | 'memoryMomentPhotoPlacements'>
 }
 
 export const PersistenceStateContext = createContext<PersistenceContextValue | null>(null)

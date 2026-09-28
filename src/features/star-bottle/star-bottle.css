@@ -258,6 +258,39 @@
   text-shadow: 0 0.1rem 0 var(--color-surface-strong);
 }
 
+.star-bottle-help { min-width: 0; padding: 0; overflow: hidden; }
+.star-bottle-help__disclosure > summary,
+.star-bottle-help__score-disclosure > summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  color: var(--color-ink-900);
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+  list-style: none;
+  overflow-wrap: anywhere;
+}
+.star-bottle-help summary::-webkit-details-marker { display: none; }
+.star-bottle-help__chevron { transition: transform .18s ease; }
+.star-bottle-help details[open] > summary .star-bottle-help__chevron { transform: rotate(180deg); }
+.star-bottle-help__content,
+.star-bottle-help__score-content { display: grid; min-width: 0; gap: var(--space-3); padding: 0 var(--space-3) var(--space-3); }
+.star-bottle-help__content > p,
+.star-bottle-help__content section p,
+.star-bottle-help__score-content p { margin: 0; color: var(--color-ink-700); line-height: 1.5; overflow-wrap: anywhere; }
+.star-bottle-help__content section { display: grid; min-width: 0; gap: var(--space-1); }
+.star-bottle-help__content h2 { margin: 0; color: var(--color-ink-900); font-size: var(--font-size-body); }
+.star-bottle-help__score-disclosure { min-width: 0; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: rgb(255 255 255 / 62%); }
+.star-bottle-help__score-disclosure > summary { grid-template-columns: minmax(0, 1fr) auto; color: var(--color-pink-500); font-size: var(--font-size-body); }
+.star-bottle-help__score-content { padding-top: 0; }
+.star-bottle-help__score-content ul { display: grid; min-width: 0; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.star-bottle-help__score-content li { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-3); align-items: baseline; padding-bottom: var(--space-1); border-bottom: 1px solid rgb(122 93 76 / 14%); color: var(--color-ink-700); overflow-wrap: anywhere; }
+.star-bottle-help__score-content li strong { color: var(--color-pink-500); white-space: nowrap; }
+.star-bottle-help__disclosure > summary:focus-visible,
+.star-bottle-help__score-disclosure > summary:focus-visible { outline: .18rem solid var(--color-pink-400); outline-offset: -.18rem; }
+
 .star-bottle-filter {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

@@ -5,6 +5,8 @@ import {
   BOAT_B_KEYS,
   ClearDataValidationError,
   LOVE_BRAIN_KEYS,
+  LOVE_BRAIN_V2_QUESTION_DEFINITIONS,
+  LocalClearFreeTalkRepository,
   LocalClearRecordRepository,
   LocalLikeOrHabitReflectionRepository,
   LocalLoveBoatAssessmentRepository,
@@ -12,12 +14,13 @@ import {
   calculateLoveBoat,
   calculateLoveBrain,
   deriveLikeOrHabitResult,
+  scoreLoveBrainAnswer,
 } from './repositories/clearRepositories'
 import { LocalScoreRepository } from './repositories/repositories'
 import { initializePersistence } from './persistence'
 import { ensureObjectStores, SCHEMA_VERSION } from './storage/IndexedDbStorageAdapter'
 import { createMemoryStorageBacking, MemoryStorageAdapter } from './storage/MemoryStorageAdapter'
-import { DIARY_DRAFT_V7_STORE_NAMES, LEGACY_V4_STORE_NAMES, PHOTO_V5_STORE_NAMES, STAR_DROP_V6_STORE_NAMES, STORE_NAMES } from './storage/StorageAdapter'
+import { DIARY_DRAFT_V7_STORE_NAMES, FREE_TALK_V8_STORE_NAMES, LEGACY_V4_STORE_NAMES, PHOTO_V5_STORE_NAMES, STAR_DROP_V6_STORE_NAMES, STORE_NAMES } from './storage/StorageAdapter'
 
 function answeredA(value: 0 | 1 | 2 | 3) {
   return Object.fromEntries(BOAT_A_KEYS.map((key) => [key, value])) as Record<BoatInvestmentQuestionKey, 0 | 1 | 2 | 3>
@@ -63,7 +66,7 @@ describe('IndexedDB v5 migration plan', () => {
       objectStoreNames: { contains: () => false } as unknown as DOMStringList,
       createObjectStore: ((name: string) => { created.push(name); return {} as IDBObjectStore }) as IDBDatabase['createObjectStore'],
     })
-    expect(SCHEMA_VERSION).toBe(7)
+    expect(SCHEMA_VERSION).toBe(8)
     expect(created).toEqual(STORE_NAMES)
   })
 
@@ -74,7 +77,7 @@ describe('IndexedDB v5 migration plan', () => {
       objectStoreNames: { contains: (name: string) => v3Stores.includes(name as typeof v3Stores[number]) } as unknown as DOMStringList,
       createObjectStore: ((name: string) => { created.push(name); return {} as IDBObjectStore }) as IDBDatabase['createObjectStore'],
     })
-    expect(created).toEqual([...LEGACY_V4_STORE_NAMES.slice(11), ...PHOTO_V5_STORE_NAMES, ...STAR_DROP_V6_STORE_NAMES, ...DIARY_DRAFT_V7_STORE_NAMES])
+    expect(created).toEqual([...LEGACY_V4_STORE_NAMES.slice(11), ...PHOTO_V5_STORE_NAMES, ...STAR_DROP_V6_STORE_NAMES, ...DIARY_DRAFT_V7_STORE_NAMES, ...FREE_TALK_V8_STORE_NAMES])
     expect(v3Stores).toEqual(['profiles', 'settings', 'moods', 'diaries', 'stars', 'scoreAwards', 'heartPhrases', 'importantDates', 'memoryMoments', 'messageToYou', 'rememberedYouCards'])
   })
 
@@ -100,7 +103,7 @@ describe('IndexedDB v5 migration plan', () => {
 
     const runtime = await initializePersistence({ adapter, defaultLocale: 'zh-TW', localDate: '2026-08-30' })
 
-    expect(runtime.initial.settings.schemaVersion).toBe(7)
+    expect(runtime.initial.settings.schemaVersion).toBe(8)
     expect(runtime.initial.settings.onboardingCompleted).toBe(true)
     for (const store of Object.keys(legacyRecords) as Array<keyof typeof legacyRecords>) {
       expect(await adapter.get(store, legacyRecords[store].id)).toBeDefined()
@@ -133,6 +136,24 @@ describe('ClearRecord repository', () => {
     expect(await reopened.list()).toEqual([])
     expect(await reopenedAdapter.getAll('stars')).toHaveLength(1)
     expect(await new LocalScoreRepository(reopenedAdapter).getTotal()).toBe(5)
+  })
+})
+
+describe('Free Talk repository', () => {
+  it('keeps one active draft, completes without awards, and supports editing and deletion', async () => {
+    const adapter = new MemoryStorageAdapter(); await adapter.open()
+    const freeTalk = new LocalClearFreeTalkRepository(adapter)
+    const first = await freeTalk.createDraft('先寫下來 💛')
+    expect((await freeTalk.createDraft('不應建立第二份')).id).toBe(first.id)
+    const updated = await freeTalk.updateDraft(first.id, '更新後的內容 ❤️')
+    expect(updated).toMatchObject({ id: first.id, status: 'draft', text: '更新後的內容 ❤️' })
+    const completed = await freeTalk.complete(first.id, '完成的自由整理')
+    expect(completed).toMatchObject({ id: first.id, status: 'completed' })
+    expect(await freeTalk.getActiveDraft()).toBeUndefined()
+    expect(await freeTalk.updateCompleted(first.id, '可再編輯')).toMatchObject({ text: '可再編輯', status: 'completed' })
+    expect(await adapter.getAll('scoreAwards')).toEqual([])
+    await freeTalk.delete(first.id)
+    expect(await freeTalk.listAll()).toEqual([])
   })
 })
 
@@ -199,20 +220,48 @@ describe('LoveBoatAssessment repository and rules', () => {
     expect((await reopened.saveAsClearMindStar(draft.id)).created).toBe(false)
     expect(await reopenedAdapter.getAll('scoreAwards')).toEqual([])
   })
+
+  it('keeps a completed Love Boat note on the same record, counts emoji by code point, and clears only the note', async () => {
+    const adapter = new MemoryStorageAdapter(); await adapter.open()
+    const repository = new LocalLoveBoatAssessmentRepository(adapter)
+    const draft = await repository.createDraft()
+    await repository.updateDraft(draft.id, { aAnswers: answeredA(2), bAnswers: answeredB(1), currentSection: 'result', currentQuestionIndex: 9 })
+    const completed = await repository.complete(draft.id)
+    const note = Array.from({ length: 500 }, () => '✨').join('')
+    const saved = await repository.updateNote(draft.id, note)
+    expect(saved).toMatchObject({ id: draft.id, noteToSay: note, aScore: completed.aScore, crossResultKey: completed.crossResultKey, completedAt: completed.completedAt })
+    await expect(repository.updateNote(draft.id, `${note}x`)).rejects.toMatchObject({ code: 'love_boat_note_too_long' })
+    expect(await repository.updateNote(draft.id, undefined)).toMatchObject({ id: draft.id, aScore: completed.aScore, crossResultKey: completed.crossResultKey, noteToSay: undefined })
+  })
 })
 
 describe('LoveBrainAssessment repository and rules', () => {
-  it('calculates five scores, low overall, secondary threshold, and ties without random choice', () => {
-    expect(calculateLoveBrain(answeredBrain(0))).toMatchObject({ scores: { total: 0 }, isLowOverall: true, primaryPatterns: [] })
+  it('keeps V1 scoring and its legacy total threshold available for unversioned completed records', () => {
+    expect(calculateLoveBrain(answeredBrain(0), 1)).toMatchObject({ scores: { total: 0 }, isLowOverall: true, primaryPatterns: [] })
     const answers = answeredBrain(0)
     for (const key of LOVE_BRAIN_KEYS.filter((key) => key.startsWith('rumination_'))) answers[key] = 3
     for (const key of LOVE_BRAIN_KEYS.filter((key) => key.startsWith('message_dependency_')).slice(0, 4)) answers[key] = 3
-    expect(calculateLoveBrain(answers)).toMatchObject({ primaryPattern: 'rumination', secondaryPattern: 'message_dependency', isLowOverall: false })
+    expect(calculateLoveBrain(answers, 1)).toMatchObject({ primaryPattern: 'rumination', secondaryPattern: 'message_dependency', isLowOverall: false })
     answers.message_dependency_01 = 0
     answers.message_dependency_02 = 0
-    expect(calculateLoveBrain(answers).secondaryPattern).toBeUndefined()
+    expect(calculateLoveBrain(answers, 1).secondaryPattern).toBeUndefined()
     const tied = answeredBrain(2)
-    expect(calculateLoveBrain(tied)).toMatchObject({ primaryPattern: undefined, primaryPatterns: ['rumination', 'message_dependency', 'over_interpretation', 'detective', 'self_sacrifice'] })
+    expect(calculateLoveBrain(tied, 1)).toMatchObject({ primaryPattern: undefined, primaryPatterns: ['rumination', 'message_dependency', 'over_interpretation', 'detective', 'self_sacrifice'] })
+  })
+
+  it('defines all 25 V2 questions once and applies reverse scoring from question metadata', () => {
+    expect(LOVE_BRAIN_V2_QUESTION_DEFINITIONS).toHaveLength(25)
+    expect(LOVE_BRAIN_V2_QUESTION_DEFINITIONS.map((question) => question.number)).toEqual(Array.from({ length: 25 }, (_, index) => index + 1))
+    for (const pattern of ['rumination', 'message_dependency', 'over_interpretation', 'detective', 'self_sacrifice']) expect(LOVE_BRAIN_V2_QUESTION_DEFINITIONS.filter((question) => question.pattern === pattern)).toHaveLength(5)
+    expect(LOVE_BRAIN_V2_QUESTION_DEFINITIONS.filter((question) => question.reverseScored).map((question) => question.number)).toEqual([4, 5, 9, 10, 14, 15, 19, 20, 24, 25])
+    expect(([0, 1, 2, 3] as const).map((answer) => scoreLoveBrainAnswer(answer, false))).toEqual([0, 1, 2, 3])
+    expect(([0, 1, 2, 3] as const).map((answer) => scoreLoveBrainAnswer(answer, true))).toEqual([3, 2, 1, 0])
+    expect(calculateLoveBrain(answeredBrain(0), 2).v2Scores).toEqual({ rumination: 6, messagePull: 6, overInterpretation: 6, checking: 6, selfNeglect: 6, totalScore: 30 })
+    expect(calculateLoveBrain(answeredBrain(3), 2).v2Scores).toEqual({ rumination: 9, messagePull: 9, overInterpretation: 9, checking: 9, selfNeglect: 9, totalScore: 45 })
+    const minimum = answeredBrain(0); for (const question of LOVE_BRAIN_V2_QUESTION_DEFINITIONS.filter((item) => item.reverseScored)) minimum[question.key] = 3
+    expect(calculateLoveBrain(minimum, 2).v2Scores).toEqual({ rumination: 0, messagePull: 0, overInterpretation: 0, checking: 0, selfNeglect: 0, totalScore: 0 })
+    const maximum = answeredBrain(3); for (const question of LOVE_BRAIN_V2_QUESTION_DEFINITIONS.filter((item) => item.reverseScored)) maximum[question.key] = 0
+    expect(calculateLoveBrain(maximum, 2).v2Scores).toEqual({ rumination: 15, messagePull: 15, overInterpretation: 15, checking: 15, selfNeglect: 15, totalScore: 75 })
   })
 
   it('reopens a draft, restarts with confirmation-ready API, locks completion, and guards stars', async () => {
@@ -237,32 +286,39 @@ describe('LoveBrainAssessment repository and rules', () => {
     expect(newDraft.id).not.toBe(draft.id)
   })
 
-  it('locks stable v1 keys for low, primary, and primary plus secondary results across reopen/history', async () => {
+  it('does not reinterpret an unversioned completed V1 history record with V2 scoring', async () => {
     const backing = createMemoryStorageBacking()
     const adapter = new MemoryStorageAdapter(backing); await adapter.open()
     const repository = new LocalLoveBrainAssessmentRepository(adapter)
-    const lowDraft = await repository.createDraft()
-    await repository.updateDraft(lowDraft.id, { answers: answeredBrain(0) })
-    expect(await repository.complete(lowDraft.id)).toMatchObject({ isLowOverall: true, resultVariantKey: 'low_overall.v1' })
-
-    const primaryAnswers = answeredBrain(0)
-    for (const question of LOVE_BRAIN_KEYS.filter((key) => key.startsWith('rumination_'))) primaryAnswers[question] = 3
-    for (const question of LOVE_BRAIN_KEYS.filter((key) => key.startsWith('message_dependency_')).slice(0, 4)) primaryAnswers[question] = 3
-    const primaryDraft = await repository.createDraft()
-    await repository.updateDraft(primaryDraft.id, { answers: primaryAnswers })
-    expect(await repository.complete(primaryDraft.id)).toMatchObject({ primaryPattern: 'rumination', secondaryPattern: 'message_dependency', resultVariantKey: 'rumination.v1' })
-
-    const onlyPrimaryAnswers = { ...primaryAnswers }
-    onlyPrimaryAnswers.message_dependency_01 = 0
-    onlyPrimaryAnswers.message_dependency_02 = 0
-    const onlyPrimaryDraft = await repository.createDraft()
-    await repository.updateDraft(onlyPrimaryDraft.id, { answers: onlyPrimaryAnswers })
-    expect(await repository.complete(onlyPrimaryDraft.id)).toMatchObject({ primaryPattern: 'rumination', secondaryPattern: undefined, resultVariantKey: 'rumination.v1' })
+    const legacy = { id: 'legacy-v1', status: 'completed' as const, answers: answeredBrain(0), currentQuestionIndex: 24, scores: { rumination: 0, messageDependency: 0, overInterpretation: 0, detective: 0, selfSacrifice: 0, total: 0 }, isLowOverall: true, resultVariantKey: 'low_overall.v1' as const, primaryPatterns: [], localDate: '2026-09-01', timezone: 'Asia/Taipei', createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:00:00.000Z', completedAt: '2026-09-01T00:00:00.000Z' }
+    await adapter.put('loveBrainAssessments', legacy)
+    expect(await repository.getById(legacy.id)).toEqual(legacy)
+    const v2Draft = await repository.createDraft()
+    await repository.updateDraft(v2Draft.id, { answers: answeredBrain(2) })
+    expect(await repository.complete(v2Draft.id)).toMatchObject({ quizVersion: 2, isLowOverall: false, resultVariantKey: 'tie.v1', v2Scores: { totalScore: 40 } })
     adapter.close()
 
     const reopenedAdapter = new MemoryStorageAdapter(backing); await reopenedAdapter.open()
     const history = await new LocalLoveBrainAssessmentRepository(reopenedAdapter).list()
-    expect(history.map((record) => record.resultVariantKey)).toEqual(expect.arrayContaining(['low_overall.v1', 'rumination.v1']))
+    expect(history.find((record) => record.id === legacy.id)).toEqual(legacy)
+  })
+
+  it('keeps a V2 note on the same completed record, counts emoji by code point, and clears only the note', async () => {
+    const adapter = new MemoryStorageAdapter(); await adapter.open()
+    const repository = new LocalLoveBrainAssessmentRepository(adapter)
+    const draft = await repository.createDraft()
+    await repository.updateDraft(draft.id, { answers: answeredBrain(2) })
+    const completed = await repository.complete(draft.id)
+    const originalTime = completed.completedAt
+    const prefix = '思念是一種「愛」 ❤️'
+    const note = [...prefix, ...Array.from({ length: 500 - [...prefix].length }, () => '✨')].join('')
+    const saved = await repository.updateNote(draft.id, note)
+    expect([...note]).toHaveLength(500)
+    expect(saved).toMatchObject({ id: draft.id, noteToSay: note, v2Scores: completed.v2Scores, completedAt: originalTime })
+    await expect(repository.updateNote(draft.id, `${note}x`)).rejects.toMatchObject({ code: 'love_brain_note_too_long' })
+    const cleared = await repository.updateNote(draft.id, undefined)
+    expect(cleared).toMatchObject({ id: draft.id, status: 'completed', v2Scores: completed.v2Scores, completedAt: originalTime })
+    expect(cleared.noteToSay).toBeUndefined()
   })
 })
 

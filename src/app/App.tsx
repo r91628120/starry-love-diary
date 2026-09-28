@@ -14,15 +14,21 @@ import { MomentPhotoManagementPage } from '../pages/MomentPhotoManagementPage'
 import { SettingsInformationPage } from '../pages/SettingsInformationPage'
 import { usePersistence } from '../data/PersistenceStateContext'
 import { useEffect, useRef } from 'react'
-import { installQa12Diagnostics, qa12LocationCommitted, qa12RouterLocationRendered } from '../services/qa12Diagnostics'
+import { installQa12Diagnostics, qa12LocationCommitted, qa12RouteObserverMounted, qa12RouteObserverUnmounted, qa12RouterLocationRendered } from '../services/qa12Diagnostics'
 
 function Qa12RouteCommitObserver() {
   const location = useLocation()
   const lastRenderedPathname = useRef<string | undefined>(undefined)
+  const observerMountId = useRef<string | undefined>(undefined)
   if (lastRenderedPathname.current !== location.pathname) {
     qa12RouterLocationRendered(location.pathname)
     lastRenderedPathname.current = location.pathname
   }
+  useEffect(() => {
+    const mountId = qa12RouteObserverMounted()
+    observerMountId.current = mountId
+    return () => { if (mountId) qa12RouteObserverUnmounted(mountId) }
+  }, [])
   useEffect(() => { qa12LocationCommitted(location.pathname) }, [location.pathname])
   return null
 }

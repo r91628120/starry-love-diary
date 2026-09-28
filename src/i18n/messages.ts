@@ -31,6 +31,9 @@ import { messageToYouV1Messages } from './messageToYouV1Messages'
 import { messageToYouVisualPolishMessages } from './messageToYouVisualPolishMessages'
 import { updateMessages } from './updateMessages'
 import { qa12DiagnosticsMessages } from './qa12DiagnosticsMessages'
+import { starBottleHelpMessages } from './starBottleHelpMessages'
+import { clearAiHandoffMessages } from './clearAiHandoffMessages'
+import { freeTalkMessages } from './freeTalkMessages'
 
 export const supportedLocales = ['zh-TW', 'en', 'ja', 'ko', 'es', 'fr'] as const
 
@@ -176,6 +179,9 @@ export const messages = {
     ...exportTextMessages['zh-TW'],
     ...exportAppDataMessages['zh-TW'],
     ...qa12DiagnosticsMessages['zh-TW'],
+    ...starBottleHelpMessages['zh-TW'],
+    ...clearAiHandoffMessages['zh-TW'],
+    ...freeTalkMessages['zh-TW'],
     ...importAppDataMessages['zh-TW'],
     ...clearRelationshipMessages['zh-TW'],
     ...settingsInformationMessages['zh-TW'],
@@ -304,6 +310,9 @@ export const messages = {
     ...exportTextMessages.en,
     ...exportAppDataMessages.en,
     ...qa12DiagnosticsMessages.en,
+    ...starBottleHelpMessages.en,
+    ...clearAiHandoffMessages.en,
+    ...freeTalkMessages.en,
     ...importAppDataMessages.en,
     ...clearRelationshipMessages.en,
     ...settingsInformationMessages.en,
@@ -432,6 +441,9 @@ export const messages = {
     ...exportTextMessages.ja,
     ...exportAppDataMessages.ja,
     ...qa12DiagnosticsMessages.ja,
+    ...starBottleHelpMessages.ja,
+    ...clearAiHandoffMessages.ja,
+    ...freeTalkMessages.ja,
     ...importAppDataMessages.ja,
     ...clearRelationshipMessages.ja,
     ...settingsInformationMessages.ja,
@@ -560,6 +572,9 @@ export const messages = {
     ...exportTextMessages.ko,
     ...exportAppDataMessages.ko,
     ...qa12DiagnosticsMessages.ko,
+    ...starBottleHelpMessages.ko,
+    ...clearAiHandoffMessages.ko,
+    ...freeTalkMessages.ko,
     ...importAppDataMessages.ko,
     ...clearRelationshipMessages.ko,
     ...settingsInformationMessages.ko,
@@ -688,6 +703,9 @@ export const messages = {
     ...exportTextMessages.es,
     ...exportAppDataMessages.es,
     ...qa12DiagnosticsMessages.es,
+    ...starBottleHelpMessages.es,
+    ...clearAiHandoffMessages.es,
+    ...freeTalkMessages.es,
     ...importAppDataMessages.es,
     ...clearRelationshipMessages.es,
     ...settingsInformationMessages.es,
@@ -816,6 +834,9 @@ export const messages = {
     ...exportTextMessages.fr,
     ...exportAppDataMessages.fr,
     ...qa12DiagnosticsMessages.fr,
+    ...starBottleHelpMessages.fr,
+    ...clearAiHandoffMessages.fr,
+    ...freeTalkMessages.fr,
     ...importAppDataMessages.fr,
     ...clearRelationshipMessages.fr,
     ...settingsInformationMessages.fr,

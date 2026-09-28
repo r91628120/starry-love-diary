@@ -12,6 +12,7 @@ async function sourceRuntime() {
   await runtime.adapter.put('stars', { id: 'star-1', type: 'mood', sourceId: '2026-09-10', sourceType: 'mood', content: 'happy', mood: 'happy', localDate: '2026-09-10', timezone: 'Asia/Taipei', createdAt: stamp, updatedAt: stamp })
   await runtime.adapter.put('scoreAwards', { id: 'award-1', awardType: 'mood_selected', points: 2, sourceId: '2026-09-10', localDate: '2026-09-10', timezone: 'Asia/Taipei', createdAt: stamp, updatedAt: stamp })
   await runtime.adapter.put('loveBoatAssessments', { id: 'boat-draft', status: 'draft', currentSection: 'A', currentQuestionIndex: 0, aAnswers: {}, bAnswers: {}, localDate: '2026-09-10', timezone: 'Asia/Taipei', createdAt: stamp, updatedAt: stamp })
+  await runtime.adapter.put('loveBrainAssessments', { id: 'brain-v2', status: 'completed', quizVersion: 2, noteToSay: '想再說一點 ❤️', answers: { rumination_01: 3 }, currentQuestionIndex: 24, scores: { rumination: 3, messageDependency: 0, overInterpretation: 0, detective: 0, selfSacrifice: 0, total: 3 }, v2Scores: { rumination: 3, messagePull: 0, overInterpretation: 0, checking: 0, selfNeglect: 0, totalScore: 3 }, isLowOverall: false, primaryPattern: 'rumination', primaryPatterns: ['rumination'], resultVariantKey: 'rumination.v1', localDate: '2026-09-10', timezone: 'Asia/Taipei', createdAt: stamp, updatedAt: stamp, completedAt: stamp })
   await runtime.settings.updateSettings({ locale: 'fr', reminderTime: '20:45' })
   return runtime
 }
@@ -34,6 +35,7 @@ describe('Import App Data V1', () => {
     expect(await target.stars.getStars()).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'star-1', sourceId: '2026-09-10' })]))
     expect(await target.scores.getAwards()).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'award-1', awardType: 'mood_selected', points: 2 })]))
     expect((await target.loveBoatAssessments.listAll()).find((item) => item.id === 'boat-draft')).toMatchObject({ status: 'draft' })
+    expect((await target.loveBrainAssessments.listAll()).find((item) => item.id === 'brain-v2')).toMatchObject({ quizVersion: 2, noteToSay: '想再說一點 ❤️', v2Scores: { messagePull: 0, checking: 0, selfNeglect: 0, totalScore: 3 } })
     expect((await target.scores.getAwards()).filter((award) => award.id === 'award-1')).toHaveLength(1)
     const second = await buildImportPlan(target, exported)
     expect(summarizeImportPlan(second).added + summarizeImportPlan(second).updated).toBe(0)

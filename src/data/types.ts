@@ -162,6 +162,8 @@ export interface AppSettings {
   loveQuoteReminderEnabled: boolean
   importantDateReminderEnabled: boolean
   reminderTime: string
+  /** Device-local acknowledgement of the external AI handoff disclosure. */
+  externalAiHandoffConsentVersion?: number
   schemaVersion: number
   createdAt: string
   updatedAt: string

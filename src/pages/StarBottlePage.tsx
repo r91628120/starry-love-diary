@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { PageHeader, SearchBar } from '../components'
 import { BottleHeroCard } from '../features/star-bottle/BottleHeroCard'
+import { StarBottleHelpCard } from '../features/star-bottle/StarBottleHelpCard'
 import { StarEntryList } from '../features/star-bottle/StarEntryList'
 import { StarStats } from '../features/star-bottle/StarStats'
 import { TimeRangeFilter, type TimeRange } from '../features/star-bottle/TimeRangeFilter'
@@ -31,6 +32,7 @@ export function StarBottlePage() {
       <main className="star-bottle-page__content">
         <div className="star-bottle-page__title" aria-hidden="true">{t('starBottle.title')}</div>
         <BottleHeroCard stars={persistence?.stars ?? []} currentLocalDate={currentLocalDate} presentations={persistence?.repositories.starDropPresentations} />
+        <StarBottleHelpCard />
         <TimeRangeFilter value={range} onChange={setRange} />
         <StarStats stars={rangedStars} />
         <SearchBar

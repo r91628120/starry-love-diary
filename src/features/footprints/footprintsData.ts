@@ -11,7 +11,7 @@ export interface RecentFootprintEntry {
   id: string
   recordId: string
   type: 'diary' | 'mood' | 'clear'
-  sourceType?: 'clear_record' | 'love_boat_code' | 'love_brain_assessment' | 'like_or_habit'
+  sourceType?: 'clear_record' | 'love_boat_code' | 'love_brain_assessment' | 'like_or_habit' | 'free_talk'
   localDate: string
   occurredAt: string
   summary: string

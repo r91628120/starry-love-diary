@@ -21,6 +21,11 @@ const batch2Keys = [
   'starBottle.group.count', 'starBottle.group.expand', 'starBottle.group.collapse',
   'starBottle.empty.range', 'starBottle.empty.all', 'starBottle.empty.search',
   'starBottle.type.mood', 'starBottle.type.clear', 'starBottle.entry.more', 'starBottle.empty',
+  'starBottle.help.title', 'starBottle.help.intro', 'starBottle.help.moodTitle', 'starBottle.help.moodBody',
+  'starBottle.help.clearTitle', 'starBottle.help.clearBody', 'starBottle.help.rangeTitle', 'starBottle.help.rangeBody',
+  'starBottle.starHeartHelp.title', 'starBottle.starHeartHelp.intro', 'starBottle.starHeartHelp.body',
+  'starBottle.starHeartHelp.dailyOpen', 'starBottle.starHeartHelp.mood', 'starBottle.starHeartHelp.organize',
+  'starBottle.starHeartHelp.diary', 'starBottle.starHeartHelp.quote', 'starBottle.starHeartHelp.footer',
 ] as const satisfies readonly TranslationKey[]
 
 const scopedRuntimeFiles = [
@@ -29,6 +34,7 @@ const scopedRuntimeFiles = [
   '../features/star-bottle/StarEntryList.tsx',
   '../features/star-bottle/StarStats.tsx',
   '../features/star-bottle/TimeRangeFilter.tsx',
+  '../features/star-bottle/StarBottleHelpCard.tsx',
 ] as const
 
 function LocaleSwitch() {
@@ -48,6 +54,18 @@ function formatTestDate(localDate: string, locale: string) {
 afterEach(cleanup)
 
 describe('Milestone 4C-3 Batch 2 Star Bottle localization', () => {
+  it.each([
+    ['zh-TW', '飛進星星瓶', '不會播放心情星星的入瓶動畫'],
+    ['en', 'flying into the Star Bottle', 'do not play the mood-star entry animation'],
+    ['ja', '星のびんへ飛び込む', '入瓶アニメーションは再生されません'],
+    ['ko', '별병으로 날아 들어가는', '애니메이션은 재생되지 않아요'],
+    ['es', 'entrar volando en el frasco', 'no reproducen la animación de entrada'],
+    ['fr', 'voler dans le bocal', 'ne déclenchent pas l’animation d’entrée'],
+  ] as const)('explains the mood-star animation and clarity-star behavior in %s', (locale, moodAnimation, clearNoAnimation) => {
+    expect(messages[locale]['starBottle.help.moodBody']).toContain(moodAnimation)
+    expect(messages[locale]['starBottle.help.clearBody']).toContain(clearNoAnimation)
+  })
+
   it.each(supportedLocales)('has every non-empty Star Bottle UI key in %s', (locale) => {
     for (const key of batch2Keys) {
       expect(Object.prototype.hasOwnProperty.call(messages[locale], key), `${locale} missing ${key}`).toBe(true)
