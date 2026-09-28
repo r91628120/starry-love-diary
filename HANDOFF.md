@@ -1,3 +1,113 @@
+# Build 20 Release Handoff
+
+## Official Baseline
+
+- App: 星星戀愛日記 / Starry Love Diary
+- Bundle ID: `com.miracle.starrylovediary`
+- Marketing version: `1.0.0`
+- TestFlight build: `20`
+- Remote branch and HEAD: `main` / `b833bed4be7ce7dedaa173d0c17d218dc03bff33`
+- Build-number commit: `b833bed` — `chore(ios): bump build number to 20`
+- Heart Card V2 commit: `7bfe7d1` — `feat(heart-card): finalize V2 layout and content-aware wrapping`
+- Official uploader: `.github/workflows/ios-testflight.yml`
+- Workflow run: https://github.com/r91628120/starry-love-diary/actions/runs/36447002967
+
+Build 20 completed Web build, Capacitor sync, iOS archive, IPA export, and TestFlight upload successfully. Apple accepted the IPA; App Store Connect processing may still be pending. **Do not upload Build 20 again.**
+
+## Heart Card V2 — Sealed in Build 20
+
+### Layout and title
+
+- Canvas: `1080 × 1350`.
+- Top image: `y=0–560`; lower text panel: `y=560–1350`.
+- Built-in backgrounds and My Photo both use the same top-image / lower-text layout.
+- Title is drawn only in the lower panel: `x=540`, baseline `y=615`, weight `600`, color `#76546f`, safe width `880`, candidates `[28, 26, 24]`.
+- Title is a single line and uses `measureText()` to select the largest safe size.
+
+### Body fitting contract
+
+- Safe box: top `640`, bottom `1220`, height `580`, center `y=930`, width `880`.
+- Font candidates: `[56, 46, 38, 34, 32, 30]`.
+- Each candidate is rewrapped and measured for line width and total height; the first safe maximum size wins.
+- If `30px` cannot fit, rendering fails explicitly. Never use silent truncation, ellipsis, or automatic summarization.
+
+### 300-grapheme contract
+
+- Message To You and Heart Card maximum: `300 graphemes`.
+- Counting uses `Intl.Segmenter` with `Array.from()` fallback and supports emoji, ZWJ emoji, skin tones, and combining characters.
+- The former 60-character card limit and first-60-character slice are removed: Heart Card is `300 → 300`.
+- Existing or restored content above 300 remains intact. Creating a card from it shows a localized limit error; it does not modify or silently truncate the original content.
+
+### Content-aware wrapping (do not revert)
+
+Body wrapping is based on the actual content units, **not** the App UI locale. The former locale-driven CJK branch split normal English words when a zh-TW UI rendered English content.
+
+- Latin words remain whole: `felt`, `wonder`, `ordinary`, `laughter`, `walking`, `sharing`.
+- Spanish/French preserve accented characters and apostrophes: `distancia`, `cielo`, `l'amour`, `C'est`.
+- CJK retains grapheme wrapping.
+- Mixed text such as `今天真的很開心，Thank you for being with me. ❤️ 希望以後也能一起看很多漂亮的風景。` keeps English words intact while allowing natural CJK wrapping.
+- Only a single unit that itself exceeds the safe width may use the final grapheme fallback to prevent canvas overflow.
+
+Localhost manual QA passed for Chinese, English, long English, zh-TW UI with English body, and mixed Chinese/English. Do not refactor this renderer without a confirmed bug or explicit product decision.
+
+### V2 built-in images
+
+Build 20 includes:
+
+- `heart-card-bg-01-starry-night-v2.png`
+- `heart-card-bg-02-sunny-garden-v2.png`
+- `heart-card-bg-03-blue-beach-v2.png`
+- `heart-card-bg-04-romantic-sunset-v2.png`
+- `heart-card-bg-05-winter-night-v2.png`
+- `heart-card-bg-06-sakura-moonlight-v2.png`
+
+Legacy non-V2 backgrounds `02`–`06` remain local and untracked. Do not delete them without separate verification.
+
+### Final Heart Card verification
+
+- Final seal: `88` test files / `826` tests passed; lint, production build, and diff check passed.
+- Temporary runtime instrumentation was removed: `[HeartCardDebug] = 0`, `console.debug = 0`.
+
+## Local-only Clear / 清醒 Work — Not in Build 20
+
+**IN PROGRESS / LOCAL ONLY / NOT IN BUILD 20.** The following current working-tree files are deliberately uncommitted and must be preserved:
+
+- Modified: `src/data/clearPersistence.test.ts`, `src/features/clear/ClearContent.tsx`, `src/features/clear/ClearFreeTalkFlow.test.tsx`, `src/features/clear/clear.css`, `src/i18n/clearLocalization.test.ts`, `src/i18n/messages.ts`.
+- Untracked Clear work: `src/features/clear/ClearHistoryAiHandoff.test.tsx`, `src/features/clear/ClearHistoryDetail.test.tsx`, `src/features/clear/ClearHistoryDetail.tsx`, `src/features/clear/clearHistoryAiHandoff.ts`, `src/i18n/clearHistoryDetailMessages.ts`.
+- Other protected untracked reference asset: `design/ui-reference/star-bottle/star-bottle-ritual-burst.png`.
+
+This batch spans Clear history detail, AI handoff, persistence, i18n, tests, UI, and CSS. A future session must inspect the current diff first, preserve it, confirm it against the original requirement, run localhost acceptance and tests/lint/build, then decide whether to make a separate scoped commit. Never assume it was included in Build 20.
+
+## QA-12 and Workflow Notes
+
+- QA-12 remains a continuing real-device observation area: after long iOS backgrounding, the UI can be visible but non-interactive until force-close/relaunch. Do not remove its diagnostics, buffers, or touch counters merely because Build 20 succeeded.
+- `.github/workflows/ios-testflight.yml` is the official manual uploader. It checks out a remote ref, accepts numeric `CURRENT_PROJECT_VERSION`, and uploads only when `upload_to_testflight = true`.
+- `.github/workflows/ios-dry-run.yml` is not the uploader and retains stale Build 4 assertions around lines 137, 253, and 290. Build 20 upload was unaffected. Do not expect that workflow to pass until those assertions are separately reviewed and updated.
+- Existing warnings: Clear history has a duplicate React key warning in the full suite; it does not fail tests and is unrelated to Heart Card. Production build has a non-blocking bundle-size warning. Do not fix either incidentally during handoff work.
+
+## Next Steps
+
+1. Confirm Apple processing completes for TestFlight Build 20; do not submit Build 20 again.
+2. Perform Build 20 device QA: Heart Card V2, QA-12 long-background/resume, Backup/Restore smoke test, five primary tabs, and six-language switching.
+3. Resume the local-only Clear work only after reviewing its diff without overwriting it.
+4. After Clear localhost acceptance and validation, decide on a separate scoped commit and a future Build 21.
+
+## DO NOT
+
+- Do not upload Build 20 again.
+- Do not delete, reset, restore, checkout, stash, or clean local Clear changes.
+- Do not use `git add .` while unrelated local work exists.
+- Do not delete legacy Heart Card assets without a separate verification.
+- Do not revert content-aware Heart Card wrapping to locale-based wrapping.
+- Do not change the sealed Heart Card V2 layout without a confirmed bug or explicit product decision.
+- Do not remove QA-12 diagnostics.
+- Do not run `ios-dry-run.yml` expecting success until its stale Build 4 assertions are addressed.
+- Do not assume local Clear work was included in Build 20.
+
+---
+
+# Historical Handoffs
+
 # Build 18 QA-12 V5 Diagnostic Release
 
 - Version: `1.0.0`; iOS build: `18`.
