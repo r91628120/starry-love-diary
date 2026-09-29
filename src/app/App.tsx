@@ -65,6 +65,7 @@ export function App() {
       <Route path="/settings/help" element={<SettingsInformationPage kind="help" />} />
       <Route path="/settings/star-heart" element={<SettingsInformationPage kind="star-heart" />} />
       <Route path="/settings/star-bottle-help" element={<SettingsInformationPage kind="star-bottle-help" />} />
+      <Route path="/settings/ai-chat-guide" element={<SettingsInformationPage kind="ai-chat-guide" />} />
       <Route path="/settings/data-help" element={<SettingsInformationPage kind="data-help" />} />
       <Route path="/settings/privacy" element={<SettingsInformationPage kind="privacy" />} />
       <Route path="/settings/terms" element={<SettingsInformationPage kind="terms" />} />

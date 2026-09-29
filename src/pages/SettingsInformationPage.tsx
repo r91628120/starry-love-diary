@@ -6,7 +6,7 @@ import { useI18n } from '../i18n/I18nContext'
 import type { TranslationKey } from '../i18n/messages'
 import '../features/settings/settings.css'
 
-export type SettingsInformationKind = 'help' | 'star-heart' | 'star-bottle-help' | 'data-help' | 'privacy' | 'terms' | 'version'
+export type SettingsInformationKind = 'help' | 'star-heart' | 'star-bottle-help' | 'ai-chat-guide' | 'data-help' | 'privacy' | 'terms' | 'version'
 
 const helpItems: Array<{ title: TranslationKey; body: TranslationKey }> = [
   { title: 'settings.guide.today.title', body: 'settings.guide.today.body' },
@@ -37,6 +37,16 @@ const privacySections: Array<{ title: TranslationKey; body: TranslationKey }> = 
   { title: 'settings.info.privacy.tracking.title', body: 'settings.info.privacy.tracking.body' },
   { title: 'settings.info.privacy.management.title', body: 'settings.info.privacy.management.body' },
   { title: 'settings.info.privacy.updates.title', body: 'settings.info.privacy.updates.body' },
+  { title: 'settings.info.privacy.ai.title', body: 'settings.info.privacy.ai.body' },
+]
+
+const aiChatSections: Array<{ title: TranslationKey; body: TranslationKey }> = [
+  { title: 'settings.info.aiChat.purpose.title', body: 'settings.info.aiChat.purpose.body' },
+  { title: 'settings.info.aiChat.flow.title', body: 'settings.info.aiChat.flow.body' },
+  { title: 'settings.info.aiChat.scope.title', body: 'settings.info.aiChat.scope.body' },
+  { title: 'settings.info.aiChat.external.title', body: 'settings.info.aiChat.external.body' },
+  { title: 'settings.info.aiChat.boundaries.title', body: 'settings.info.aiChat.boundaries.body' },
+  { title: 'settings.info.aiChat.sensitive.title', body: 'settings.info.aiChat.sensitive.body' },
 ]
 
 const termsSections: Array<{ title: TranslationKey; body: TranslationKey }> = [
@@ -51,7 +61,7 @@ const termsSections: Array<{ title: TranslationKey; body: TranslationKey }> = [
 
 const titleByKind: Record<SettingsInformationKind, TranslationKey> = {
   help: 'settings.help.usingApp', 'star-heart': 'settings.help.starHeart', 'star-bottle-help': 'settings.help.starBottle',
-  'data-help': 'settings.help.data', privacy: 'settings.about.privacyPolicy', terms: 'settings.about.terms', version: 'settings.version.title',
+  'ai-chat-guide': 'settings.help.aiChat', 'data-help': 'settings.help.data', privacy: 'settings.about.privacyPolicy', terms: 'settings.about.terms', version: 'settings.version.title',
 }
 
 export function SettingsInformationPage({ kind }: { kind: SettingsInformationKind }) {
@@ -75,6 +85,7 @@ export function SettingsInformationPage({ kind }: { kind: SettingsInformationKin
       {kind === 'help' ? <InfoCard intro="settings.guide.intro"><div className="settings-user-guide">{helpItems.map((item) => <details key={item.title} ref={item.title === 'settings.guide.today.title' ? todayGuideRef : undefined} className="settings-user-guide__section" open={item.title === 'settings.guide.today.title' && isContextualTodayGuide ? true : undefined}><summary>{t(item.title)}</summary><GuideBody value={t(item.body)} /></details>)}</div></InfoCard> : null}
       {kind === 'star-heart' ? <InfoCard intro="settings.info.starHeart.intro"><ul className="settings-info-rules">{starHeartRules.map((rule) => <li key={rule}>{t(rule)}</li>)}</ul><p className="settings-info-note">{t('settings.info.starHeart.notScore')}</p></InfoCard> : null}
       {kind === 'star-bottle-help' ? <InfoCard intro="settings.info.starBottle.intro"><dl className="settings-info-list"><div><dt>{t('settings.info.starBottle.mood.title')}</dt><dd>{t('settings.info.starBottle.mood.body')}</dd></div><div><dt>{t('settings.info.starBottle.clear.title')}</dt><dd>{t('settings.info.starBottle.clear.body')}</dd></div></dl><p className="settings-info-note">{t('settings.info.starBottle.different')}</p></InfoCard> : null}
+      {kind === 'ai-chat-guide' ? <InfoCard><InformationSections sections={aiChatSections} /></InfoCard> : null}
       {kind === 'data-help' ? <InfoCard><InformationSections sections={dataManagementSections} listClassName="settings-info-bullets" /></InfoCard> : null}
       {kind === 'privacy' ? <InfoCard><p className="settings-information-card__updated">{t('settings.info.privacy.updated')}</p><InformationSections sections={privacySections} /></InfoCard> : null}
       {kind === 'terms' ? <InfoCard><p className="settings-information-card__updated">{t('settings.info.terms.updated')}</p><InformationSections sections={termsSections} /></InfoCard> : null}

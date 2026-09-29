@@ -286,6 +286,7 @@ export function SettingsContent() {
         <SettingsRow icon={settingsAssets.info} label={t('settings.help.usingApp')} description={t('settings.help.usingApp.description')} onClick={() => navigate('/settings/help', { state: { from: '/settings' } })} />
         <SettingsRow icon={settingsAssets.star} label={t('settings.help.starHeart')} description={t('settings.help.starHeart.description')} onClick={() => navigate('/settings/star-heart', { state: { from: '/settings' } })} />
         <SettingsRow icon={starBottleAssets.moodStar} label={t('settings.help.starBottle')} description={t('settings.help.starBottle.description')} onClick={() => navigate('/settings/star-bottle-help', { state: { from: '/settings' } })} />
+        <SettingsRow icon={settingsAssets.info} label={t('settings.help.aiChat')} description={t('settings.help.aiChat.description')} onClick={() => navigate('/settings/ai-chat-guide', { state: { from: '/settings' } })} />
         <SettingsRow icon={settingsAssets.backup} label={t('settings.help.data')} description={t('settings.help.data.description')} onClick={() => navigate('/settings/data-help', { state: { from: '/settings' } })} />
       </SettingsSection>
     </div>

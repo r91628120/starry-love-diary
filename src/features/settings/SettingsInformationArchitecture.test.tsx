@@ -8,6 +8,7 @@ import { SettingsInformationPage } from '../../pages/SettingsInformationPage'
 import { I18nProvider } from '../../i18n/I18nProvider'
 import { messages, supportedLocales } from '../../i18n/messages'
 import { settingsInformationMessages } from '../../i18n/settingsInformationMessages'
+import { settingsInformationAiMessages } from '../../i18n/settingsInformationAiMessages'
 import { userGuideMessages } from '../../i18n/userGuideMessages'
 
 afterEach(cleanup)
@@ -20,6 +21,7 @@ function renderRoute(path: string, locale = 'zh-TW') {
     <Route path="/settings/help" element={<SettingsInformationPage kind="help" />} />
     <Route path="/settings/star-heart" element={<SettingsInformationPage kind="star-heart" />} />
     <Route path="/settings/star-bottle-help" element={<SettingsInformationPage kind="star-bottle-help" />} />
+    <Route path="/settings/ai-chat-guide" element={<SettingsInformationPage kind="ai-chat-guide" />} />
     <Route path="/settings/data-help" element={<SettingsInformationPage kind="data-help" />} />
     <Route path="/settings/privacy" element={<SettingsInformationPage kind="privacy" />} />
     <Route path="/settings/terms" element={<SettingsInformationPage kind="terms" />} />
@@ -35,14 +37,23 @@ describe('Settings help, rules, and legal information architecture', () => {
     }
   })
 
+  it('ships AI guidance in exactly the six supported locales, without a fallback locale', () => {
+    expect(Object.keys(settingsInformationAiMessages).sort()).toEqual([...supportedLocales].sort())
+    for (const locale of ['ja', 'ko', 'es', 'fr'] as const) {
+      for (const key of Object.keys(settingsInformationAiMessages.en) as Array<keyof typeof settingsInformationAiMessages.en>) {
+        expect(settingsInformationAiMessages[locale][key], `${locale} fallback ${key}`).not.toBe(settingsInformationAiMessages.en[key])
+      }
+    }
+  })
+
   it('renders the Help & information section and routes each entry', () => {
     renderRoute('/settings')
     expect(screen.getByRole('heading', { name: '使用與說明' })).toBeInTheDocument()
     const destinations: Array<[string, string]> = [
-      ['使用說明', '今天'], ['星心值說明', '每日首次開啟 +1'], ['星星瓶說明', '星星瓶只有兩種星星。'], ['資料管理', '匯出文字資料'],
+      ['使用說明', '今天'], ['星心值說明', '每日首次開啟 +1'], ['星星瓶說明', '星星瓶只有兩種星星。'], ['AI 聊聊使用說明', 'AI 聊聊可以做什麼？'], ['資料管理', '匯出文字資料'],
     ]
     for (const [label, destinationText] of destinations) {
-      fireEvent.click(screen.getByRole('button', { name: new RegExp(label) }))
+      fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${label}(?:\\s|$)`) }))
       expect(screen.getByText(destinationText)).toBeInTheDocument()
       fireEvent.click(screen.getByRole('button', { name: '返回' }))
     }
@@ -107,9 +118,24 @@ describe('Settings help, rules, and legal information architecture', () => {
 
   it('explains the three live data-management functions and that photos are excluded', () => {
     renderRoute('/settings/data-help')
-    for (const heading of ['匯出文字資料', '匯出 App 資料', '匯入 App 資料', '照片不包含在資料移轉檔中']) expect(screen.getByText(heading)).toBeInTheDocument()
-    expect(screen.getByText(/相同紀錄會保留較新的版本/)).toBeInTheDocument()
+    for (const heading of ['匯出文字資料', '匯出 App 資料', '從備份還原資料']) expect(screen.getByText(heading)).toBeInTheDocument()
+    expect(screen.getAllByText('照片不包含在 App 資料備份中')).toHaveLength(2)
+    expect(screen.getByText(/還原後會以備份內容取代/)).toBeInTheDocument()
     expect(screen.queryByText(/備份與匯出功能目前尚未開放/)).not.toBeInTheDocument()
+  })
+
+  it.each(supportedLocales)('renders complete AI guidance and privacy disclosure in %s', (locale) => {
+    renderRoute('/settings/ai-chat-guide', locale)
+    expect(screen.getAllByText(messages[locale]['settings.info.aiChat.external.title']).length).toBeGreaterThan(0)
+    expect(screen.getByText(messages[locale]['settings.info.aiChat.sensitive.body'])).toBeInTheDocument()
+    cleanup()
+    renderRoute('/settings/privacy', locale)
+    expect(screen.getByText(messages[locale]['settings.info.privacy.ai.title'])).toBeInTheDocument()
+    cleanup()
+    renderRoute('/settings/data-help', locale)
+    expect(screen.getByText(messages[locale]['settings.info.data.importApp.title'])).toBeInTheDocument()
+    expect(screen.getByText(messages[locale]['settings.info.data.importApp.body'])).toBeInTheDocument()
+    expect(screen.getByText(messages[locale]['settings.info.data.photos.body'])).toBeInTheDocument()
   })
 
   it('serves internal privacy, terms, and version pages with formal V1 content', () => {
