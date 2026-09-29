@@ -11,6 +11,7 @@ describe('image long-press policy', () => {
   it('protects every DOM image without changing pointer or text-input interaction', () => {
     const imageRule = ruleBody('img')
     expect(imageRule).toContain('-webkit-touch-callout: none;')
+    expect(imageRule).toContain('-webkit-user-drag: none;')
     expect(imageRule).toContain('-webkit-user-select: none;')
     expect(imageRule).toContain('user-select: none;')
     expect(imageRule).not.toContain('pointer-events')
@@ -34,5 +35,15 @@ describe('image long-press policy', () => {
     for (const [path, source] of targetSources) {
       expect(source, path).toMatch(/<img|<PhotoPlacementImage/u)
     }
+  })
+
+  it('keeps MomentCarousel cropping on Pointer Events instead of native HTML image dragging', () => {
+    const source = readFileSync('src/features/our/MomentCarousel.tsx', 'utf8')
+    expect(source).toContain('onPointerDown={down}')
+    expect(source).toContain('onPointerMove={move}')
+    expect(source).toContain('onPointerUp={end}')
+    expect(source).toContain('setPointerCapture(event.pointerId)')
+    expect(source).toContain('releasePointerCapture(event.pointerId)')
+    expect(source).not.toMatch(/onDrag(Start|End|Over)?=/u)
   })
 })

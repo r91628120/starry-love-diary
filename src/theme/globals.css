@@ -45,6 +45,7 @@ a {
 /* App images are not native download/share surfaces. Explicit app actions own sharing. */
 img {
   -webkit-touch-callout: none;
+  -webkit-user-drag: none;
   -webkit-user-select: none;
   user-select: none;
 }
