@@ -229,9 +229,19 @@ jobs:
             CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             CODE_SIGN_IDENTITY="$CERTIFICATE" PROVISIONING_PROFILE_SPECIFIER="$PROFILE_UUID" \
             > "$CI_DIR/archive.log" 2>&1; then
-            echo 'Archive failed; signing/build logs retained only in temporary runner storage until cleanup.'
+            echo 'Archive failed. Showing the final 200 lines of the sanitized xcodebuild log:'
+            tail -n 200 "$CI_DIR/archive.log" || true
             exit 1
           fi
+
+      - name: Upload archive failure diagnostics
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-archive-failure-diagnostics
+          path: ${{ env.CI_DIR }}/archive.log
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Validate archive and generate export options
         run: |
