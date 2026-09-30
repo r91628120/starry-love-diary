@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { HEART_REVEAL_CARD_HEIGHT, HEART_REVEAL_CARD_WIDTH, getHeartRevealCardTextLayout, getHeartRevealOrientation, getHeartRevealOverlayLayout, getHeartRevealPanelLayout, renderHeartRevealCardPng } from './heartRevealCardRenderer'
 import type { HeartRevealTextPlacement } from '../data/types'
+import { splitGraphemes } from './graphemes'
 
 function installCanvas() {
   const fillText = vi.fn(); const drawImage = vi.fn()
@@ -12,6 +13,18 @@ function installCanvas() {
   } as unknown as CanvasRenderingContext2D
   const canvas = { width: 0, height: 0, getContext: vi.fn(() => context), toBlob: (callback: BlobCallback) => callback(new Blob(['png'], { type: 'image/png' })) } as unknown as HTMLCanvasElement
   return { canvas, context, drawImage, fillText }
+}
+
+// Deliberately non-uniform metrics model the CJK and emoji fallback-font case
+// that equal-width test stubs cannot expose. It is a deterministic stand-in for
+// CanvasRenderingContext2D.measureText, not a string-length estimate.
+function measureMixedText(value: string, fontSize: number) {
+  return splitGraphemes(value).reduce((width, grapheme) => {
+    if (grapheme === '❤️') return width + fontSize * 1.16
+    if (/^[\u3400-\u9fff\u3000-\u303f「」]$/u.test(grapheme)) return width + fontSize
+    if (/^\s$/u.test(grapheme)) return width + fontSize * .28
+    return width + fontSize * .56
+  }, 0)
 }
 
 describe('heart reveal card renderer', () => {
@@ -128,6 +141,45 @@ describe('heart reveal card renderer', () => {
     expect(panel.y).toBe(vertical === 'top' ? 54 : HEART_REVEAL_CARD_HEIGHT - panel.height - 54)
     expect(panel.x).toBe(horizontal === 'left' ? 54 : horizontal === 'right' ? HEART_REVEAL_CARD_WIDTH - panel.width - 54 : (HEART_REVEAL_CARD_WIDTH - panel.width) / 2)
     expect(panel.x + 42 + textLayout.maxLineWidth).toBeLessThanOrEqual(panel.x + panel.width - 42 + .001)
+  })
+
+  it.each([
+    '思念是一種「愛」',
+    '思念是一種「愛」 ❤️',
+    'Thinking of you is a kind of love',
+    'Thinking of you is a kind of love ❤️',
+  ])('uses measured CJK and emoji widths rather than character counts: %s', (text) => {
+    const overlay = getHeartRevealOverlayLayout(900, 1600, 'bottom-center')
+    const layout = getHeartRevealCardTextLayout(text, measureMixedText, overlay.width - 84, overlay.maxLines)
+    const panel = getHeartRevealPanelLayout(overlay, layout)
+
+    expect(layout.maxLineWidth).toBe(Math.max(...layout.lines.map((line) => measureMixedText(line, layout.fontSize))))
+    expect(panel.width).toBe(Math.min(overlay.width, Math.max(180, layout.maxLineWidth + 84)))
+  })
+
+  it.each(['top-left', 'top-center', 'top-right', 'bottom-left', 'bottom-center', 'bottom-right'] as const)('keeps the complete CJK-plus-heart panel inside the photo safe area at %s', (placement) => {
+    const safeX = 54
+    const safeY = 54
+    const overlay = getHeartRevealOverlayLayout(900, 1600, placement)
+    const layout = getHeartRevealCardTextLayout('思念是一種「愛」 ❤️', measureMixedText, overlay.width - 84, overlay.maxLines)
+    const panel = getHeartRevealPanelLayout(overlay, layout)
+
+    expect(panel.x).toBeGreaterThanOrEqual(safeX)
+    expect(panel.x + panel.width).toBeLessThanOrEqual(HEART_REVEAL_CARD_WIDTH - safeX)
+    expect(panel.y).toBeGreaterThanOrEqual(safeY)
+    expect(panel.y + panel.height).toBeLessThanOrEqual(HEART_REVEAL_CARD_HEIGHT - safeY)
+    if (placement.endsWith('center')) expect(panel.x).toBe((HEART_REVEAL_CARD_WIDTH - panel.width) / 2)
+    if (placement.endsWith('right')) expect(panel.x).toBe(HEART_REVEAL_CARD_WIDTH - safeX - panel.width)
+    if (placement.endsWith('left')) expect(panel.x).toBe(safeX)
+    if (placement.startsWith('top')) expect(panel.y).toBe(safeY)
+    if (placement.startsWith('bottom')) expect(panel.y).toBe(HEART_REVEAL_CARD_HEIGHT - safeY - panel.height)
+  })
+
+  it('keeps the heart emoji grapheme intact when a long CJK token wraps', () => {
+    const layout = getHeartRevealCardTextLayout('思念是一種「愛」❤️思念是一種「愛」❤️', measureMixedText, 170, 4)
+    expect(layout.lines.join('')).toBe('思念是一種「愛」❤️思念是一種「愛」❤️')
+    expect(layout.lines.some((line) => line.endsWith('❤'))).toBe(false)
+    expect(layout.lines.some((line) => line.startsWith('️'))).toBe(false)
   })
 
   it('shrinks a short panel while long text wraps at the safe maximum width', () => {

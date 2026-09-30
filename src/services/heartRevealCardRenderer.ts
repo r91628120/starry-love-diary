@@ -2,6 +2,7 @@ import type { HeartRevealTextPlacement, PhotoPlacement } from '../data/types'
 import { heartPhraseCodePointLength, MAX_HEART_PHRASE_CODE_POINTS } from '../data/heartPhraseLimit'
 import { calculatePhotoPlacementGeometry } from './photoPlacementGeometry'
 import { normalizePhotoPlacement } from './photoPlacement'
+import { splitGraphemes } from './graphemes'
 
 export const HEART_REVEAL_CARD_WIDTH = 1080
 export const HEART_REVEAL_CARD_HEIGHT = 1350
@@ -51,9 +52,12 @@ export function getHeartRevealOverlayLayout(sourceWidth = HEART_REVEAL_CARD_WIDT
 function splitLongUnit(unit: string, measure: (value: string) => number, maxWidth: number) {
   const parts: string[] = []
   let part = ''
-  for (const character of [...unit]) {
-    if (part && measure(part + character) > maxWidth) { parts.push(part); part = character }
-    else part += character
+  // A visible emoji such as ❤️ is one grapheme (U+2764 + U+FE0F). Never split
+  // it while fitting a long CJK token: the same completed grapheme is supplied
+  // to canvas.measureText and canvas.fillText.
+  for (const grapheme of splitGraphemes(unit)) {
+    if (part && measure(part + grapheme) > maxWidth) { parts.push(part); part = grapheme }
+    else part += grapheme
   }
   if (part) parts.push(part)
   return parts
