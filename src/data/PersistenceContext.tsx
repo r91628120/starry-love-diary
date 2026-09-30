@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { PersistenceRuntime } from './persistence'
 import { PersistenceStateContext, type PersistenceContextValue } from './PersistenceStateContext'
 import { removeProfilePhoto, replaceProfilePhoto } from './photo/profilePhotoActions'
@@ -7,11 +7,13 @@ import { deleteMemoryMomentWithPhoto, removeMemoryMomentPhoto, replaceMemoryMome
 import { applyImportPlan, type AppDataImportPlan } from '../services/importAppData'
 import { clearCurrentRelationshipData } from '../services/clearCurrentRelationshipData'
 import { restoreAppData } from '../services/restoreAppData'
+import { toLocalDate } from '../services/localDateService'
 
 export function PersistenceProvider({ runtime, children }: { runtime: PersistenceRuntime; children: ReactNode }) {
   const [userProfile, setUserProfile] = useState(runtime.initial.userProfile)
   const [partnerProfile, setPartnerProfile] = useState(runtime.initial.partnerProfile)
   const [settings, setSettings] = useState(runtime.initial.settings)
+  const [currentLocalDate, setCurrentLocalDate] = useState(runtime.initial.currentLocalDate)
   const [todayMood, setTodayMoodState] = useState(runtime.initial.todayMood)
   const [todayDiary, setTodayDiary] = useState(runtime.initial.todayDiary)
   const [starHeartTotal, setStarHeartTotal] = useState(runtime.initial.starHeartTotal)
@@ -25,12 +27,61 @@ export function PersistenceProvider({ runtime, children }: { runtime: Persistenc
   const [messageToYouEntries, setMessageToYouEntries] = useState(runtime.initial.messageToYouEntries)
   const [rememberedYouCards, setRememberedYouCards] = useState(runtime.initial.rememberedYouCards)
   const [diaryCount, setDiaryCount] = useState(runtime.initial.diaryCount)
+  const currentLocalDateRef = useRef(currentLocalDate)
+  const refreshInFlightRef = useRef<Promise<boolean> | undefined>(undefined)
+
+  const refreshCurrentLocalDate = useCallback(() => {
+    if (refreshInFlightRef.current) return refreshInFlightRef.current
+    const nextLocalDate = toLocalDate()
+    if (nextLocalDate === currentLocalDateRef.current) return Promise.resolve(false)
+
+    currentLocalDateRef.current = nextLocalDate
+    const refresh = (async () => {
+      const [nextMood, nextDiary] = await Promise.all([
+        runtime.moods.getMoodByLocalDate(nextLocalDate),
+        runtime.diaries.getDiaryByLocalDate(nextLocalDate),
+        runtime.scores.award('daily_open', { localDate: nextLocalDate }),
+      ])
+      setCurrentLocalDate(nextLocalDate)
+      setTodayMoodState(nextMood)
+      setTodayDiary(nextDiary)
+      setStarHeartTotal(await runtime.scores.getTotal())
+      return true
+    })()
+    refreshInFlightRef.current = refresh
+    void refresh.finally(() => { refreshInFlightRef.current = undefined })
+    return refresh
+  }, [runtime])
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>
+    const scheduleNextLocalMidnight = () => {
+      const now = new Date()
+      const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
+      timer = globalThis.setTimeout(() => {
+        void refreshCurrentLocalDate().finally(scheduleNextLocalMidnight)
+      }, nextMidnight.getTime() - now.getTime() + 100)
+    }
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') void refreshCurrentLocalDate()
+    }
+    scheduleNextLocalMidnight()
+    document.addEventListener('visibilitychange', refreshWhenVisible)
+    window.addEventListener('focus', refreshCurrentLocalDate)
+    window.addEventListener('pageshow', refreshCurrentLocalDate)
+    return () => {
+      globalThis.clearTimeout(timer)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
+      window.removeEventListener('focus', refreshCurrentLocalDate)
+      window.removeEventListener('pageshow', refreshCurrentLocalDate)
+    }
+  }, [refreshCurrentLocalDate])
 
   const value = useMemo<PersistenceContextValue>(() => ({
     userProfile,
     partnerProfile,
     settings,
-    currentLocalDate: runtime.initial.currentLocalDate,
+    currentLocalDate,
     todayMood,
     todayDiary,
     starHeartTotal,
@@ -77,7 +128,7 @@ export function PersistenceProvider({ runtime, children }: { runtime: Persistenc
         ? await runtime.diaries.updateDiary(diaryId, { content })
         : await runtime.diaries.createDiary({ content })
       setTodayDiary(entry)
-        if (creating) await runtime.diaryDrafts.deleteDraft(runtime.initial.currentLocalDate).catch(() => undefined)
+        if (creating) await runtime.diaryDrafts.deleteDraft(currentLocalDate).catch(() => undefined)
       if (creating) setDiaryCount((count) => count + 1)
       setStarHeartTotal(await runtime.scores.getTotal())
       return entry
@@ -90,7 +141,7 @@ export function PersistenceProvider({ runtime, children }: { runtime: Persistenc
       setTodayDiary(undefined)
     },
     async shareDailyQuote() {
-      const result = await runtime.scores.award('quote_shared', { localDate: runtime.initial.currentLocalDate })
+      const result = await runtime.scores.award('quote_shared', { localDate: currentLocalDate })
       setStarHeartTotal(await runtime.scores.getTotal())
       return result.awarded
     },
@@ -195,7 +246,7 @@ export function PersistenceProvider({ runtime, children }: { runtime: Persistenc
       setMessageToYouEntries([])
     },
     async createMessageToYouEntry(input) {
-      const record = await runtime.messageToYou.createEntry({ ...input, localDate: runtime.initial.currentLocalDate })
+      const record = await runtime.messageToYou.createEntry({ ...input, localDate: currentLocalDate })
       setMessageToYouEntries(await runtime.messageToYou.getEntries())
       return record
     },
@@ -260,7 +311,7 @@ export function PersistenceProvider({ runtime, children }: { runtime: Persistenc
       await runtime.starDropPresentations.clear()
       await runtime.diaryDrafts.clear()
       const [user, partner, nextSettings, nextMood, nextDiary, nextScore, nextStars, nextPhrases, nextImportantDates, nextMoments, nextMessage, nextMessageEntries, nextRemembered, nextDiaries] = await Promise.all([
-        runtime.profiles.getProfile('user'), runtime.profiles.getProfile('partner'), runtime.settings.getSettings(), runtime.moods.getMoodByLocalDate(runtime.initial.currentLocalDate), runtime.diaries.getDiaryByLocalDate(runtime.initial.currentLocalDate), runtime.scores.getTotal(), runtime.stars.getStars(), runtime.heartPhrases.getHeartPhrases(), runtime.importantDates.getImportantDates(), runtime.memoryMoments.getMemoryMoments(), runtime.messageToYou.getMessage(), runtime.messageToYou.reconcileLegacy(), runtime.rememberedYou.getRememberedYouCards(), runtime.diaries.getDiaries(),
+        runtime.profiles.getProfile('user'), runtime.profiles.getProfile('partner'), runtime.settings.getSettings(), runtime.moods.getMoodByLocalDate(currentLocalDate), runtime.diaries.getDiaryByLocalDate(currentLocalDate), runtime.scores.getTotal(), runtime.stars.getStars(), runtime.heartPhrases.getHeartPhrases(), runtime.importantDates.getImportantDates(), runtime.memoryMoments.getMemoryMoments(), runtime.messageToYou.getMessage(), runtime.messageToYou.reconcileLegacy(), runtime.rememberedYou.getRememberedYouCards(), runtime.diaries.getDiaries(),
       ])
       if (user) setUserProfile(user)
       if (partner) setPartnerProfile(partner)
@@ -283,13 +334,13 @@ export function PersistenceProvider({ runtime, children }: { runtime: Persistenc
     async restoreAppData(plan) {
       await restoreAppData(runtime, plan)
       const [user, partner, nextMood, nextDiary, nextScore, nextStars, nextPhrases, nextImportantDates, nextMoments, nextMessage, nextMessageEntries, nextRemembered, nextDiaries] = await Promise.all([
-        runtime.profiles.getProfile('user'), runtime.profiles.getProfile('partner'), runtime.moods.getMoodByLocalDate(runtime.initial.currentLocalDate), runtime.diaries.getDiaryByLocalDate(runtime.initial.currentLocalDate), runtime.scores.getTotal(), runtime.stars.getStars(), runtime.heartPhrases.getHeartPhrases(), runtime.importantDates.getImportantDates(), runtime.memoryMoments.getMemoryMoments(), runtime.messageToYou.getMessage(), runtime.messageToYou.reconcileLegacy(), runtime.rememberedYou.getRememberedYouCards(), runtime.diaries.getDiaries(),
+        runtime.profiles.getProfile('user'), runtime.profiles.getProfile('partner'), runtime.moods.getMoodByLocalDate(currentLocalDate), runtime.diaries.getDiaryByLocalDate(currentLocalDate), runtime.scores.getTotal(), runtime.stars.getStars(), runtime.heartPhrases.getHeartPhrases(), runtime.importantDates.getImportantDates(), runtime.memoryMoments.getMemoryMoments(), runtime.messageToYou.getMessage(), runtime.messageToYou.reconcileLegacy(), runtime.rememberedYou.getRememberedYouCards(), runtime.diaries.getDiaries(),
       ])
       if (user) setUserProfile(user); if (partner) setPartnerProfile(partner)
       setTodayMoodState(nextMood); setTodayDiary(nextDiary); setStarHeartTotal(nextScore); setStars(nextStars); setHeartPhrases(nextPhrases); setHeartPhraseCount(nextPhrases.length); setImportantDates(nextImportantDates); setMemoryMoments(nextMoments); setMessageToYou(nextMessage); setMessageToYouEntries(nextMessageEntries); setRememberedYouCards(nextRemembered); setDiaryCount(nextDiaries.length)
       setActiveHeartRevealProject(await runtime.heartRevealPhotos.getCycleState(nextPhrases))
     },
-  }), [activeHeartRevealProject, diaryCount, heartPhraseCount, heartPhrases, importantDates, memoryMoments, messageToYou, messageToYouEntries, partnerProfile, rememberedYouCards, runtime, settings, starHeartTotal, stars, todayDiary, todayMood, userProfile])
+  }), [activeHeartRevealProject, currentLocalDate, diaryCount, heartPhraseCount, heartPhrases, importantDates, memoryMoments, messageToYou, messageToYouEntries, partnerProfile, rememberedYouCards, runtime, settings, starHeartTotal, stars, todayDiary, todayMood, userProfile])
 
   return <PersistenceStateContext.Provider value={value}>{children}</PersistenceStateContext.Provider>
 }
