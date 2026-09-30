@@ -102,8 +102,8 @@ final class Qa12NativeDiagnostics: NSObject, UIGestureRecognizerDelegate {
                 "exists": true, "hidden": webView.isHidden, "alpha": webView.alpha,
                 "userInteractionEnabled": webView.isUserInteractionEnabled, "attachedToWindow": webView.window != nil,
                 "boundsValid": webView.bounds.width > 0 && webView.bounds.height > 0,
-                "gestureRecognizers": webView.gestureRecognizers.prefix(24).map {
-                    ["class": String(describing: type(of: $0)), "enabled": $0.isEnabled, "state": $0.state.qa12Name]
+                "gestureRecognizers": (webView.gestureRecognizers ?? []).prefix(24).map {
+                    ["class": String(describing: Swift.type(of: $0)), "enabled": $0.isEnabled, "state": $0.state.qa12Name]
                 },
             ]
         } else { entry["webView"] = ["exists": false] }
