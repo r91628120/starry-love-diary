@@ -60,15 +60,19 @@ describe('QA-12 V6 touch and pointer diagnostics', () => {
   })
   it('correlates foreground resumes with a session and build identity', () => {
     let visibility: DocumentVisibilityState = 'visible'; Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => visibility }); const diagnostics = installQa12Diagnostics(); visibility = 'hidden'; document.dispatchEvent(new Event('visibilitychange')); visibility = 'visible'; document.dispatchEvent(new Event('visibilitychange')); diagnostics.dispose()
-    const log = getQa12Diagnostics(); expect(log).toMatchObject({ diagnosticSchemaVersion: 6, appVersion: '1.0.0', build: 13 }); expect(log.sessionId).toBeTruthy(); expect(log.events.find((event) => event.type === 'foreground-resume')).toMatchObject({ foregroundResumeId: 'resume:1' })
+    const log = getQa12Diagnostics(); expect(log).toMatchObject({ diagnosticSchemaVersion: 6, appVersion: '1.0.0', build: 24 }); expect(log.sessionId).toBeTruthy(); expect(log.events.find((event) => event.type === 'foreground-resume')).toMatchObject({ foregroundResumeId: 'resume:1' })
   })
   it('keeps records bounded and never writes private element content', () => {
     const diagnostics = installQa12Diagnostics(); const button = navButton(); for (let index = 0; index < 200; index += 1) { dispatch(button, 'pointerdown'); qa12NavigationHandler('bottom-nav:today', '/today') }; diagnostics.dispose()
-    const exported = createQa12DiagnosticExport(); expect(getQa12Diagnostics().events.length).toBeLessThanOrEqual(160); expect(exported.content).not.toContain('private diary content'); expect(JSON.parse(exported.content)).toMatchObject({ diagnosticSchemaVersion: 6, build: 13 })
+    const exported = createQa12DiagnosticExport(); expect(getQa12Diagnostics().events.length).toBeLessThanOrEqual(160); expect(exported.content).not.toContain('private diary content'); expect(JSON.parse(exported.content)).toMatchObject({ diagnosticSchemaVersion: 6, build: 24 })
   })
   it('exports the readable V6 log through native and browser delivery paths', async () => {
     const writeFile = vi.fn().mockResolvedValue({ uri: 'file:///cache/starry-love-diary-qa12-diagnostics.json' }); const share = vi.fn().mockResolvedValue(undefined); const deleteFile = vi.fn().mockResolvedValue(undefined)
     await expect(exportQa12Diagnostics({ isNativePlatform: () => true, canShare: vi.fn().mockResolvedValue({ value: true }), writeFile, share, deleteFile })).resolves.toBe('share-sheet-opened'); expect(writeFile).toHaveBeenCalledWith(expect.objectContaining({ directory: Directory.Cache })); const download = vi.fn(); await expect(exportQa12Diagnostics({ isNativePlatform: () => false, download })).resolves.toBe('downloaded'); expect(JSON.parse(download.mock.calls[0][0])).toMatchObject({ diagnosticSchemaVersion: 6 })
+  })
+  it('keeps native touch evidence as a separate export field', () => {
+    const exported = JSON.parse(createQa12DiagnosticExport({ schemaVersion: 1, nativeSessionId: 'native-session', launchTimestamp: '2026-09-30T00:00:00.000Z', counters: { nativeTouchBeganCount: 1 }, records: [{ type: 'native-touch', phase: 'began' }] }).content)
+    expect(exported.nativeDiagnostics).toMatchObject({ schemaVersion: 1, nativeSessionId: 'native-session', counters: { nativeTouchBeganCount: 1 } })
   })
   it('records one router-location-render for an actual Router pathname change, not ordinary rerenders', () => {
     const diagnostics = installQa12Diagnostics()
