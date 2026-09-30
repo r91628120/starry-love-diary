@@ -1,6 +1,100 @@
-# Build 20 Release Handoff
+# Build 24 Release Handoff
 
-## Official Baseline
+## Current Release Identity
+
+- App: 星星戀愛日記 / Starry Love Diary
+- Branch / remote HEAD: `main` / `8b017e3ebe9c670661d4105f15396f5f1faca3c2`
+- Marketing version: `1.0.0`
+- TestFlight build: `24`
+- Official uploader: `.github/workflows/ios-testflight.yml`
+- Latest successful workflow: https://github.com/r91628120/starry-love-diary/actions/runs/36688170694
+
+Build 24 passed macOS/Xcode Swift compilation, signed archive, IPA export, IPA identity/signature validation, and upload. Apple accepted the upload; App Store Connect processing and tester availability may still be pending. Do not upload Build 24 again unless explicitly authorized.
+
+### Release commits since Build 23
+
+1. `4b16df0` — `feat(settings): add AI guide and refresh data information`
+2. `f7c7988` — `fix(today): refresh local date across midnight`
+3. `fceca31` — `feat(today): finalize seven-heart photo reveal flow`
+4. `cf15cc5` — `feat(qa12): add native iOS touch diagnostics`
+5. `3082e81` — `ci(ios): preserve archive failure diagnostics`
+6. `8b017e3` — `fix(qa12): repair native diagnostics compilation`
+
+## Settings Information — Complete
+
+Settings information architecture is complete: AI Chat Guide, refreshed Data Management information, privacy/data explanations aligned with actual behavior, and the Seven Heart usage guide. Supported languages are exactly `zh-TW`, `en`, `ja`, `ko`, `es`, and `fr`; no Thai locale is supported.
+
+The Seven Heart guide documents the 80 code-point limit, one phrase per heart press, the `0/7 → 7/7` reveal, card creation at `7/7`, Manage Photo retaining the completed round, Start Next Round beginning a new `0/7` active round, and retention of the earlier seven phrases.
+
+## Local Date Fix — Included in Build 24
+
+Commit: `f7c7988`.
+
+Today and daily behavior now follow the **device local calendar date**. Refresh triggers are local midnight, visibility returning to visible, window focus, and `pageshow`. Coverage includes Daily Love Quote date and Day N, date-bound quote selection, Today Mood rollover, daily-open eligibility/idempotency, quote-share date, and relevant Important Date / Calendar / current-date draft behavior.
+
+No Backup/Restore change, schema migration, or QA-12 workaround was added. Keep these non-blocking observations deferred: legacy Message To You import uses UTC ISO slicing and may shift dates near midnight in positive timezones; RecentFootprints may have a negative-timezone display risk.
+
+## Seven Heart Final V1 — Included in Build 24
+
+Entry contract: **one phrase → one ❤️ press → immediate save → +1/7 progress → one photo-reveal stage**. The former seven-click ritual is removed. The maximum remains 80 characters/code points according to the current implementation.
+
+Photo identity and reveal progress are separate. Replacing, removing, or adjusting a photo does not reset saved phrase/reveal progress.
+
+At `7/7`, two flows are valid:
+
+- **Manage Photo:** keep `7/7` and all seven phrases; replace/change/remove/adjust the photo; return to Seven Heart still at `7/7`; repeatedly select existing phrases and create/save/share cards. Manage Photo must never start or reset a round.
+- **Start Next Round:** CTA `完成這份心意，開始下一輪`; confirmation is required; only this action begins a new active `0/7` round and returns to Today. Earlier seven phrases remain retained; the first new phrase plus one heart advances to `1/7`.
+
+No round-history database, IndexedDB schema change, or Backup/Restore change was added.
+
+### Open real-device observation
+
+There is one known, not-yet-reproducible real-device occurrence where completing the seventh phrase produced a brief freeze/crash-like unresponsive state and reopening restored operation. It is **not solved** and has no established root cause. Build 24 must explicitly retest `6/7 → seventh phrase → one ❤️ → persistence → 7/7 render → full reveal → completed UI interaction`, preserving diagnostics if it recurs.
+
+## QA-12 Phase C — Included in Build 24
+
+Commit: `cf15cc5` (with compile repair `8b017e3`). Build 24 adds passive iOS native touch/lifecycle evidence only:
+
+- Native: `ios/App/App/Qa12NativeDiagnostics.swift`, `AppDelegate.swift`, `SceneDelegate.swift`, and the Xcode project source entry.
+- Export bridge: `src/services/qa12Diagnostics.ts` and its test.
+- The bounded native buffer persists independently in native storage and exports native session, lifecycle, window/WebView state, and touch counters for visible-but-unclickable QA-12 incidents.
+
+This is diagnostic only: no automatic reload, no workaround, no product UI or user-data behavior change, and no Backup/Restore change. The native diagnostics compile successfully in Build 24.
+
+### Build 24 compile incident and CI retention
+
+The initial archive identified two errors in `Qa12NativeDiagnostics.swift`: `gestureRecognizers` required nil-safe unwrapping before `prefix`, and local `type` shadowed `Swift.type(of:)`. Commit `8b017e3` resolved them with `(webView.gestureRecognizers ?? []).prefix(24)` and `Swift.type(of: $0)`. The repaired Build 24 then passed Swift compile, archive, IPA export, and TestFlight upload.
+
+Commit `3082e81` preserves and exposes `archive.log` when the official iOS workflow fails, including a retained failure artifact. Keep this diagnostic behavior for future native compile failures.
+
+## Build 24 Real-Device Test Plan
+
+1. **Seven Heart priority:** verify `0/7 → 7/7`, especially the seventh-heart transition; at `7/7`, test Manage Photo change/adjust/return still at `7/7`, phrase selection and card save/share, then Start Next Round confirmation, `0/7`, and first new phrase plus one heart to `1/7`.
+2. **QA-12 priority:** background the app without force-quitting, return after meaningful time, and check visible UI, taps, scrolling, and buttons. If visible-but-unclickable occurs, preserve state, reopen only if required, export QA diagnostics, and analyze lifecycle/touch evidence. Do not uninstall, clear data, reinstall, or speculate with code changes first.
+3. **Local Date priority:** verify device-local Today date, Daily Love Quote date, Day N, Today Mood, and quote-share date. When practical, cross local midnight with the app active/backgrounded and return foreground to verify refresh without force quit.
+
+## Protected Local Worktree — Do Not Touch
+
+### Clear WIP (outside Build 24)
+
+- Modified: `src/data/clearPersistence.test.ts`, `src/features/clear/ClearContent.tsx`, `src/features/clear/ClearFreeTalkFlow.test.tsx`, `src/features/clear/clear.css`, `src/i18n/clearLocalization.test.ts`, `src/i18n/messages.ts`.
+- Untracked: `src/features/clear/ClearHistoryAiHandoff.test.tsx`, `src/features/clear/ClearHistoryDetail.test.tsx`, `src/features/clear/ClearHistoryDetail.tsx`, `src/features/clear/clearHistoryAiHandoff.ts`, `src/i18n/clearHistoryDetailMessages.ts`.
+- `src/i18n/messages.ts` contains remaining Clear-only hunks; Seven Heart hunks were isolated in `fceca31`. Never restore, reset, or overwrite it.
+
+### Unrelated untracked assets
+
+- `design/ui-reference/star-bottle/star-bottle-ritual-burst.png`
+- `public/assets/heart-card/heart-card-bg-02-sunny-garden.png`
+- `public/assets/heart-card/heart-card-bg-03-blue-beach.png`
+- `public/assets/heart-card/heart-card-bg-04-romantic-sunset.png`
+- `public/assets/heart-card/heart-card-bg-05-winter-night.png`
+- `public/assets/heart-card/heart-card-bg-06-sakura-moonlight.png`
+
+Never use `git add .`, `git add -A`, reset, restore, checkout, stash, or clean while this worktree remains dirty.
+
+# Historical Handoffs
+
+## Build 20 Release Handoff
 
 - App: 星星戀愛日記 / Starry Love Diary
 - Bundle ID: `com.miracle.starrylovediary`
@@ -106,7 +200,7 @@ This batch spans Clear history detail, AI handoff, persistence, i18n, tests, UI,
 
 ---
 
-# Historical Handoffs
+## Earlier Historical Notes
 
 # Build 18 QA-12 V5 Diagnostic Release
 
