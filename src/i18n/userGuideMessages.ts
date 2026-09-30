@@ -10,13 +10,17 @@ const zhTW = {
 點選最接近今天狀態的心情後會立即保存。同一天可重新選擇，新的選擇會更新當日紀錄；一天最多一顆心情星星。心情可在足跡回顧，星星可在星星瓶查看。
 
 七句心話
-1. 每次在文字框寫一句想留下的話，每句最多 30 字。
-2. 按愛心按鈕七次，才完成並保存這一句；一次只寫一句，不是一次輸入七句。
-3. 重複逐句保存，共完成七句；進度會從 1/7 增加到 7/7，中途離開仍會保留已保存的句子。
-4. 已保存的句子會列在今天頁，可再次查看、編輯或刪除。進度到 7/7 後，可選一句製作完整顯影卡片。
+有些話，不一定要一次說完。寫下一句想留下的話，最多 80 個字元；按一次愛心按鈕，這句心話就會立刻保存。
 
-七句心話・照片顯影
-先到照片設定選擇一張照片，並可調整位置與縮放。每保存一句，照片會由 1/7 逐步清晰到 7/7；第七句後可選一句確認並製作分享圖片，完成後開始下一輪。App 內移除的只是 App 使用的照片副本，不會刪除手機相簿原圖。
+照片顯影
+每保存一句，照片就會多顯影一點，進度從 0/7 慢慢來到 7/7。完成七句後，照片會完整顯影。
+
+完成 7/7 之後
+你可以從七句裡選一句，搭配完整顯影的照片製作心意卡，再儲存或分享。
+
+想繼續使用目前這一輪時，可進入「管理照片」更換或調整照片。目前的七句心話與 7/7 完成狀態會保留；回來後，仍可選擇不同的心話製作新的心意卡。
+
+想重新體驗照片慢慢顯影的過程時，可選擇「完成這份心意，開始下一輪」。確認後，新一輪會從 0/7 開始；原本留下的七句心話會保留，你可以再寫新的七句心話，讓照片重新一步一步顯影。App 內移除的只是 App 使用的照片副本，不會刪除手機相簿原圖。
 
 近期重要日子
 此卡片從「我們」的「重要日子」讀取近期資料，供今天頁查看與回顧；它不是系統通知或行事曆提醒。`,
@@ -97,13 +101,17 @@ Today’s Mood
 Tap the mood closest to how you feel and it saves immediately. A later choice on the same day updates that day’s record, so there is at most one mood star per day. Review moods in Footprints and stars in the Star Bottle.
 
 Seven Heart Phrases
-1. Write one short phrase at a time, up to 30 characters.
-2. Press the heart button seven times to complete and save that phrase. You do not enter all seven phrases at once.
-3. Repeat until seven phrases are saved. Progress moves from 1/7 to 7/7, and saved phrases remain if you leave midway.
-4. Saved phrases appear on Today and can be viewed, edited, or deleted. At 7/7, choose one phrase to make the fully revealed card.
+You do not have to say everything at once. Write one phrase you want to keep, up to 80 characters; one press of the heart button saves it right away.
 
-Seven Heart Phrases · Photo Reveal
-Choose one photo in photo settings and adjust its position and zoom. Each saved phrase reveals it from 1/7 through 7/7. After the seventh, choose a phrase, confirm, and create the share image; completing it starts a new cycle. Removing the app’s copy never deletes the original from your phone library.
+Photo Reveal
+Each saved phrase reveals a little more of the photo, moving gently from 0/7 to 7/7. When all seven phrases are complete, the photo is fully revealed.
+
+After 7/7
+Choose one of the seven phrases and pair it with the fully revealed photo to create a heart card, then save or share it.
+
+To keep using this round, choose “Manage photo” to replace or adjust the photo. Your seven phrases and completed 7/7 state stay; when you return, you can choose another phrase and create another heart card.
+
+To begin the photo-reveal experience again, choose “Finish this note and start the next cycle.” After confirmation, the new round starts at 0/7. Your earlier seven phrases remain, and each new phrase still needs only one heart press as the photo reveals again. Removing the app’s copy never deletes the original from your phone library.
 
 Upcoming Important Date
 This card reads upcoming entries from Important Dates under Our for display and reflection. It is not a system notification or calendar alert.`,
@@ -178,13 +186,17 @@ This irreversible action requires two confirmations, so export app data first. I
 今の気分に近いものをタップすると、すぐに保存されます。同じ日に選び直すと当日の記録が更新され、気分の星は一日一つまでです。気分は足あと、星は星のボトルで振り返れます。
 
 七つの心のことば
-1. 残したい短いことばを一つずつ、30文字以内で入力します。
-2. ハートボタンを7回押すと、その一文が完成して保存されます。七文を一度に入力するものではありません。
-3. 一文ずつ保存し、全部で七文完成させます。進み具合は1/7から7/7になり、途中で離れても保存済みの文は残ります。
-4. 保存した文は今日の画面で確認・編集・削除できます。7/7になると一文を選び、写真がすべて現れたカードを作れます。
+すべてを一度に書かなくても大丈夫です。残したいことばを一つ、80文字以内で入力し、ハートボタンを一度押すとすぐに保存されます。
 
-七つの心のことば・写真が現れるまで
-写真設定で一枚選び、位置と拡大率を調整できます。一文保存するたびに1/7から7/7まで少しずつ鮮明になります。七文目の後に一文を選んで確定し、共有画像を作ると次のサイクルが始まります。アプリ内の写真コピーを削除しても、端末の写真ライブラリの原本は削除されません。
+写真が現れるまで
+一文保存するたびに、写真が少しずつ現れます。進み具合は0/7から7/7へ進み、七つそろうと写真がすべて現れます。
+
+7/7になったら
+七つの心ことばから一つを選び、すべて現れた写真と組み合わせてカードを作れます。保存や共有もできます。
+
+今の回を続けたいときは「写真を管理」から写真を差し替えたり調整したりできます。七つの心ことばと7/7の状態はそのまま残り、戻った後も別のことばで新しいカードを作れます。
+
+もう一度、写真が少しずつ現れる時間を楽しみたいときは「この気持ちを完成して、次の回を始める」を選びます。確認後、新しい回は0/7から始まります。これまでの七つの心ことばは残り、新しいことばは一つにつきハートを一度押すだけで、写真がまた少しずつ現れます。アプリ内の写真コピーを削除しても、端末の写真ライブラリの原本は削除されません。
 
 もうすぐの大切な日
 「ふたり」の「大切な日」から近い予定を読み込み、今日の画面で表示します。システム通知やカレンダー通知ではありません。`,
@@ -259,13 +271,17 @@ This irreversible action requires two confirmations, so export app data first. I
 오늘과 가장 가까운 기분을 누르면 즉시 저장됩니다. 같은 날 다시 고르면 그날 기록이 업데이트되며 기분 별은 하루에 하나만 생겨요. 기분은 발자국, 별은 별병에서 볼 수 있어요.
 
 마음 일곱 문장
-1. 남기고 싶은 짧은 문장을 한 번에 하나씩, 30자 이내로 적어요.
-2. 하트 버튼을 7번 눌러야 그 한 문장이 완료되어 저장됩니다. 일곱 문장을 한꺼번에 입력하는 방식이 아니에요.
-3. 한 문장씩 저장해 모두 일곱 문장을 완성해요. 진행은 1/7부터 7/7까지 늘어나며 중간에 나가도 저장된 문장은 남아요.
-4. 저장된 문장은 오늘 화면에서 다시 보고 수정하거나 삭제할 수 있어요. 7/7이 되면 한 문장을 골라 사진이 모두 드러난 카드를 만들 수 있어요.
+모든 말을 한 번에 적지 않아도 괜찮아요. 남기고 싶은 문장을 하나, 80자 이내로 적고 하트 버튼을 한 번 누르면 바로 저장돼요.
 
-마음 일곱 문장 · 사진 드러내기
-사진 설정에서 한 장을 고르고 위치와 확대 정도를 조절해요. 문장 하나를 저장할 때마다 사진이 1/7부터 7/7까지 선명해집니다. 일곱 번째 문장 뒤에 한 문장을 골라 확정하고 공유 이미지를 만들면 다음 주기가 시작돼요. 앱 안의 사진 사본을 지워도 휴대폰 사진 원본은 삭제되지 않아요.
+사진 드러내기
+문장 하나를 저장할 때마다 사진이 조금 더 드러나요. 진행은 0/7에서 7/7까지 이어지고, 일곱 문장이 완성되면 사진이 모두 나타나요.
+
+7/7이 된 뒤
+일곱 문장 중 하나를 골라 모두 드러난 사진과 함께 마음 카드를 만들고 저장하거나 공유할 수 있어요.
+
+지금 회차를 계속 쓰고 싶다면 ‘사진 관리’에서 사진을 바꾸거나 조절해 보세요. 일곱 문장과 완료된 7/7 상태는 그대로 남고, 돌아온 뒤에도 다른 문장으로 새 마음 카드를 만들 수 있어요.
+
+사진이 천천히 드러나는 시간을 다시 시작하고 싶다면 ‘이 마음을 마치고 다음 회차 시작하기’를 선택하세요. 확인하면 새 회차는 0/7부터 시작해요. 이전 일곱 문장은 남아 있고, 새 문장도 하트를 한 번만 누르면 사진이 다시 조금씩 드러나요. 앱 안의 사진 사본을 지워도 휴대폰 사진 원본은 삭제되지 않아요.
 
 다가오는 소중한 날
 ‘우리’의 ‘소중한 날’에서 가까운 날짜를 불러와 오늘 화면에 보여 줍니다. 시스템 알림이나 캘린더 알림은 아니에요.`,
@@ -340,13 +356,17 @@ Estado de ánimo de hoy
 Toca el estado que mejor te represente y se guardará al instante. Si cambias de opción el mismo día, se actualiza ese registro y solo hay una estrella de ánimo diaria. Revísalo en Huellas y en el Frasco de estrellas.
 
 Siete frases del corazón
-1. Escribe una frase breve cada vez, con un máximo de 30 caracteres.
-2. Pulsa siete veces el botón del corazón para completar y guardar esa frase; no se escriben las siete a la vez.
-3. Repite hasta guardar siete frases. El progreso va de 1/7 a 7/7 y lo ya guardado permanece si sales a mitad.
-4. Las frases aparecen en Hoy y pueden verse, editarse o borrarse. Al llegar a 7/7, elige una para crear la tarjeta con la foto revelada.
+No tienes que decirlo todo de una vez. Escribe una frase que quieras guardar, con un máximo de 80 caracteres; una pulsación del botón del corazón la guarda al momento.
 
-Siete frases · Revelado de foto
-Elige una foto en sus ajustes y modifica posición y zoom. Cada frase guardada la revela de 1/7 a 7/7. Tras la séptima, elige una frase, confirma y crea la imagen para compartir; después comienza un nuevo ciclo. Borrar la copia de la app nunca elimina el original del teléfono.
+Revelado de foto
+Cada frase guardada revela un poco más la foto. El progreso avanza con calma de 0/7 a 7/7, y al completar las siete frases la foto queda totalmente revelada.
+
+Después de 7/7
+Elige una de las siete frases y combínala con la foto revelada para crear una tarjeta del corazón; después puedes guardarla o compartirla.
+
+Si quieres seguir usando esta ronda, elige «Gestionar foto» para cambiarla o ajustarla. Tus siete frases y el estado completado 7/7 se conservan; al volver, puedes elegir otra frase y crear otra tarjeta.
+
+Si quieres volver a vivir el revelado poco a poco, elige «Terminar este mensaje y empezar el siguiente ciclo». Tras confirmar, la nueva ronda empieza en 0/7. Tus siete frases anteriores se conservan, y cada frase nueva sigue necesitando solo una pulsación del corazón mientras la foto vuelve a revelarse. Borrar la copia de la app nunca elimina el original del teléfono.
 
 Próxima fecha importante
 Muestra en Hoy datos próximos de Fechas importantes, dentro de Nosotros. Sirve para consultar y recordar; no es una notificación del sistema ni del calendario.`,
@@ -421,13 +441,17 @@ Humeur du jour
 Touchez l’humeur la plus proche de votre état : elle est enregistrée immédiatement. Un nouveau choix le même jour met à jour l’entrée, avec une seule étoile d’humeur par jour. Retrouvez l’humeur dans Empreintes et l’étoile dans le Bocal.
 
 Sept phrases du cœur
-1. Écrivez une courte phrase à la fois, limitée à 30 caractères.
-2. Appuyez sept fois sur le bouton cœur pour terminer et enregistrer cette phrase ; les sept phrases ne sont pas saisies ensemble.
-3. Recommencez jusqu’à sept phrases. La progression va de 1/7 à 7/7 et les phrases enregistrées restent si vous quittez en cours de route.
-4. Elles sont visibles, modifiables et supprimables dans Aujourd’hui. À 7/7, choisissez-en une pour créer la carte entièrement révélée.
+Vous n’avez pas à tout dire d’un coup. Écrivez une phrase que vous souhaitez garder, limitée à 80 caractères ; une pression sur le bouton cœur l’enregistre aussitôt.
 
-Sept phrases · Révélation photo
-Choisissez une photo dans les réglages, puis ajustez position et zoom. Chaque phrase la révèle de 1/7 à 7/7. Après la septième, choisissez une phrase, confirmez et créez l’image à partager ; un nouveau cycle commence ensuite. Supprimer la copie de l’app ne supprime jamais l’original du téléphone.
+Révélation photo
+Chaque phrase enregistrée dévoile un peu plus la photo. La progression avance doucement de 0/7 à 7/7, et la photo est entièrement révélée lorsque les sept phrases sont terminées.
+
+Après 7/7
+Choisissez une des sept phrases et associez-la à la photo révélée pour créer une carte du cœur, puis enregistrez-la ou partagez-la.
+
+Pour continuer avec cette ronde, choisissez « Gérer la photo » afin de remplacer ou d’ajuster la photo. Vos sept phrases et l’état 7/7 terminé sont conservés ; à votre retour, vous pouvez choisir une autre phrase et créer une nouvelle carte.
+
+Pour revivre la révélation photo pas à pas, choisissez « Terminer ce message et commencer le cycle suivant ». Après confirmation, la nouvelle ronde commence à 0/7. Vos sept phrases précédentes sont conservées, et chaque nouvelle phrase ne demande toujours qu’une pression sur le cœur pendant que la photo se révèle à nouveau. Supprimer la copie de l’app ne supprime jamais l’original du téléphone.
 
 Prochaine date importante
 Cette carte affiche dans Aujourd’hui une date proche enregistrée sous Nous. Elle sert à consulter et se souvenir ; ce n’est ni une notification système ni une alerte de calendrier.`,

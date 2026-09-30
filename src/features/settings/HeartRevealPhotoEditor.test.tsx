@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { PersistenceProvider } from '../../data/PersistenceContext'
 import { initializePersistence, type PersistenceRuntime } from '../../data/persistence'
 import { IndexedDbPhotoContentStore } from '../../data/photo/PhotoContentStore'
@@ -10,6 +10,7 @@ import { createMemoryStorageBacking, MemoryStorageAdapter, type MemoryStorageBac
 import type { PhotoCompressionService } from '../../services/photoCompressionService'
 import type { PhotoPickerService } from '../../services/photoPickerService'
 import { I18nProvider } from '../../i18n/I18nProvider'
+import { HeartRevealPhotoPage } from '../../pages/HeartRevealPhotoPage'
 import { messages, supportedLocales } from '../../i18n/messages'
 import { HeartRevealProgressCard } from '../today/HeartRevealProgressCard'
 import { HeartRevealPhotoEditor } from './HeartRevealPhotoEditor'
@@ -79,6 +80,13 @@ describe('Heart reveal photo Settings and Today integration', () => {
     })
   })
 
+  it('returns from photo management to Today’s Seven Heart Phrases context', async () => {
+    const runtime = await createRuntime()
+    render(<PersistenceProvider runtime={runtime}><I18nProvider initialLocale="zh-TW"><MemoryRouter initialEntries={['/settings/heart-reveal-photo']}><Routes><Route path="/settings/heart-reveal-photo" element={<HeartRevealPhotoPage />} /><Route path="/today" element={<p>Today Seven Heart Phrases</p>} /></Routes></MemoryRouter></I18nProvider></PersistenceProvider>)
+    fireEvent.click(screen.getByRole('button', { name: '回到七句心話' }))
+    expect(await screen.findByText('Today Seven Heart Phrases')).toBeInTheDocument()
+  })
+
   it('shows an empty state, imports one heart_reveal photo, and ignores picker cancel', async () => {
     const runtime = await createRuntime()
     const cancelled = picker()
@@ -138,12 +146,14 @@ describe('Heart reveal photo Settings and Today integration', () => {
     await waitFor(async () => expect((await runtime.heartRevealPhotos.getActiveProject())?.photoPlacement).toEqual({ positionX: .5, positionY: .5, zoom: 1 }))
   })
 
-  it('replaces and removes the photo without changing seven-note progress', async () => {
+  it('replaces and removes the photo without changing a completed seven-note reveal', async () => {
     const runtime = await createRuntime(undefined, ['old', 'replacement'])
-    await runtime.heartPhrases.acceptHeartPhrase('一')
-    await runtime.heartPhrases.acceptHeartPhrase('二')
-    runtime.initial.heartPhrases = await runtime.heartPhrases.getTopHeartPhrases(7)
-    runtime.initial.heartPhraseCount = 2
+    for (let index = 1; index <= 7; index += 1) {
+      const phrase = await runtime.heartPhrases.acceptHeartPhrase(`心話 ${index}`)
+      await runtime.heartRevealPhotos.registerHeartPhrase(phrase.id, await runtime.heartPhrases.getHeartPhrases())
+    }
+    runtime.initial.heartPhrases = await runtime.heartPhrases.getHeartPhrases()
+    runtime.initial.heartPhraseCount = 7
     const old = await runtime.photos.importPhoto(new File(['old'], 'old.jpg', { type: 'image/jpeg' }), 'heart_reveal')
     runtime.initial.activeHeartRevealProject = await runtime.heartRevealPhotos.setActivePhoto(old.id, { positionX: .1, positionY: .2, zoom: .6 })
     const filePicker = picker(new File(['new'], 'new.jpg', { type: 'image/jpeg' }))
@@ -152,7 +162,8 @@ describe('Heart reveal photo Settings and Today integration', () => {
     await screen.findByText('顯影照片已更新')
     expect((await runtime.heartRevealPhotos.getActiveProject())?.photoPlacement).toEqual({ positionX: .5, positionY: .5, zoom: 1 })
     expect(await runtime.photos.getPhotoAsset('old')).toBeUndefined()
-    expect((await runtime.heartPhrases.getHeartPhrases())).toHaveLength(2)
+    expect((await runtime.heartRevealPhotos.getActiveProject())?.progressCount).toBe(7)
+    expect((await runtime.heartPhrases.getHeartPhrases())).toHaveLength(7)
 
     fireEvent.click(screen.getByRole('button', { name: '移除照片' }))
     expect(screen.getByRole('alertdialog')).toBeInTheDocument()
@@ -160,7 +171,8 @@ describe('Heart reveal photo Settings and Today integration', () => {
     await screen.findByText('顯影照片已移除')
     expect((await runtime.heartRevealPhotos.getActiveProject())?.photoAssetId).toBeUndefined()
     expect(await runtime.photos.getPhotoAsset('replacement')).toBeUndefined()
-    expect((await runtime.heartPhrases.getHeartPhrases())).toHaveLength(2)
+    expect((await runtime.heartRevealPhotos.getActiveProject())?.progressCount).toBe(7)
+    expect((await runtime.heartPhrases.getHeartPhrases())).toHaveLength(7)
   })
 
   it('blocks unsafe deletion while active and retains a shared asset after unlink', async () => {

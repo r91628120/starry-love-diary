@@ -9,7 +9,7 @@ export const heartRevealPhotoMessages = {
     'heartRevealPhoto.imported': '顯影照片已更新',
     'heartRevealPhoto.removed': '顯影照片已移除',
     'heartRevealPhoto.importFailed': '照片匯入失敗，請再試一次。',
-    'heartRevealPhoto.removeFailed': '目前無法移除照片，請再試一次。',
+    'heartRevealPhoto.removeFailed': '目前無法移除照片，請再試一次。', 'heartRevealPhoto.returnToHeartPhrases': '回到七句心話',
   },
   en: {
     'heartRevealPhoto.empty': 'No photo selected yet',
@@ -19,7 +19,7 @@ export const heartRevealPhotoMessages = {
     'heartRevealPhoto.imported': 'Reveal photo updated',
     'heartRevealPhoto.removed': 'Reveal photo removed',
     'heartRevealPhoto.importFailed': 'The photo could not be imported. Please try again.',
-    'heartRevealPhoto.removeFailed': 'The photo could not be removed. Please try again.',
+    'heartRevealPhoto.removeFailed': 'The photo could not be removed. Please try again.', 'heartRevealPhoto.returnToHeartPhrases': 'Return to Seven Heart Notes',
   },
   ja: {
     'heartRevealPhoto.empty': '写真はまだ選ばれていません',
@@ -29,7 +29,7 @@ export const heartRevealPhotoMessages = {
     'heartRevealPhoto.imported': '表示する写真を更新しました',
     'heartRevealPhoto.removed': '表示する写真を削除しました',
     'heartRevealPhoto.importFailed': '写真を読み込めませんでした。もう一度お試しください。',
-    'heartRevealPhoto.removeFailed': '写真を削除できませんでした。もう一度お試しください。',
+    'heartRevealPhoto.removeFailed': '写真を削除できませんでした。もう一度お試しください。', 'heartRevealPhoto.returnToHeartPhrases': '七つの心ことばに戻る',
   },
   ko: {
     'heartRevealPhoto.empty': '아직 사진을 선택하지 않았어요',
@@ -39,7 +39,7 @@ export const heartRevealPhotoMessages = {
     'heartRevealPhoto.imported': '드러내기 사진을 업데이트했어요',
     'heartRevealPhoto.removed': '드러내기 사진을 삭제했어요',
     'heartRevealPhoto.importFailed': '사진을 가져오지 못했어요. 다시 시도해 주세요.',
-    'heartRevealPhoto.removeFailed': '사진을 삭제하지 못했어요. 다시 시도해 주세요.',
+    'heartRevealPhoto.removeFailed': '사진을 삭제하지 못했어요. 다시 시도해 주세요.', 'heartRevealPhoto.returnToHeartPhrases': '일곱 마음 한마디로 돌아가기',
   },
   es: {
     'heartRevealPhoto.empty': 'Aún no has elegido una foto',
@@ -49,7 +49,7 @@ export const heartRevealPhotoMessages = {
     'heartRevealPhoto.imported': 'Foto del revelado actualizada',
     'heartRevealPhoto.removed': 'Foto del revelado eliminada',
     'heartRevealPhoto.importFailed': 'No se pudo importar la foto. Inténtalo de nuevo.',
-    'heartRevealPhoto.removeFailed': 'No se pudo quitar la foto. Inténtalo de nuevo.',
+    'heartRevealPhoto.removeFailed': 'No se pudo quitar la foto. Inténtalo de nuevo.', 'heartRevealPhoto.returnToHeartPhrases': 'Volver a las siete frases',
   },
   fr: {
     'heartRevealPhoto.empty': 'Aucune photo sélectionnée',
@@ -59,6 +59,6 @@ export const heartRevealPhotoMessages = {
     'heartRevealPhoto.imported': 'Photo de révélation mise à jour',
     'heartRevealPhoto.removed': 'Photo de révélation retirée',
     'heartRevealPhoto.importFailed': 'Impossible d’importer la photo. Réessayez.',
-    'heartRevealPhoto.removeFailed': 'Impossible de retirer la photo. Réessayez.',
+    'heartRevealPhoto.removeFailed': 'Impossible de retirer la photo. Réessayez.', 'heartRevealPhoto.returnToHeartPhrases': 'Retour aux sept phrases du cœur',
   },
 } as const satisfies Record<Locale, Record<string, string>>

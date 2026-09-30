@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PersistenceProvider } from '../../data/PersistenceContext'
@@ -29,7 +30,6 @@ function Controls() {
     <button type="button" onClick={() => persistence?.heartPhrases[0] && persistence.updateHeartPhrase(persistence.heartPhrases[0].id, '編輯後的心話')}>edit-phrase</button>
     <button type="button" onClick={() => persistence?.heartPhrases[0] && persistence.deleteHeartPhrase(persistence.heartPhrases[0].id)}>delete-phrase</button>
     <button type="button" onClick={() => setLocale('en')}>switch-locale</button>
-    <button type="button" onClick={() => persistence?.completeHeartRevealCycle()}>complete-cycle</button>
   </>
 }
 
@@ -115,16 +115,12 @@ describe('Heart reveal persistence-driven progress', () => {
     expectRevealState(view.container, 7)
   })
 
-  it('keeps the archive after explicit completion and starts the next cycle at 0 / 7', async () => {
+  it('keeps seven saved phrases and progress after creating a card until the user explicitly starts a new round', async () => {
     const runtime = await createRuntime(); await seed(runtime, 7)
-    const view = renderCard(runtime)
+    await openGeneratedCard(runtime)
     expect(screen.getByText('7 / 7')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'complete-cycle' }))
-    await screen.findByText('0 / 7')
+    expect(screen.getByRole('button', { name: '完成這份心意，開始下一輪' })).toBeInTheDocument()
     expect(await runtime.heartPhrases.getHeartPhrases()).toHaveLength(7)
-    expectRevealState(view.container, 0)
-    fireEvent.click(screen.getByRole('button', { name: 'add-phrase' }))
-    await screen.findByText('1 / 7')
   })
 
   it('offers every archive phrase, including older-cycle phrases, when the current cycle is ready', async () => {
@@ -133,6 +129,45 @@ describe('Heart reveal persistence-driven progress', () => {
     fireEvent.click(screen.getByRole('button', { name: '選一句心話做成心意卡' }))
     expect(screen.getAllByRole('radio')).toHaveLength(7)
     expect(screen.getByRole('radio', { name: '心話 1' })).toBeInTheDocument()
+  })
+
+  it('offers photo management at 7 / 7 without resetting the reveal', async () => {
+    const runtime = await createRuntime(); await seed(runtime, 7)
+    renderCard(runtime)
+    const completeCycle = vi.spyOn(runtime.heartRevealPhotos, 'completeCycle')
+    const managePhoto = screen.getByRole('link', { name: '管理照片' })
+    managePhoto.addEventListener('click', (event) => event.preventDefault())
+    fireEvent.click(managePhoto)
+    expect(completeCycle).not.toHaveBeenCalled()
+    expect(managePhoto).toHaveAttribute('href', '/settings/heart-reveal-photo')
+    fireEvent.click(screen.getByRole('button', { name: '選一句心話做成心意卡' }))
+    expect(screen.getByRole('link', { name: '管理照片' })).toHaveAttribute('href', '/settings/heart-reveal-photo')
+    expect(await runtime.heartRevealPhotos.getActiveProject()).toMatchObject({ progressCount: 7 })
+  })
+
+  it('starts the next active round only after confirmation, clears its photo binding, and advances with one saved phrase', async () => {
+    const runtime = await createRuntime(); await seed(runtime, 7)
+    await openGeneratedCard(runtime)
+    const completeCycle = vi.spyOn(runtime.heartRevealPhotos, 'completeCycle')
+    fireEvent.click(screen.getByRole('button', { name: '完成這份心意，開始下一輪' }))
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '開始下一輪' }))
+    await screen.findByText('0 / 7')
+    expect(completeCycle).toHaveBeenCalledOnce()
+    const project = await runtime.heartRevealPhotos.getActiveProject()
+    expect(project).toMatchObject({ progressCount: 0 })
+    expect(project?.photoAssetId).toBeUndefined()
+    expect(await runtime.heartPhrases.getHeartPhrases()).toHaveLength(7)
+    fireEvent.click(screen.getByRole('button', { name: 'add-phrase' }))
+    await screen.findByText('1 / 7')
+    expect((await runtime.heartPhrases.getHeartPhrases()).at(-1)?.content).toBe('心話 8')
+  })
+
+  it('centers Manage Photo in both completed-card locations without a spacing hack', () => {
+    const styles = readFileSync('src/features/today/today.css', 'utf8')
+    const rule = styles.match(/\.heart-reveal-manage-photo\s*\{[^}]*\}/)?.[0] ?? ''
+    expect(rule).toMatch(/display:\s*flex;[\s\S]*?align-items:\s*center;[\s\S]*?justify-content:\s*center;[\s\S]*?text-align:\s*center;/)
+    expect(rule).not.toMatch(/(margin-left|padding-left):/)
   })
 
   it('restores the persisted count after storage reopen', async () => {

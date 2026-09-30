@@ -42,14 +42,12 @@ describe('Seven Heart Notes contextual help', () => {
     expect(screen.getByRole('button', { name: label })).toBeInTheDocument()
   })
 
-  it('opens the existing Today guide, returns to Today, and keeps the temporary ritual work', async () => {
+  it('opens the existing Today guide, returns to Today, and keeps the temporary draft', async () => {
     const runtime = await createRuntime()
     renderFlow(runtime)
     const input = screen.getByRole('textbox', { name: '今天，有什麼話想留下？' })
     fireEvent.change(input, { target: { value: '需要先看看說明' } })
     const heart = screen.getByRole('button', { name: '收下這句心話' })
-    fireEvent.click(heart)
-    fireEvent.click(heart)
     fireEvent.click(heart)
 
     fireEvent.click(screen.getByRole('button', { name: '查看七句心話使用說明' }))
@@ -62,9 +60,8 @@ describe('Seven Heart Notes contextual help', () => {
     fireEvent.click(screen.getByRole('button', { name: '返回' }))
     await waitFor(() => expect(screen.getByTestId('location-probe')).toHaveTextContent('/today'))
     expect(screen.getByRole('textbox', { name: '今天，有什麼話想留下？' })).toHaveValue('需要先看看說明')
-    expect(screen.getByTestId('heart-line-ritual-progress')).toHaveTextContent('第 3 / 7 次心意')
+    expect(screen.getByTestId('heart-line-ritual-progress')).toHaveTextContent('已完成 1 / 7 句')
 
-    for (let press = 0; press < 4; press += 1) fireEvent.click(screen.getByRole('button', { name: '收下這句心話' }))
     await waitFor(async () => expect(await runtime.heartPhrases.getHeartPhrases()).toHaveLength(1))
   })
 

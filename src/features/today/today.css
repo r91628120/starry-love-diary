@@ -652,6 +652,13 @@
     width: 100%;
   }
 
+.heart-reveal-manage-photo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
 .heart-reveal-cycle {
   display: grid;
   min-width: 0;

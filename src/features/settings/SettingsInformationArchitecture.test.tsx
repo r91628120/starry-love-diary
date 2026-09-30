@@ -92,7 +92,7 @@ describe('Settings help, rules, and legal information architecture', () => {
     for (const title of ['今天', '星星瓶', '足跡', '我們', '清醒', '資料與設定']) fireEvent.click(screen.getByText(title))
     const text = document.body.textContent ?? ''
     expect(text).toContain('七句心話')
-    expect(text).toMatch(/愛心按鈕七次/)
+    expect(text).toMatch(/按一次愛心按鈕，這句心話就會立刻保存/)
     expect(text).toContain('照片顯影')
     expect(text).toContain('存成清醒星星')
     expect(text).toMatch(/年、月分組/)
@@ -105,6 +105,26 @@ describe('Settings help, rules, and legal information architecture', () => {
     expect(text).toContain('匯出與匯入 App 資料')
     expect(text).toContain('不可復原')
     expect(text).toMatch(/手機相簿原圖/)
+  })
+
+  it('documents the current one-press, dual-flow heart-phrase contract in all six locales', () => {
+    const retainedPhraseCopy = {
+      'zh-TW': '七句心話會保留', en: 'seven phrases remain', ja: '七つの心ことばは残り', ko: '이전 일곱 문장은 남아', es: 'siete frases anteriores se conservan', fr: 'sept phrases précédentes sont conservées',
+    } as const
+    const cardCopy = {
+      'zh-TW': '心意卡', en: 'heart card', ja: 'カード', ko: '마음 카드', es: 'tarjeta', fr: 'carte',
+    } as const
+    for (const locale of supportedLocales) {
+      const guide = userGuideMessages[locale]['settings.guide.today.body']
+      expect(guide).toContain('80')
+      expect(guide).toContain('0/7')
+      expect(guide).toContain('7/7')
+      expect(guide).toContain(cardCopy[locale])
+      expect(guide).toContain(messages[locale]['heartRevealCycle.managePhoto'])
+      expect(guide).toContain(messages[locale]['heartRevealCycle.finish'])
+      expect(guide).toContain(retainedPhraseCopy[locale])
+      expect(guide).not.toMatch(/30|七次|seven times|7回|7번|siete veces|sept fois/u)
+    }
   })
 
   it('explains both Star Bottle types and that counts differ from score points', () => {

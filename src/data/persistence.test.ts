@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import { initializePersistence } from './persistence'
 import { LocalDiaryRepository, LocalHeartPhraseRepository, LocalImportantDateRepository, LocalMemoryMomentRepository, LocalMessageToYouRepository, LocalMoodRepository, LocalRememberedYouRepository, LocalScoreRepository, LocalSettingsRepository, LocalStarRepository } from './repositories/repositories'
 import { filterStarsByRange } from '../features/star-bottle/filterStars'
-import { advanceHeartPhraseRitual } from '../features/today/heartPhraseRitual'
 import { createMemoryStorageBacking, MemoryStorageAdapter } from './storage/MemoryStorageAdapter'
 import { SCHEMA_VERSION } from './storage/IndexedDbStorageAdapter'
 import { STORE_NAMES } from './storage/StorageAdapter'
@@ -66,16 +65,6 @@ describe('Local persistence repositories', () => {
     expect(await reopened.getHeartPhrases()).toEqual([])
     for (let index = 0; index < 21; index += 1) await reopened.acceptHeartPhrase(`句子 ${index}`)
     expect(await reopened.getHeartPhrases()).toHaveLength(21)
-  })
-
-  it('keeps the first six heart presses informal and accepts on the seventh', () => {
-    let presses = 0
-    for (let index = 0; index < 6; index += 1) {
-      const result = advanceHeartPhraseRitual(presses)
-      expect(result.accepted).toBe(false)
-      presses = result.nextPresses
-    }
-    expect(advanceHeartPhraseRitual(presses)).toEqual({ accepted: true, nextPresses: 0 })
   })
 
   it('filters real stars by today, month, year and all without mock seeds', async () => {

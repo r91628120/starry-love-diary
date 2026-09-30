@@ -68,7 +68,7 @@ export function SettingsInformationPage({ kind }: { kind: SettingsInformationKin
   const { t } = useI18n()
   const location = useLocation()
   const todayGuideRef = useRef<HTMLDetailsElement>(null)
-  const contextualState = location.state as { from?: string; guideTarget?: string; heartLineDraft?: { value: string; pressCount: number } } | null
+  const contextualState = location.state as { from?: string; guideTarget?: string; heartLineDraft?: { value: string } } | null
   const isContextualTodayGuide = kind === 'help' && contextualState?.from === '/today' && contextualState.guideTarget === 'today'
 
   useEffect(() => {
