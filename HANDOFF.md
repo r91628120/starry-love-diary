@@ -1,16 +1,24 @@
-# Build 24 Release Handoff
+# Build 26 Release Handoff
 
 ## Current Release Identity
 
 - App: 星星戀愛日記 / Starry Love Diary
-- Branch / local HEAD: `main` / `6f060a440ba8429c1463fdcb8b33e75883e3f56f`
-- Remote `origin/main`: `a9b297eaa8ffe6d2d5488a3175fa654cb8227ccb`; the post-Build-24 local commits below are not pushed yet.
+- Branch / local HEAD: `main` / `ced1d706bcf702867342d0d6c868b16d63ea5d10`
+- Remote `origin/main`: `ced1d706bcf702867342d0d6c868b16d63ea5d10`
 - Marketing version: `1.0.0`
-- TestFlight build: `24`
+- TestFlight build: `26`
 - Official uploader: `.github/workflows/ios-testflight.yml`
-- Latest successful workflow: https://github.com/r91628120/starry-love-diary/actions/runs/36688170694
+- Latest successful workflow: https://github.com/r91628120/starry-love-diary/actions/runs/36846345034
 
-Build 24 passed macOS/Xcode Swift compilation, signed archive, IPA export, IPA identity/signature validation, and upload. Apple accepted the upload; App Store Connect processing and tester availability may still be pending. Do not upload Build 24 again unless explicitly authorized.
+Build 26 passed macOS/Xcode Swift compilation, signed archive, IPA export, payload and signature validation, and TestFlight upload. The `Starry Love Diary iOS TestFlight` workflow run `36846345034` completed **SUCCESS** for `com.miracle.starrylovediary 1.0.0 (26)`; Apple accepted the upload. Do not upload Build 26 again unless explicitly authorized.
+
+### Build 26 release chain
+
+1. `3a85731871fb04a7d0ac12a09f8d24a126560d1b` — `fix(footprints): remove hero floral overlay`
+2. `7a4c610b6800afffdc446938bc2542a0fe3240d3` — `fix(today): contain CJK emoji heart-card text`
+3. `ced1d706bcf702867342d0d6c868b16d63ea5d10` — `chore(ios): bump build to 26`
+
+Archive: **PASS**. IPA export, payload, and signature validation: **PASS**. TestFlight upload: **PASS**.
 
 ### Release commits since Build 23
 
@@ -52,13 +60,17 @@ At `7/7`, two flows are valid:
 
 No round-history database, IndexedDB schema change, or Backup/Restore change was added.
 
-### Post-Build 24 Heart Card safe-area repair — local validation complete
+### Seven Heart CJK + emoji safe-area — SEALED in Build 26
 
-Commit: `8c5daa2`.
+The earlier local safe-area baseline was commit `8c5daa2`. Build 25 physical-iPhone QA then established the platform distinction: English + `❤️` passed, CJK + `❤️` failed, while Desktop Chromium CJK + `❤️` passed.
 
-The Seven Heart Card renderer now keeps the full measured text panel within the photo safe area for all six placements. Long or mixed-width content uses grapheme-aware splitting, so a visible emoji sequence such as `❤️` (`U+2764 + U+FE0F`) is never split. Preview and save/share continue to use the same Canvas renderer; panel sizing and placement are based on measured content rather than a broad fixed-width redesign.
+The root cause was Canvas measurement relying only on advance width while iOS/WKWebView fallback glyph painted bounds could extend beyond that width. Commit `7a4c610b6800afffdc446938bc2542a0fe3240d3` (`fix(today): contain CJK emoji heart-card text`) uses `actualBoundingBoxLeft` / `actualBoundingBoxRight` when valid and tracks `advanceWidth`, `paintedLeft`, `paintedRight`, and `paintedWidth`. Painted bounds now control wrapping, panel sizing, and draw-X geometry; deterministic advance-width fallback remains.
 
-Localhost/manual checks covered CJK, Spanish, and `❤️` content. This is **locally validated only**: the final physical-iPhone seal is pending installation and focused verification of Build 25. Do not describe this work as sealed or fully verified on iPhone before that device QA.
+The existing `42px` inner padding, `54px` photo safe inset, and all six position presets are unchanged. No iOS-, Chinese-, or emoji-specific constant was introduced. Grapheme-aware splitting continues to keep a visible emoji sequence such as `❤️` (`U+2764 + U+FE0F`) intact; preview and save/share use the same Canvas renderer.
+
+Build 26 physical-iPhone QA passed all six placements using `思念是一種「愛」 ❤️`: Chinese text and `❤️` stayed inside the white panel, with no clipping, right-edge overflow, excessive panel expansion, or photo-safe-area violation. The English regression `Even on busy days, I always find a quiet moment to think of you. ❤️` also passed with normal wrapping and no panel overflow.
+
+**SEVEN HEART CJK + EMOJI SAFE-AREA: SEALED — BUILD 26 PHYSICAL IPHONE PASS**
 
 ### Open real-device observation
 
@@ -116,7 +128,17 @@ Today, Footprints, and Star Bottle now use the recurring black-cat + white-cat c
 
 Localhost visual QA passed for Today, Footprints, and Star Bottle. This local approval is distinct from later TestFlight/device QA.
 
-## Build 24 Real-Device Test Plan
+### Footprints Hero floral overlay — SEALED in Build 26
+
+The approved black-cat + white-cat Footprints Hero PNG was covered by an obsolete, separate transparent floral decoration layer. `FootprintsHero.tsx` rendered `footprintsAssets.decorations` above the Hero; the former `.footprints-hero__decorations` rule used absolute positioning, z-index, and opacity, placing the floral asset over the cats.
+
+Commit `3a85731871fb04a7d0ac12a09f8d24a126560d1b` (`fix(footprints): remove hero floral overlay`) removed only that obsolete decorative `<img>` and its unused CSS rule. The approved Hero PNG, dimensions, crop/object-fit, border radius, layout, and original flowers embedded in the PNG remain unchanged.
+
+Localhost QA passed. Build 26 physical-iPhone QA confirmed that the transparent floral overlay is gone, both cats are clean, embedded floral content remains, and Hero layout remains correct.
+
+**FOOTPRINTS HERO FLORAL OVERLAY: SEALED — BUILD 26 PHYSICAL IPHONE PASS**
+
+## Build 24 Real-Device Test Plan — Historical
 
 1. **Seven Heart priority:** verify `0/7 → 7/7`, especially the seventh-heart transition; at `7/7`, test Manage Photo change/adjust/return still at `7/7`, phrase selection and card save/share, then Start Next Round confirmation, `0/7`, and first new phrase plus one heart to `1/7`.
 2. **QA-12 priority:** background the app without force-quitting, return after meaningful time, and check visible UI, taps, scrolling, and buttons. If visible-but-unclickable occurs, preserve state, reopen only if required, export QA diagnostics, and analyze lifecycle/touch evidence. Do not uninstall, clear data, reinstall, or speculate with code changes first.
@@ -124,7 +146,7 @@ Localhost visual QA passed for Today, Footprints, and Star Bottle. This local ap
 
 ## Current Worktree Safety
 
-The previously listed Clear WIP is completed locally in `38b475d`; it is no longer uncommitted worktree state. Keep the post-Build-24 local commits separate from the Build 24 TestFlight baseline until an explicitly authorized Build 25 release sequence.
+The previously listed Clear WIP is completed locally in `38b475d`; it is no longer uncommitted worktree state. The Build 26 release chain is pushed and its focused Seven Heart and Footprints physical-iPhone QA is complete.
 
 ### Intentionally excluded untracked assets
 
@@ -137,15 +159,9 @@ The previously listed Clear WIP is completed locally in `38b475d`; it is no long
 
 These assets are neither committed nor deleted by the post-Build-24 documentation boundary. Never use `git add .`, `git add -A`, reset, restore, checkout, stash, or clean while this worktree remains dirty.
 
-## Next Release Sequence — Build 25 Pending Authorization
+## Build 25 / Build 26 Follow-up — Completed
 
-1. Run a final pre-Build-25 release audit and confirm the release gate is clean.
-2. Bump only `CURRENT_PROJECT_VERSION` from Build 24 to Build 25; keep marketing version `1.0.0` unless separately authorized.
-3. Commit and push only the intended release state.
-4. Run the official GitHub Actions iOS/TestFlight pipeline.
-5. Install Build 25 on a physical iPhone and perform focused device QA.
-
-Build 25 device QA must include Seven Heart multilingual/CJK/emoji safe-area verification, Today/Footprints/Star Bottle Hero checks (including the animated-bottle composition), Clear saved-history and AI re-chat entry points, basic bottom navigation, and QA-12/background-resume observation where appropriate. Do not execute these release steps from this handoff update.
+The former pending Build 25 device-QA plan is historical. Build 26 is released, accepted by Apple, and its focused physical-iPhone QA sealed the Seven Heart CJK + emoji safe-area and Footprints Hero floral-overlay repairs. QA-12 remains a separate passive-observation item: its native diagnostics are present in Build 26, the visible-but-unclickable-after-background root cause remains unproven, no reload workaround was added, and diagnostics should be exported only if the issue recurs.
 
 # Historical Handoffs
 
