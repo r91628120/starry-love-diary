@@ -3,7 +3,8 @@
 ## Current Release Identity
 
 - App: 星星戀愛日記 / Starry Love Diary
-- Branch / remote HEAD: `main` / `8b017e3ebe9c670661d4105f15396f5f1faca3c2`
+- Branch / local HEAD: `main` / `6f060a440ba8429c1463fdcb8b33e75883e3f56f`
+- Remote `origin/main`: `a9b297eaa8ffe6d2d5488a3175fa654cb8227ccb`; the post-Build-24 local commits below are not pushed yet.
 - Marketing version: `1.0.0`
 - TestFlight build: `24`
 - Official uploader: `.github/workflows/ios-testflight.yml`
@@ -19,6 +20,10 @@ Build 24 passed macOS/Xcode Swift compilation, signed archive, IPA export, IPA i
 4. `cf15cc5` — `feat(qa12): add native iOS touch diagnostics`
 5. `3082e81` — `ci(ios): preserve archive failure diagnostics`
 6. `8b017e3` — `fix(qa12): repair native diagnostics compilation`
+7. `8c5daa2` — `fix(today): keep heart card text within photo bounds`
+8. `38b475d` — `feat(clear): complete saved history and AI re-chat`
+9. `b171c51` — `test(star-bottle): make hero tests date deterministic`
+10. `6f060a4` — `fix(ui): replace three hero illustrations with cat system`
 
 ## Settings Information — Complete
 
@@ -47,6 +52,14 @@ At `7/7`, two flows are valid:
 
 No round-history database, IndexedDB schema change, or Backup/Restore change was added.
 
+### Post-Build 24 Heart Card safe-area repair — local validation complete
+
+Commit: `8c5daa2`.
+
+The Seven Heart Card renderer now keeps the full measured text panel within the photo safe area for all six placements. Long or mixed-width content uses grapheme-aware splitting, so a visible emoji sequence such as `❤️` (`U+2764 + U+FE0F`) is never split. Preview and save/share continue to use the same Canvas renderer; panel sizing and placement are based on measured content rather than a broad fixed-width redesign.
+
+Localhost/manual checks covered CJK, Spanish, and `❤️` content. This is **locally validated only**: the final physical-iPhone seal is pending installation and focused verification of Build 25. Do not describe this work as sealed or fully verified on iPhone before that device QA.
+
 ### Open real-device observation
 
 There is one known, not-yet-reproducible real-device occurrence where completing the seventh phrase produced a brief freeze/crash-like unresponsive state and reopening restored operation. It is **not solved** and has no established root cause. Build 24 must explicitly retest `6/7 → seventh phrase → one ❤️ → persistence → 7/7 render → full reveal → completed UI interaction`, preserving diagnostics if it recurs.
@@ -67,21 +80,53 @@ The initial archive identified two errors in `Qa12NativeDiagnostics.swift`: `ges
 
 Commit `3082e81` preserves and exposes `archive.log` when the official iOS workflow fails, including a retained failure artifact. Keep this diagnostic behavior for future native compile failures.
 
+## Post-Build 24 Clear History and AI Re-chat — Complete Locally
+
+Commit: `38b475d`.
+
+Saved Clear results now show the main persisted result first, with **查看當時作答** collapsed by default for expandable original answers/content. The existing Love Brain result remains the canonical result presentation and interaction reference. The history detail supports 開始整理心情, 暈船法典, 戀愛腦檢測, and 喜歡？習慣？; the completed-result actions include copy content, ChatGPT handoff, Gemini handoff, AI response excerpt, and later reflection.
+
+The **✨ 和 AI 聊聊這份結果** entry sits outside the collapsed original-answer disclosure. AI response excerpt and later reflection update the same source record; no second history record, new handoff store, IndexedDB schema migration, or Backup/Restore change was introduced.
+
+### Locked Clear navigation and historical-data rules
+
+- **Save = persist only. 完成並回首頁 = Exit.**
+- 開始整理心情 and 戀愛腦檢測: Save stays on the completed result; explicit exit returns to Clear home.
+- 暈船法典 and 喜歡？習慣？: Save stays on the result; **完成並回首頁** returns to clean `/clear`.
+- **ABSENT = OMIT:** never fabricate missing historical metrics, zeroes, `unclear` outcomes, or recomputed results; never render `undefined`.
+- Persisted free text remains user-entered content.
+
+## Post-Build 24 Star Bottle test release gate — Test Only
+
+Commit: `b171c51`.
+
+This is a test-only repair, not a production Star Bottle bug. The fixture star was fixed in September while production correctly filters the collection to the real current month. The test now passes deterministic `currentLocalDate` through the existing public component interface. Production behavior, monthly filtering, animation, reduced-motion behavior, and source/CSS are unchanged.
+
+Validation after this repair: 92 test files / 861 tests passed; lint, production build, and CRLF-aware diff check passed.
+
+## Post-Build 24 Hero Illustration System — Locally Approved
+
+Commit: `6f060a4`.
+
+Today, Footprints, and Star Bottle now use the recurring black-cat + white-cat character system: a black cat with golden/yellow eyes, pink bow, and small star charm; and a white cat with blue eyes and a pink flower/ribbon. The artwork is hand-drawn/storybook/pastel in direction, contains no baked-in text, and replaces the generic human-anime Hero imagery.
+
+- **Today:** warm outdoor/lakeside companionship; runtime asset `public/images/ui/today/today-hero-couple-garden-cat-v1.png`.
+- **Footprints:** shared scrapbook/photo-album memories; runtime asset `public/images/ui/footprints/footprints-hero-v1.png`.
+- **Star Bottle:** cats look down toward the existing animated bottle; runtime background `design/ui-reference/star-bottle/star-bottle-hero-couple-cat-garden-v1.png` contains no bottle. The background and animated bottle remain separate layers; no `BottleHeroCard` or CSS repositioning was required.
+
+Localhost visual QA passed for Today, Footprints, and Star Bottle. This local approval is distinct from later TestFlight/device QA.
+
 ## Build 24 Real-Device Test Plan
 
 1. **Seven Heart priority:** verify `0/7 → 7/7`, especially the seventh-heart transition; at `7/7`, test Manage Photo change/adjust/return still at `7/7`, phrase selection and card save/share, then Start Next Round confirmation, `0/7`, and first new phrase plus one heart to `1/7`.
 2. **QA-12 priority:** background the app without force-quitting, return after meaningful time, and check visible UI, taps, scrolling, and buttons. If visible-but-unclickable occurs, preserve state, reopen only if required, export QA diagnostics, and analyze lifecycle/touch evidence. Do not uninstall, clear data, reinstall, or speculate with code changes first.
 3. **Local Date priority:** verify device-local Today date, Daily Love Quote date, Day N, Today Mood, and quote-share date. When practical, cross local midnight with the app active/backgrounded and return foreground to verify refresh without force quit.
 
-## Protected Local Worktree — Do Not Touch
+## Current Worktree Safety
 
-### Clear WIP (outside Build 24)
+The previously listed Clear WIP is completed locally in `38b475d`; it is no longer uncommitted worktree state. Keep the post-Build-24 local commits separate from the Build 24 TestFlight baseline until an explicitly authorized Build 25 release sequence.
 
-- Modified: `src/data/clearPersistence.test.ts`, `src/features/clear/ClearContent.tsx`, `src/features/clear/ClearFreeTalkFlow.test.tsx`, `src/features/clear/clear.css`, `src/i18n/clearLocalization.test.ts`, `src/i18n/messages.ts`.
-- Untracked: `src/features/clear/ClearHistoryAiHandoff.test.tsx`, `src/features/clear/ClearHistoryDetail.test.tsx`, `src/features/clear/ClearHistoryDetail.tsx`, `src/features/clear/clearHistoryAiHandoff.ts`, `src/i18n/clearHistoryDetailMessages.ts`.
-- `src/i18n/messages.ts` contains remaining Clear-only hunks; Seven Heart hunks were isolated in `fceca31`. Never restore, reset, or overwrite it.
-
-### Unrelated untracked assets
+### Intentionally excluded untracked assets
 
 - `design/ui-reference/star-bottle/star-bottle-ritual-burst.png`
 - `public/assets/heart-card/heart-card-bg-02-sunny-garden.png`
@@ -90,7 +135,17 @@ Commit `3082e81` preserves and exposes `archive.log` when the official iOS workf
 - `public/assets/heart-card/heart-card-bg-05-winter-night.png`
 - `public/assets/heart-card/heart-card-bg-06-sakura-moonlight.png`
 
-Never use `git add .`, `git add -A`, reset, restore, checkout, stash, or clean while this worktree remains dirty.
+These assets are neither committed nor deleted by the post-Build-24 documentation boundary. Never use `git add .`, `git add -A`, reset, restore, checkout, stash, or clean while this worktree remains dirty.
+
+## Next Release Sequence — Build 25 Pending Authorization
+
+1. Run a final pre-Build-25 release audit and confirm the release gate is clean.
+2. Bump only `CURRENT_PROJECT_VERSION` from Build 24 to Build 25; keep marketing version `1.0.0` unless separately authorized.
+3. Commit and push only the intended release state.
+4. Run the official GitHub Actions iOS/TestFlight pipeline.
+5. Install Build 25 on a physical iPhone and perform focused device QA.
+
+Build 25 device QA must include Seven Heart multilingual/CJK/emoji safe-area verification, Today/Footprints/Star Bottle Hero checks (including the animated-bottle composition), Clear saved-history and AI re-chat entry points, basic bottom navigation, and QA-12/background-resume observation where appropriate. Do not execute these release steps from this handoff update.
 
 # Historical Handoffs
 
