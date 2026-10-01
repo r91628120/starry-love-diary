@@ -4,6 +4,7 @@ import { UpdateCheckNotice } from '../components'
 import { ClearPage } from '../pages/ClearPage'
 import { FootprintsPage } from '../pages/FootprintsPage'
 import { OurPage } from '../pages/OurPage'
+import { StarrySkyPage } from '../pages/StarrySkyPage'
 import { SettingsPage } from '../pages/SettingsPage'
 import { StarBottlePage } from '../pages/StarBottlePage'
 import { TodayPage } from '../pages/TodayPage'
@@ -56,6 +57,7 @@ export function App() {
         <Route path="/star-bottle" element={<StarBottlePage />} />
         <Route path="/footprints" element={<FootprintsPage />} />
         <Route path="/our" element={<OurPage />} />
+        <Route path="/our/starry-sky" element={<StarrySkyPage />} />
         <Route path="/clear" element={<ClearPage />} />
       </Route>
       <Route path="/settings" element={<SettingsPage />} />
