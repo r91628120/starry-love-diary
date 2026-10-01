@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { HEART_REVEAL_CARD_HEIGHT, HEART_REVEAL_CARD_WIDTH, getHeartRevealCardTextLayout, getHeartRevealOrientation, getHeartRevealOverlayLayout, getHeartRevealPanelLayout, renderHeartRevealCardPng } from './heartRevealCardRenderer'
+import { HEART_REVEAL_CARD_HEIGHT, HEART_REVEAL_CARD_WIDTH, getHeartRevealCardTextLayout, getHeartRevealLineDrawX, getHeartRevealOrientation, getHeartRevealOverlayLayout, getHeartRevealPanelLayout, renderHeartRevealCardPng, type HeartRevealPaintedTextMetrics } from './heartRevealCardRenderer'
 import type { HeartRevealTextPlacement } from '../data/types'
 import { splitGraphemes } from './graphemes'
 
@@ -9,7 +9,10 @@ function installCanvas() {
     fillStyle: '', font: '', textAlign: 'start', textBaseline: 'alphabetic', imageSmoothingQuality: 'low',
     fillRect: vi.fn(), beginPath: vi.fn(), moveTo: vi.fn(), arcTo: vi.fn(), closePath: vi.fn(), fill: vi.fn(),
     save: vi.fn(), restore: vi.fn(), drawImage, fillText,
-    measureText: vi.fn((text: string) => ({ width: [...text].length * 28 })),
+    measureText: vi.fn((text: string) => {
+      const width = [...text].length * 28
+      return { width, actualBoundingBoxLeft: 0, actualBoundingBoxRight: width }
+    }),
   } as unknown as CanvasRenderingContext2D
   const canvas = { width: 0, height: 0, getContext: vi.fn(() => context), toBlob: (callback: BlobCallback) => callback(new Blob(['png'], { type: 'image/png' })) } as unknown as HTMLCanvasElement
   return { canvas, context, drawImage, fillText }
@@ -25,6 +28,22 @@ function measureMixedText(value: string, fontSize: number) {
     if (/^\s$/u.test(grapheme)) return width + fontSize * .28
     return width + fontSize * .56
   }, 0)
+}
+
+// Models the iOS fallback case where advance width fits but painted CJK/emoji
+// ink extends on both sides of that advance. The renderer must lay out from
+// these painted bounds, not merely from advanceWidth.
+function measureCjkEmojiPaintedBounds(value: string, fontSize: number): HeartRevealPaintedTextMetrics {
+  const advanceWidth = measureMixedText(value, fontSize)
+  const hasCjkOrHeart = /[\u3400-\u9fff「」]|❤️/u.test(value)
+  const leftOverhang = hasCjkOrHeart ? fontSize * .12 : 0
+  const rightOverhang = hasCjkOrHeart ? fontSize * .18 : 0
+  return {
+    advanceWidth,
+    paintedLeft: -leftOverhang,
+    paintedRight: advanceWidth + rightOverhang,
+    paintedWidth: advanceWidth + leftOverhang + rightOverhang,
+  }
 }
 
 describe('heart reveal card renderer', () => {
@@ -173,6 +192,50 @@ describe('heart reveal card renderer', () => {
     if (placement.endsWith('left')) expect(panel.x).toBe(safeX)
     if (placement.startsWith('top')) expect(panel.y).toBe(safeY)
     if (placement.startsWith('bottom')) expect(panel.y).toBe(HEART_REVEAL_CARD_HEIGHT - safeY - panel.height)
+  })
+
+  it('uses painted CJK-plus-heart bounds when advance width alone would appear to fit', () => {
+    const overlay = getHeartRevealOverlayLayout(900, 1600, 'bottom-center')
+    const layout = getHeartRevealCardTextLayout('思念是一種「愛」 ❤️', measureCjkEmojiPaintedBounds, overlay.width - 84, overlay.maxLines)
+    const panel = getHeartRevealPanelLayout(overlay, layout)
+    const advanceOnlyPanelWidth = Math.max(...layout.lineMetrics.map((metrics) => metrics.advanceWidth)) + 84
+
+    expect(layout.lineMetrics[0].paintedWidth).toBeGreaterThan(layout.lineMetrics[0].advanceWidth)
+    expect(panel.width).toBeGreaterThan(advanceOnlyPanelWidth)
+  })
+
+  it.each(['top-left', 'top-center', 'top-right', 'bottom-left', 'bottom-center', 'bottom-right'] as const)('keeps painted CJK and emoji bounds inside the %s panel', (placement) => {
+    const safeX = 54
+    const safeY = 54
+    const overlay = getHeartRevealOverlayLayout(900, 1600, placement)
+    const layout = getHeartRevealCardTextLayout('思念是一種「愛」 ❤️', measureCjkEmojiPaintedBounds, overlay.width - 84, overlay.maxLines)
+    const panel = getHeartRevealPanelLayout(overlay, layout)
+    const innerLeft = panel.x + 42
+    const innerRight = panel.x + panel.width - 42
+
+    expect(panel.x).toBeGreaterThanOrEqual(safeX)
+    expect(panel.x + panel.width).toBeLessThanOrEqual(HEART_REVEAL_CARD_WIDTH - safeX)
+    expect(panel.y).toBeGreaterThanOrEqual(safeY)
+    expect(panel.y + panel.height).toBeLessThanOrEqual(HEART_REVEAL_CARD_HEIGHT - safeY)
+    layout.lineMetrics.forEach((metrics) => {
+      const drawX = getHeartRevealLineDrawX(panel, metrics)
+      expect(drawX + metrics.paintedLeft).toBeGreaterThanOrEqual(innerLeft - .001)
+      expect(drawX + metrics.paintedRight).toBeLessThanOrEqual(innerRight + .001)
+    })
+  })
+
+  it.each(['top-left', 'bottom-center', 'bottom-right'] as const)('keeps painted English-plus-heart bounds inside the %s panel', (placement) => {
+    const overlay = getHeartRevealOverlayLayout(900, 1600, placement)
+    const layout = getHeartRevealCardTextLayout('Even on busy days, I always find a quiet moment to think of you. ❤️', measureCjkEmojiPaintedBounds, overlay.width - 84, overlay.maxLines)
+    const panel = getHeartRevealPanelLayout(overlay, layout)
+    const innerLeft = panel.x + 42
+    const innerRight = panel.x + panel.width - 42
+
+    layout.lineMetrics.forEach((metrics) => {
+      const drawX = getHeartRevealLineDrawX(panel, metrics)
+      expect(drawX + metrics.paintedLeft).toBeGreaterThanOrEqual(innerLeft - .001)
+      expect(drawX + metrics.paintedRight).toBeLessThanOrEqual(innerRight + .001)
+    })
   })
 
   it('keeps the heart emoji grapheme intact when a long CJK token wraps', () => {
