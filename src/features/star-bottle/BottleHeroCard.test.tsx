@@ -17,7 +17,7 @@ function presentationFor(representative: Star | undefined) {
 }
 
 function renderHero(presentations: LocalStarDropPresentationRepository, stars: Star[] = [star]) {
-  return render(<I18nProvider initialLocale="en"><BottleHeroCard stars={stars} presentations={presentations} /></I18nProvider>)
+  return render(<I18nProvider initialLocale="en"><BottleHeroCard stars={stars} currentLocalDate="2026-09-20" presentations={presentations} /></I18nProvider>)
 }
 
 function milliseconds(value: string) {
