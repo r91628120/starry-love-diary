@@ -158,7 +158,7 @@ describe('Free Talk repository', () => {
 })
 
 describe('AI handoff reflections', () => {
-  it('saves both fields on the original five completed records without changing their identities or source results', async () => {
+  it('saves each AI field on the original five completed records without changing identities, source results, or store counts', async () => {
     const adapter = new MemoryStorageAdapter(); await adapter.open()
     const clear = new LocalClearRecordRepository(adapter, new LocalScoreRepository(adapter))
     const freeTalk = new LocalClearFreeTalkRepository(adapter)
@@ -177,18 +177,19 @@ describe('AI handoff reflections', () => {
       [brainRecord, (changes: { aiResponseExcerpt?: string; postChatReflection?: string }) => brain.updateAiHandoff(brainRecord.id, changes)],
       [likeRecord, (changes: { aiResponseExcerpt?: string; postChatReflection?: string }) => like.updateAiHandoff(likeRecord.id, changes)],
     ] as const
+    const countsBefore = await Promise.all(['clearRecords', 'clearFreeTalkRecords', 'loveBoatAssessments', 'loveBrainAssessments', 'likeOrHabitReflections'].map((store) => adapter.getAll(store as 'clearRecords')))
     for (const [source, update] of sources) {
-      const updated = await update({ aiResponseExcerpt: 'A'.repeat(5000), postChatReflection: 'B'.repeat(2000) })
-      expect(updated).toMatchObject({ id: source.id, createdAt: source.createdAt, localDate: source.localDate, aiResponseExcerpt: 'A'.repeat(5000), postChatReflection: 'B'.repeat(2000) })
-      expect(updated.updatedAt >= source.updatedAt).toBe(true)
+      const responseSaved = await update({ aiResponseExcerpt: 'A'.repeat(5000), postChatReflection: 'first reflection' })
+      expect(responseSaved).toMatchObject({ id: source.id, createdAt: source.createdAt, localDate: source.localDate, aiResponseExcerpt: 'A'.repeat(5000), postChatReflection: 'first reflection' })
+      const reflectionSaved = await update({ aiResponseExcerpt: responseSaved.aiResponseExcerpt, postChatReflection: 'B'.repeat(2000) })
+      expect(reflectionSaved).toMatchObject({ id: source.id, createdAt: source.createdAt, localDate: source.localDate, aiResponseExcerpt: 'A'.repeat(5000), postChatReflection: 'B'.repeat(2000) })
+      expect(reflectionSaved.updatedAt >= source.updatedAt).toBe(true)
+      expect(reflectionSaved).toMatchObject(Object.fromEntries(Object.entries(source).filter(([key]) => !['aiResponseExcerpt', 'postChatReflection', 'updatedAt'].includes(key))))
       await expect(update({ aiResponseExcerpt: 'A'.repeat(5001), postChatReflection: 'ok' })).rejects.toMatchObject({ code: 'ai_response_excerpt_too_long' })
       await expect(update({ aiResponseExcerpt: 'ok', postChatReflection: 'B'.repeat(2001) })).rejects.toMatchObject({ code: 'post_chat_reflection_too_long' })
     }
-    expect(await adapter.getAll('clearRecords')).toHaveLength(1)
-    expect(await adapter.getAll('clearFreeTalkRecords')).toHaveLength(1)
-    expect(await adapter.getAll('loveBoatAssessments')).toHaveLength(1)
-    expect(await adapter.getAll('loveBrainAssessments')).toHaveLength(1)
-    expect(await adapter.getAll('likeOrHabitReflections')).toHaveLength(1)
+    const countsAfter = await Promise.all(['clearRecords', 'clearFreeTalkRecords', 'loveBoatAssessments', 'loveBrainAssessments', 'likeOrHabitReflections'].map((store) => adapter.getAll(store as 'clearRecords')))
+    expect(countsAfter.map((records) => records.length)).toEqual(countsBefore.map((records) => records.length))
   })
 })
 

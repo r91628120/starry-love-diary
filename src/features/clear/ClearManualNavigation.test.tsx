@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { PersistenceProvider } from '../../data/PersistenceContext'
 import { LOVE_BRAIN_KEYS } from '../../data/repositories/clearRepositories'
 import { initializePersistence } from '../../data/persistence'
@@ -21,6 +21,28 @@ function withProviders(node: React.ReactNode, runtime: Awaited<ReturnType<typeof
 }
 
 describe('Clear manual next navigation', () => {
+  it('keeps Organize Feelings on its completed result after saving instead of invoking its return callback', async () => {
+    const runtime = await createRuntime()
+    const onDone = vi.fn()
+    withProviders(<OrganizeFeelingsFlow onDone={onDone} />, runtime)
+
+    fireEvent.click(screen.getByRole('radio', { name: '他沒有回訊息' }))
+    fireEvent.click(screen.getByRole('button', { name: '下一題' }))
+    for (const [index, value] of ['他今天沒有回訊息。', '他是不是不在乎我。', '我不知道他現在是否方便。'].entries()) fireEvent.change(screen.getAllByRole('textbox')[index], { target: { value } })
+    fireEvent.click(screen.getByRole('button', { name: '下一題' }))
+    fireEvent.click(screen.getByRole('button', { name: '不安' }))
+    fireEvent.click(screen.getByRole('button', { name: '下一題' }))
+    fireEvent.click(screen.getByRole('button', { name: '下一題' }))
+    fireEvent.click(screen.getByRole('button', { name: '暫時休息' }))
+    fireEvent.click(screen.getByRole('radio', { name: '去洗澡／休息' }))
+    fireEvent.click(screen.getByRole('button', { name: '下一題' }))
+    fireEvent.click(screen.getByRole('button', { name: '完成這次整理' }))
+    fireEvent.click(await screen.findByRole('button', { name: '存成清醒星星' }))
+
+    await waitFor(async () => expect(await runtime.adapter.getAll('stars')).toHaveLength(1))
+    expect(onDone).not.toHaveBeenCalled()
+  })
+
   it('keeps an Organize Feelings trigger visibly selected until Next is clicked', async () => {
     const runtime = await createRuntime()
     withProviders(<OrganizeFeelingsFlow onDone={() => undefined} />, runtime)
@@ -90,10 +112,11 @@ describe('Clear manual next navigation', () => {
 
   it('keeps Next on question 24 and exposes a complete Love Brain result flow only after View result', async () => {
     const runtime = await createRuntime()
+    const onDone = vi.fn()
     const draft = await runtime.loveBrainAssessments.createDraft()
     const answers = Object.fromEntries(LOVE_BRAIN_KEYS.map((question) => [question, 1]))
     await runtime.loveBrainAssessments.updateDraft(draft.id, { answers, currentQuestionIndex: LOVE_BRAIN_KEYS.length - 2 })
-    withProviders(<LoveBrainFlow onDone={() => undefined} />, runtime)
+    withProviders(<LoveBrainFlow onDone={onDone} />, runtime)
 
     expect(await screen.findByText('24 / 25')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '下一題' })).toBeEnabled()
@@ -118,6 +141,7 @@ describe('Clear manual next navigation', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '存成清醒星星' }))
     await waitFor(async () => expect(await runtime.adapter.getAll('stars')).toHaveLength(1))
+    expect(onDone).not.toHaveBeenCalled()
     expect((await runtime.loveBrainAssessments.saveAsClearMindStar(draft.id)).created).toBe(false)
     expect(await runtime.adapter.getAll('stars')).toHaveLength(1)
 

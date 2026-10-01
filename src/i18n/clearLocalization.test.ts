@@ -45,11 +45,22 @@ describe('Clear six-language localization', () => {
 
   it('has the same complete Clear UI key set for every locale', () => {
     const canonicalClearKeys = Object.keys(messages['zh-TW']).filter((key) => key.startsWith('clear.')).sort()
-    expect(canonicalClearKeys).toHaveLength(564)
+    expect(canonicalClearKeys).toHaveLength(588)
     for (const locale of supportedLocales) {
       const localeKeys = Object.keys(messages[locale]).filter((key) => key.startsWith('clear.')).sort()
       expect(localeKeys, locale).toEqual(canonicalClearKeys)
       expect(localeKeys.filter((key) => !messages[locale][key as keyof typeof messages['zh-TW']].trim()), locale).toEqual([])
+    }
+  })
+
+  it('localizes every new history-detail label in all six locales', () => {
+    const historyDetailKeys = Object.keys(messages['zh-TW']).filter((key) => key.startsWith('clear.historyDetail.'))
+    expect(historyDetailKeys).toHaveLength(24)
+    for (const locale of supportedLocales) {
+      expect(historyDetailKeys.filter((key) => !messages[locale][key as keyof typeof messages['zh-TW']].trim()), locale).toEqual([])
+    }
+    for (const locale of ['ja', 'ko', 'es', 'fr'] as const) {
+      expect(historyDetailKeys.filter((key) => messages[locale][key as keyof typeof messages['zh-TW']] === messages['zh-TW'][key as keyof typeof messages['zh-TW']]), locale).toEqual([])
     }
   })
 

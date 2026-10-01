@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
+import { MemoryRouter } from 'react-router-dom'
 import { PersistenceProvider } from '../../data/PersistenceContext'
 import { initializePersistence, type PersistenceRuntime } from '../../data/persistence'
 import { MemoryStorageAdapter } from '../../data/storage/MemoryStorageAdapter'
@@ -23,7 +24,7 @@ async function createRuntime(locale: Locale = 'zh-TW') {
 }
 
 function renderHistory(runtime: PersistenceRuntime, locale: Locale = 'zh-TW') {
-  return render(<PersistenceProvider runtime={runtime}><I18nProvider initialLocale={locale}><ClearContent /></I18nProvider></PersistenceProvider>)
+  return render(<PersistenceProvider runtime={runtime}><MemoryRouter><I18nProvider initialLocale={locale}><ClearContent /></I18nProvider></MemoryRouter></PersistenceProvider>)
 }
 
 function historySection() {

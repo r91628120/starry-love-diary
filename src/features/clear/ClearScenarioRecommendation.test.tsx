@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { afterEach, describe, expect, it } from 'vitest'
+import { MemoryRouter } from 'react-router-dom'
 import { I18nProvider } from '../../i18n/I18nProvider'
 import { useI18n } from '../../i18n/I18nContext'
 import { ClearContent } from './ClearContent'
@@ -11,7 +12,7 @@ function LocaleSwitch() {
 }
 
 function renderClear() {
-  return render(<I18nProvider initialLocale="zh-TW"><LocaleSwitch /><ClearContent /></I18nProvider>)
+  return render(<MemoryRouter><I18nProvider initialLocale="zh-TW"><LocaleSwitch /><ClearContent /></I18nProvider></MemoryRouter>)
 }
 
 afterEach(cleanup)
@@ -28,7 +29,7 @@ const locales = ['zh-TW', 'en', 'ja', 'ko', 'es', 'fr'] as const
 
 describe('Clear scenario recommendations', () => {
   it.each(locales)('renders five selectable scenario cards in %s', (locale) => {
-    const { container } = render(<I18nProvider initialLocale={locale}><ClearContent /></I18nProvider>)
+    const { container } = render(<MemoryRouter><I18nProvider initialLocale={locale}><ClearContent /></I18nProvider></MemoryRouter>)
     const scenarioButtons = Array.from(container.querySelectorAll<HTMLButtonElement>('.clear-scenarios__rail > button'))
 
     expect(scenarioButtons).toHaveLength(5)

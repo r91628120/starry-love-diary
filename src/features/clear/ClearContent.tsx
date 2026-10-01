@@ -1,17 +1,19 @@
-import { useCallback, useEffect, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { clearAssets } from '../../assets/uiAssets'
 import { ConfirmDialog, PrimaryButton, SecondaryButton, SectionHeader, SoftCard } from '../../components'
-import type { AiHandoffReflection as AiHandoffReflectionRecord, ClearToolSourceType, ClearTriggerType } from '../../data/clearTypes'
+import type { ClearToolSourceType, ClearTriggerType } from '../../data/clearTypes'
 import { usePersistence } from '../../data/PersistenceStateContext'
 import { useI18n } from '../../i18n/I18nContext'
 import type { TranslationKey } from '../../i18n/messages'
 import { LikeOrHabitFlow } from './LikeOrHabitFlow'
 import { LoveBoatFlow } from './LoveBoatFlow'
-import { LoveBrainFlow, LoveBrainRecordResult } from './LoveBrainFlow'
+import { LoveBrainFlow } from './LoveBrainFlow'
 import { OrganizeFeelingsFlow } from './OrganizeFeelingsFlow'
 import { ClearFreeTalkFlow } from './ClearFreeTalkFlow'
 import { AiHandoffReflection } from './AiHandoffReflection'
+import { ClearHistoryDetail } from './ClearHistoryDetail'
+import { clearHistoryAiHandoffIdentity, resolveClearHistoryAiHandoffRepository, type AiHandoffRecord } from './clearHistoryAiHandoff'
 
 type Tool = 'home' | 'organize' | 'boat' | 'brain' | 'like' | 'freeTalk'
 interface HistoryView {
@@ -51,7 +53,9 @@ const tools: Array<{ id: Tool; title: TranslationKey; description: TranslationKe
 export function ClearContent() {
   const { t, locale } = useI18n()
   const persistence = usePersistence()
-  const searchParams = new URLSearchParams(window.location.search)
+  const location = useLocation()
+  const navigate = useNavigate()
+  const searchParams = new URLSearchParams(location.search)
   const requestedRecordId = searchParams.get('recordId')
   const requestedSourceType = searchParams.get('sourceType')
   const requestedReturnTo = searchParams.get('returnTo')
@@ -132,6 +136,12 @@ export function ClearContent() {
   function returnHome() {
     setTool('home')
     setSelectedRecord(undefined)
+    const nextSearchParams = new URLSearchParams(location.search)
+    for (const key of ['sourceType', 'recordId', 'returnTo', 'freeTalk']) nextSearchParams.delete(key)
+    if (nextSearchParams.toString() !== searchParams.toString()) {
+      navigate({ pathname: '/clear', search: nextSearchParams.toString() ? `?${nextSearchParams}` : '' }, { replace: true })
+      return
+    }
     void loadHistory()
   }
 
@@ -145,7 +155,7 @@ export function ClearContent() {
 
   if (selectedRecord) {
     const saved = selectedRecord.hasStar || savedSourceIds.includes(selectedRecord.id)
-    return <section className="clear-flow"><SecondaryButton onClick={() => setSelectedRecord(undefined)}>{t('clear.home')}</SecondaryButton><SoftCard className="clear-result" tone="blue"><p className="clear-flow__eyebrow">{formatDate(selectedRecord.localDate, locale)}</p><h2>{selectedRecord.title}</h2>{selectedRecord.sourceType === 'love_brain_assessment' ? <LoveBrainHistoryResult recordId={selectedRecord.id} onUpdated={loadHistory} /> : <p>{selectedRecord.subtitle}</p>}<ClearHistoryAiHandoff recordId={selectedRecord.id} sourceType={selectedRecord.sourceType} onUpdated={loadHistory} /><div className="clear-flow__actions">{selectedRecord.sourceType !== 'free_talk' ? <PrimaryButton disabled={saved} onClick={saveSelectedStar}>{t(saved ? 'clear.common.savedStar' : 'clear.common.saveStar')}</PrimaryButton> : <PrimaryButton onClick={() => setTool('freeTalk')}>編輯</PrimaryButton>}<SecondaryButton onClick={() => setDeleteRecord(selectedRecord)}>{t('clear.history.delete')}</SecondaryButton></div></SoftCard><DeleteDialog record={deleteRecord} deleteStarToo={deleteStarToo} setDeleteStarToo={setDeleteStarToo} onConfirm={deleteSelected} onCancel={() => setDeleteRecord(undefined)} /></section>
+    return <section className="clear-flow"><SecondaryButton onClick={() => setSelectedRecord(undefined)}>{t('clear.home')}</SecondaryButton><SoftCard className="clear-result" tone="blue"><p className="clear-flow__eyebrow">{formatDate(selectedRecord.localDate, locale)}</p><h2>{selectedRecord.title}</h2>{selectedRecord.sourceType === 'free_talk' ? <p>{selectedRecord.subtitle}</p> : <ClearHistoryDetail key={clearHistoryAiHandoffIdentity(selectedRecord.sourceType, selectedRecord.id)} sourceType={selectedRecord.sourceType} recordId={selectedRecord.id} />}<ClearHistoryAiHandoff key={clearHistoryAiHandoffIdentity(selectedRecord.sourceType, selectedRecord.id)} recordId={selectedRecord.id} sourceType={selectedRecord.sourceType} onUpdated={loadHistory} /><div className="clear-flow__actions">{selectedRecord.sourceType !== 'free_talk' ? <PrimaryButton disabled={saved} onClick={saveSelectedStar}>{t(saved ? 'clear.common.savedStar' : 'clear.common.saveStar')}</PrimaryButton> : <PrimaryButton onClick={() => setTool('freeTalk')}>編輯</PrimaryButton>}<SecondaryButton onClick={() => setDeleteRecord(selectedRecord)}>{t('clear.history.delete')}</SecondaryButton></div></SoftCard><DeleteDialog record={deleteRecord} deleteStarToo={deleteStarToo} setDeleteStarToo={setDeleteStarToo} onConfirm={deleteSelected} onCancel={() => setDeleteRecord(undefined)} /></section>
   }
 
   const latest = history[0]
@@ -179,27 +189,32 @@ export function FreeTalkRoute({ recordId, returnTo, routedRecord, onHome }: { re
   return <ClearFreeTalkFlow recordId={recordId} onDone={onDone} onStartNew={onStartNew} />
 }
 
-function LoveBrainHistoryResult({ recordId, onUpdated }: { recordId: string; onUpdated: () => Promise<void> }) {
+export function ClearHistoryAiHandoff({ recordId, sourceType, onUpdated }: { recordId: string; sourceType: ClearToolSourceType | string; onUpdated: () => Promise<void> }) {
   const persistence = usePersistence()
-  const [record, setRecord] = useState<import('../../data/clearTypes').LoveBrainAssessment>()
-  useEffect(() => { void persistence?.repositories.loveBrainAssessments.getById(recordId).then(setRecord) }, [persistence, recordId])
-  return record ? <LoveBrainRecordResult record={record} onRecordChange={(updated) => { setRecord(updated); void onUpdated() }} /> : null
-}
-
-function ClearHistoryAiHandoff({ recordId, sourceType, onUpdated }: { recordId: string; sourceType: ClearToolSourceType; onUpdated: () => Promise<void> }) {
-  const persistence = usePersistence()
-  const [record, setRecord] = useState<AiHandoffReflectionRecord>()
+  const identity = clearHistoryAiHandoffIdentity(sourceType, recordId)
+  const identityRef = useRef(identity)
+  identityRef.current = identity
+  const [record, setRecord] = useState<AiHandoffRecord>()
   useEffect(() => {
-    if (!persistence) return
-    const repository = sourceType === 'clear_record' ? persistence.repositories.clearRecords : sourceType === 'free_talk' ? persistence.repositories.clearFreeTalkRecords : sourceType === 'love_boat_code' ? persistence.repositories.loveBoatAssessments : sourceType === 'love_brain_assessment' ? persistence.repositories.loveBrainAssessments : persistence.repositories.likeOrHabitReflections
-    void repository.getById(recordId).then(setRecord)
-  }, [persistence, recordId, sourceType])
+    let active = true
+    setRecord(undefined)
+    if (!persistence) return () => { active = false }
+    const repository = resolveClearHistoryAiHandoffRepository(persistence, sourceType)
+    if (!repository) return () => { active = false }
+    void repository.getById(recordId).then((loaded) => {
+      if (active && identityRef.current === identity && loaded?.id === recordId) setRecord(loaded)
+    })
+    return () => { active = false }
+  }, [identity, persistence, recordId, sourceType])
   if (!persistence || !record) return null
   return <AiHandoffReflection record={record} onSave={async (changes) => {
-    const repository = sourceType === 'clear_record' ? persistence.repositories.clearRecords : sourceType === 'free_talk' ? persistence.repositories.clearFreeTalkRecords : sourceType === 'love_boat_code' ? persistence.repositories.loveBoatAssessments : sourceType === 'love_brain_assessment' ? persistence.repositories.loveBrainAssessments : persistence.repositories.likeOrHabitReflections
-    const updated = await repository.updateAiHandoff(recordId, changes)
-    setRecord(updated)
-    await onUpdated()
+    const repository = resolveClearHistoryAiHandoffRepository(persistence, sourceType)
+    if (!repository || record.id !== recordId || identityRef.current !== identity) throw new Error('Clear history record identity changed')
+    const updated = await repository.updateAiHandoff(record.id, changes)
+    if (identityRef.current === identity && updated.id === recordId) {
+      setRecord(updated)
+      await onUpdated()
+    }
     return updated
   }} />
 }
