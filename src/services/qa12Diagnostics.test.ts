@@ -3,7 +3,7 @@ import { Directory } from '@capacitor/filesystem'
 import { fireEvent, render } from '@testing-library/react'
 import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom'
 import { createElement, useEffect, useRef } from 'react'
-import { clearQa12DiagnosticsForTest, createQa12DiagnosticExport, exportQa12Diagnostics, getQa12Diagnostics, installQa12Diagnostics, qa12LocationCommitted, qa12NavigationHandler, qa12RouteObserverMounted, qa12RouteObserverUnmounted, qa12RouterLocationRendered } from './qa12Diagnostics'
+import { clearQa12DiagnosticsForTest, createQa12DiagnosticExport, exportQa12Diagnostics, getQa12Diagnostics, installQa12Diagnostics, qa12LocationCommitted, qa12NavigationHandler, qa12ObserveAsyncOperation, qa12RouteObserverMounted, qa12RouteObserverUnmounted, qa12RouterLocationRendered } from './qa12Diagnostics'
 
 afterEach(() => { clearQa12DiagnosticsForTest(); document.body.replaceChildren(); vi.useRealTimers(); vi.restoreAllMocks() })
 function navButton(source = 'bottom-nav:today') { const button = document.createElement('button'); button.dataset.qa12NavigationSource = source; button.textContent = 'private diary content'; document.body.append(button); return button }
@@ -36,12 +36,22 @@ describe('QA-12 V6 touch and pointer diagnostics', () => {
     const changed = getQa12Diagnostics().events.slice(baseline)
     expect(changed.filter((event) => event.type === 'overlay-state-change')).toHaveLength(1)
     expect(changed.filter((event) => event.type === 'busy-state-change')).toHaveLength(1)
+    expect(changed.find((event) => event.type === 'busy-state-change')).toMatchObject({ busyControlIds: ['unknown'] })
     await Promise.resolve()
     expect(getQa12Diagnostics().events.slice(baseline).filter((event) => event.type === 'overlay-state-change' || event.type === 'busy-state-change')).toHaveLength(2)
     diagnostics.dispose()
     overlay.remove(); busy.remove()
     await Promise.resolve()
     expect(getQa12Diagnostics().events.slice(baseline).filter((event) => event.type === 'overlay-state-change' || event.type === 'busy-state-change')).toHaveLength(2)
+  })
+  it('records fixed busy control identifiers and never derives them from visible text', async () => {
+    const diagnostics = installQa12Diagnostics()
+    const busy = document.createElement('button'); busy.dataset.qa12Control = 'daily-love-quote-share'; busy.textContent = 'private visible text'; busy.setAttribute('aria-busy', 'true'); document.body.append(busy)
+    await Promise.resolve()
+    diagnostics.dispose()
+    const event = getQa12Diagnostics().events.find((entry) => entry.type === 'busy-state-change')
+    expect(event).toMatchObject({ busyControlIds: ['daily-love-quote-share'] })
+    expect(JSON.stringify(event)).not.toContain('private visible text')
   })
   it('correlates input, handler, intent, location and destination commit without preventing navigation', () => {
     const diagnostics = installQa12Diagnostics(); const button = navButton(); dispatch(button, 'pointerdown'); dispatch(button, 'pointerup'); const click = new MouseEvent('click', { bubbles: true, cancelable: true }); button.dispatchEvent(click); const id = qa12NavigationHandler('bottom-nav:today', '/today'); qa12LocationCommitted('/today'); diagnostics.dispose()
@@ -71,8 +81,33 @@ describe('QA-12 V6 touch and pointer diagnostics', () => {
     await expect(exportQa12Diagnostics({ isNativePlatform: () => true, canShare: vi.fn().mockResolvedValue({ value: true }), writeFile, share, deleteFile })).resolves.toBe('share-sheet-opened'); expect(writeFile).toHaveBeenCalledWith(expect.objectContaining({ directory: Directory.Cache })); const download = vi.fn(); await expect(exportQa12Diagnostics({ isNativePlatform: () => false, download })).resolves.toBe('downloaded'); expect(JSON.parse(download.mock.calls[0][0])).toMatchObject({ diagnosticSchemaVersion: 6 })
   })
   it('keeps native touch evidence as a separate export field', () => {
-    const exported = JSON.parse(createQa12DiagnosticExport({ schemaVersion: 1, nativeSessionId: 'native-session', launchTimestamp: '2026-09-30T00:00:00.000Z', counters: { nativeTouchBeganCount: 1 }, records: [{ type: 'native-touch', phase: 'began' }] }).content)
-    expect(exported.nativeDiagnostics).toMatchObject({ schemaVersion: 1, nativeSessionId: 'native-session', counters: { nativeTouchBeganCount: 1 } })
+    const exported = JSON.parse(createQa12DiagnosticExport({ schemaVersion: 1, nativeSessionId: 'native-session', launchTimestamp: '2026-09-30T00:00:00.000Z', nativeBuild: '26', counters: { nativeTouchBeganCount: 1 }, records: [{ type: 'native-touch', phase: 'began' }] }).content)
+    expect(exported).toMatchObject({ build: 24, nativeDiagnosticsStatus: 'success', nativeDiagnostics: { schemaVersion: 1, nativeSessionId: 'native-session', nativeBuild: '26', counters: { nativeTouchBeganCount: 1 } } })
+  })
+  it('records allowlisted async operation outcomes without changing resolved values or rejected errors', async () => {
+    const diagnostics = installQa12Diagnostics()
+    await expect(qa12ObserveAsyncOperation('persistence.scoreTotal', async () => 7)).resolves.toBe(7)
+    const error = new DOMException('private detail', 'InvalidStateError')
+    await expect(qa12ObserveAsyncOperation('persistence.dailyOpenAward', async () => { throw error })).rejects.toBe(error)
+    diagnostics.dispose()
+    const operations = getQa12Diagnostics().events.filter((event) => event.type === 'async-operation')
+    expect(operations).toEqual(expect.arrayContaining([
+      expect.objectContaining({ operationId: 'persistence.scoreTotal', operationPhase: 'start' }),
+      expect.objectContaining({ operationId: 'persistence.scoreTotal', operationPhase: 'resolve' }),
+      expect.objectContaining({ operationId: 'persistence.dailyOpenAward', operationPhase: 'start' }),
+      expect.objectContaining({ operationId: 'persistence.dailyOpenAward', operationPhase: 'reject', errorName: 'InvalidStateError' }),
+    ]))
+    expect(JSON.stringify(operations)).not.toContain('private detail')
+  })
+  it('exports a privacy-safe native retrieval rejection status', () => {
+    const exported = JSON.parse(createQa12DiagnosticExport(undefined, 'rejected', 'InvalidStateError').content)
+    expect(exported).toMatchObject({ nativeDiagnosticsStatus: 'rejected', nativeDiagnosticsErrorName: 'InvalidStateError' })
+    expect(JSON.stringify(exported)).not.toContain('private detail')
+  })
+  it('labels exports without iOS native diagnostics as not-native-ios', () => {
+    const exported = JSON.parse(createQa12DiagnosticExport().content)
+    expect(exported).toMatchObject({ nativeDiagnosticsStatus: 'not-native-ios' })
+    expect(exported.nativeDiagnostics).toBeUndefined()
   })
   it('records one router-location-render for an actual Router pathname change, not ordinary rerenders', () => {
     const diagnostics = installQa12Diagnostics()

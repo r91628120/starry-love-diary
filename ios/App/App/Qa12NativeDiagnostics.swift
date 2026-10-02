@@ -75,6 +75,7 @@ final class Qa12NativeDiagnostics: NSObject, UIGestureRecognizerDelegate {
             "schemaVersion": 1,
             "nativeSessionId": sessionId,
             "launchTimestamp": launchTimestamp,
+            "nativeBuild": Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown",
             "counters": counters,
             "records": records,
         ]

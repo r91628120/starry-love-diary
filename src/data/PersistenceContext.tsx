@@ -8,6 +8,7 @@ import { applyImportPlan, type AppDataImportPlan } from '../services/importAppDa
 import { clearCurrentRelationshipData } from '../services/clearCurrentRelationshipData'
 import { restoreAppData } from '../services/restoreAppData'
 import { toLocalDate } from '../services/localDateService'
+import { qa12ObserveAsyncOperation } from '../services/qa12Diagnostics'
 
 export function PersistenceProvider({ runtime, children }: { runtime: PersistenceRuntime; children: ReactNode }) {
   const [userProfile, setUserProfile] = useState(runtime.initial.userProfile)
@@ -38,14 +39,14 @@ export function PersistenceProvider({ runtime, children }: { runtime: Persistenc
     currentLocalDateRef.current = nextLocalDate
     const refresh = (async () => {
       const [nextMood, nextDiary] = await Promise.all([
-        runtime.moods.getMoodByLocalDate(nextLocalDate),
-        runtime.diaries.getDiaryByLocalDate(nextLocalDate),
-        runtime.scores.award('daily_open', { localDate: nextLocalDate }),
+        qa12ObserveAsyncOperation('persistence.moodByLocalDate', () => runtime.moods.getMoodByLocalDate(nextLocalDate)),
+        qa12ObserveAsyncOperation('persistence.diaryByLocalDate', () => runtime.diaries.getDiaryByLocalDate(nextLocalDate)),
+        qa12ObserveAsyncOperation('persistence.dailyOpenAward', () => runtime.scores.award('daily_open', { localDate: nextLocalDate })),
       ])
       setCurrentLocalDate(nextLocalDate)
       setTodayMoodState(nextMood)
       setTodayDiary(nextDiary)
-      setStarHeartTotal(await runtime.scores.getTotal())
+      setStarHeartTotal(await qa12ObserveAsyncOperation('persistence.scoreTotal', () => runtime.scores.getTotal()))
       return true
     })()
     refreshInFlightRef.current = refresh

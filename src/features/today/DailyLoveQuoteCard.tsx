@@ -51,7 +51,7 @@ export function DailyLoveQuoteCard() {
         <span>{t('today.dayNumber', { day: dayIndex })}</span>
       </div>
       <blockquote>{quote}</blockquote>
-      <PrimaryButton className="daily-love-quote__share" onClick={() => void handleShare()} disabled={sharing} aria-busy={sharing}><ShareIcon />{t('today.share')}</PrimaryButton>
+      <PrimaryButton className="daily-love-quote__share" data-qa12-control="daily-love-quote-share" onClick={() => void handleShare()} disabled={sharing} aria-busy={sharing}><ShareIcon />{t('today.share')}</PrimaryButton>
       <p className="mock-feedback" aria-live="polite">{feedbackKey ? t(feedbackKey) : ''}</p>
     </SoftCard>
   )
