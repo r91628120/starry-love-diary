@@ -12,36 +12,26 @@ function renderStarrySky(initialPath = '/our', locale: Locale = 'zh-TW') {
 
 afterEach(cleanup)
 
-describe('Starry Sky Phase 1', () => {
-  it('opens the unpaired page from the accessible entry without a numeric history count', () => {
+describe('Starry Sky Phase 2A entry and safe pairing presentation', () => {
+  it('opens the Home from the accessible entry with the V2 topic prompt framing', () => {
     renderStarrySky()
     const entry = screen.getByRole('button', { name: /我們的星空/u })
-    expect(entry).toHaveTextContent('配對後，這裡會留下你們一起打開的交換日記')
-    expect(entry).toHaveTextContent('我們已一起點亮 0 篇交換日記')
-    expect(entry).not.toHaveTextContent(/28 篇/u)
+    expect(entry).toHaveTextContent('有些話')
+    expect(entry).toHaveTextContent('心話')
+    expect(entry).not.toHaveTextContent(/交換日記/u)
     fireEvent.click(entry)
     expect(screen.getByRole('heading', { level: 1, name: '💕 我們的星空' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '邀請另一半' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '輸入配對碼' })).toBeInTheDocument()
   })
 
-  it('keeps invite UI transient and returns to the unpaired state', () => {
-    renderStarrySky('/our/starry-sky')
-    fireEvent.click(screen.getByRole('button', { name: '邀請另一半' }))
-    expect(screen.getByRole('heading', { level: 2, name: '邀請另一半' })).toBeInTheDocument()
-    expect(screen.queryByText(/https?:\/\//u)).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: '取消' }))
-    expect(screen.getByRole('button', { name: '輸入配對碼' })).toBeInTheDocument()
-  })
-
-  it('filters the transient pairing code to six digits and can cancel it', () => {
+  it('keeps pairing presentation transient and filters the code to six digits', () => {
     renderStarrySky('/our/starry-sky')
     fireEvent.click(screen.getByRole('button', { name: '輸入配對碼' }))
-    const input = screen.getByRole('textbox', { name: '輸入 6 位數配對碼' })
+    const input = screen.getByRole('textbox', { name: '輸入配對碼' })
     fireEvent.change(input, { target: { value: '12a345678' } })
     expect(input).toHaveValue('123456')
     fireEvent.click(screen.getByRole('button', { name: '取消' }))
-    expect(screen.getByRole('button', { name: '邀請另一半' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '輸入配對碼' })).toBeInTheDocument()
   })
 
   it('uses the page-header fallback to return to Our', () => {
@@ -50,10 +40,9 @@ describe('Starry Sky Phase 1', () => {
     expect(screen.getByRole('button', { name: /我們的星空/u })).toBeInTheDocument()
   })
 
-  it.each(supportedLocales)('renders Starry Sky strings and the empty shared count without raw keys in %s', (locale) => {
+  it.each(supportedLocales)('resolves the V2 entry shell without raw keys in %s', (locale) => {
     const view = renderStarrySky('/our', locale)
     expect(view.container.textContent).not.toMatch(/our\.starrySky\./u)
-    expect(screen.getByRole('button')).toHaveTextContent('🌟')
     expect(screen.getByRole('button')).toHaveTextContent('0')
   })
 })

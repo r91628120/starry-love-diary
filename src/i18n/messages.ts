@@ -11,6 +11,10 @@ import { dailyLoveQuotesBatch6 } from './dailyLoveQuotesBatch6'
 import { dailyLoveQuotesBatch7 } from './dailyLoveQuotesBatch7'
 import { footprintsBatch3Messages } from './footprintsBatch3Messages'
 import { ourBatch4Messages } from './ourBatch4Messages'
+import { starrySkyPhase2Messages } from './starrySkyPhase2Messages'
+import { starrySkyPhase2bMessages } from './starrySkyPhase2bMessages'
+import { starrySkyPhase2cMessages } from './starrySkyPhase2cMessages'
+import { starrySkyPhase2dMessages } from './starrySkyPhase2dMessages'
 import { settingsBatch5Messages } from './settingsBatch5Messages'
 import { onboardingBatch6Messages } from './onboardingBatch6Messages'
 import { memoryWallPhotoLibraryMessages } from './memoryWallPhotoLibraryMessages'
@@ -206,6 +210,10 @@ export const messages = {
     ...clearScenarioRecommendationMessages['zh-TW'],
     ...localizedOurMessages['zh-TW'],
     ...ourBatch4Messages['zh-TW'],
+    ...starrySkyPhase2Messages['zh-TW'],
+    ...starrySkyPhase2bMessages['zh-TW'],
+    ...starrySkyPhase2cMessages['zh-TW'],
+    ...starrySkyPhase2dMessages['zh-TW'],
     ...localizedFootprintsMessages['zh-TW'],
     ...footprintsBatch3Messages['zh-TW'],
     'app.brand': '星星戀愛日記',
@@ -339,6 +347,10 @@ export const messages = {
     ...clearScenarioRecommendationMessages.en,
     ...localizedOurMessages.en,
     ...ourBatch4Messages.en,
+    ...starrySkyPhase2Messages.en,
+    ...starrySkyPhase2bMessages.en,
+    ...starrySkyPhase2cMessages.en,
+    ...starrySkyPhase2dMessages.en,
     ...localizedFootprintsMessages.en,
     ...footprintsBatch3Messages.en,
     'app.brand': 'Starry Love Diary',
@@ -472,6 +484,10 @@ export const messages = {
     ...clearScenarioRecommendationMessages.ja,
     ...localizedOurMessages.ja,
     ...ourBatch4Messages.ja,
+    ...starrySkyPhase2Messages.ja,
+    ...starrySkyPhase2bMessages.ja,
+    ...starrySkyPhase2cMessages.ja,
+    ...starrySkyPhase2dMessages.ja,
     ...localizedFootprintsMessages.ja,
     ...footprintsBatch3Messages.ja,
     'app.brand': '星空恋愛日記',
@@ -605,6 +621,10 @@ export const messages = {
     ...clearScenarioRecommendationMessages.ko,
     ...localizedOurMessages.ko,
     ...ourBatch4Messages.ko,
+    ...starrySkyPhase2Messages.ko,
+    ...starrySkyPhase2bMessages.ko,
+    ...starrySkyPhase2cMessages.ko,
+    ...starrySkyPhase2dMessages.ko,
     ...localizedFootprintsMessages.ko,
     ...footprintsBatch3Messages.ko,
     'app.brand': '별빛 연애 일기',
@@ -738,6 +758,10 @@ export const messages = {
     ...clearScenarioRecommendationMessages.es,
     ...localizedOurMessages.es,
     ...ourBatch4Messages.es,
+    ...starrySkyPhase2Messages.es,
+    ...starrySkyPhase2bMessages.es,
+    ...starrySkyPhase2cMessages.es,
+    ...starrySkyPhase2dMessages.es,
     ...localizedFootprintsMessages.es,
     ...footprintsBatch3Messages.es,
     'app.brand': 'Diario de amor estelar',
@@ -871,6 +895,10 @@ export const messages = {
     ...clearScenarioRecommendationMessages.fr,
     ...localizedOurMessages.fr,
     ...ourBatch4Messages.fr,
+    ...starrySkyPhase2Messages.fr,
+    ...starrySkyPhase2bMessages.fr,
+    ...starrySkyPhase2cMessages.fr,
+    ...starrySkyPhase2dMessages.fr,
     ...localizedFootprintsMessages.fr,
     ...footprintsBatch3Messages.fr,
     'app.brand': "Journal d’amour étoilé",

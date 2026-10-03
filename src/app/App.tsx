@@ -5,6 +5,10 @@ import { ClearPage } from '../pages/ClearPage'
 import { FootprintsPage } from '../pages/FootprintsPage'
 import { OurPage } from '../pages/OurPage'
 import { StarrySkyPage } from '../pages/StarrySkyPage'
+import { StarrySkyTopicsPage } from '../pages/StarrySkyTopicsPage'
+import { StarrySkyInvitePage } from '../pages/StarrySkyInvitePage'
+import { StarrySkyIncomingInvitationPage } from '../pages/StarrySkyIncomingInvitationPage'
+import { StarrySkySessionPreviewPage } from '../pages/StarrySkySessionPreviewPage'
 import { SettingsPage } from '../pages/SettingsPage'
 import { StarBottlePage } from '../pages/StarBottlePage'
 import { TodayPage } from '../pages/TodayPage'
@@ -58,6 +62,10 @@ export function App() {
         <Route path="/footprints" element={<FootprintsPage />} />
         <Route path="/our" element={<OurPage />} />
         <Route path="/our/starry-sky" element={<StarrySkyPage />} />
+        <Route path="/our/starry-sky/topics" element={<StarrySkyTopicsPage />} />
+        <Route path="/our/starry-sky/invite" element={<StarrySkyInvitePage />} />
+        <Route path="/our/starry-sky/invitation-preview" element={<StarrySkyIncomingInvitationPage />} />
+        <Route path="/our/starry-sky/session-preview" element={<StarrySkySessionPreviewPage />} />
         <Route path="/clear" element={<ClearPage />} />
       </Route>
       <Route path="/settings" element={<SettingsPage />} />
