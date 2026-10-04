@@ -7,6 +7,23 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == uid;
     }
 
+    // Relationship authority is backend-owned. Clients can inspect only their
+    // own reference and an already-seeded Pair that names them as a member.
+    match /users/{uid} {
+      allow get: if request.auth != null && request.auth.uid == uid;
+      allow create, update, delete, list: if false;
+    }
+
+    match /pairs/{pairId} {
+      allow get: if request.auth != null && request.auth.uid in resource.data.memberUids;
+      allow create, update, delete, list: if false;
+    }
+
+    // Pair invite resolution and claiming are a Phase 3D.2 trusted-backend operation.
+    match /pairInvites/{inviteId} {
+      allow read, write: if false;
+    }
+
     // Every product and unknown path remains closed until its dedicated phase.
     match /{document=**} {
       allow read, write: if false;

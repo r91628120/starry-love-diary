@@ -1,0 +1,48 @@
+name: Firebase Security Emulator
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/firebase-security.yml
+      - firebase.json
+      - .firebaserc
+      - firestore.rules
+      - firestore.indexes.json
+      - src/lib/firebase/**
+      - package.json
+      - package-lock.json
+
+permissions:
+  contents: read
+
+jobs:
+  firestore-rules:
+    name: Firestore authorization rules
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24.12.0
+          cache: npm
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Firebase Auth and Firestore emulator authorization tests
+        run: >-
+          npm exec --yes firebase-tools@15.16.0 -- emulators:exec
+          --project demo-starry-love-diary --only auth,firestore
+          "npm run test:firebase:emulator"
