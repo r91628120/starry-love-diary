@@ -236,15 +236,29 @@ jobs:
           set -euo pipefail
           PROFILE_UUID="$(python3 -c 'import json,os; print(json.load(open(os.environ["CI_DIR"]+"/signing.json"))["uuid"])')"
           CERTIFICATE="$(python3 -c 'import json,os; print(json.load(open(os.environ["CI_DIR"]+"/signing.json"))["certificate"])')"
-          if ! xcodebuild archive -quiet -project ios/App/App.xcodeproj -scheme "$IOS_SCHEME" \
+          set +e
+          xcodebuild archive -quiet -project ios/App/App.xcodeproj -scheme "$IOS_SCHEME" \
             -configuration Release -destination 'generic/platform=iOS' \
             -archivePath "$CI_DIR/StarryLoveDiary.xcarchive" -derivedDataPath "$CI_DIR/DerivedData" \
             CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             CODE_SIGN_IDENTITY="$CERTIFICATE" PROVISIONING_PROFILE_SPECIFIER="$PROFILE_UUID" \
-            > "$CI_DIR/archive.log" 2>&1; then
-            echo 'Archive failed; signing/build logs retained only in temporary runner storage until cleanup.'
-            exit 1
+            > "$CI_DIR/archive.log" 2>&1
+          archive_status=$?
+          set -e
+          if [[ "$archive_status" -ne 0 ]]; then
+            echo 'Archive failed. Showing the final 200 lines of the sanitized xcodebuild log:'
+            tail -n 200 "$CI_DIR/archive.log" || true
+            exit "$archive_status"
           fi
+
+      - name: Upload archive failure diagnostics
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-archive-failure-diagnostics
+          path: ${{ env.CI_DIR }}/archive.log
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Validate archive and generate export options
         run: |
