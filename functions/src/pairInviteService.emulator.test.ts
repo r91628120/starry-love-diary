@@ -92,7 +92,17 @@ describe('trusted Pair invite backend against Firestore Emulator', () => {
     const singleInvite = await service.createPairInvite(durable('alice'))
     const claims = await Promise.allSettled([service.claimPairInvite(durable('bob'), singleInvite.inviteId), service.claimPairInvite(durable('carol'), singleInvite.inviteId)])
     expect(claims.filter((result) => result.status === 'fulfilled')).toHaveLength(1)
+    const successfulClaimant = claims[0].status === 'fulfilled' ? 'bob' : 'carol'
+    const losingClaimant = successfulClaimant === 'bob' ? 'carol' : 'bob'
+    const successfulResult = claims.find((result) => result.status === 'fulfilled')
+    expect(successfulResult).toBeDefined()
+    const pairId = successfulResult?.status === 'fulfilled' ? successfulResult.value.pairId : ''
     expect((await firestore.collection('pairs').get()).size).toBe(1)
+    expect((await firestore.collection('pairs').doc(pairId).get()).data()).toMatchObject({ memberUids: ['alice', successfulClaimant], status: 'active' })
+    expect((await firestore.collection('pairInvites').doc(singleInvite.inviteId).get()).data()).toMatchObject({ status: 'claimed', claimedByUid: successfulClaimant, pairId })
+    expect((await firestore.collection('users').doc('alice').get()).data()?.currentPairId).toBe(pairId)
+    expect((await firestore.collection('users').doc(successfulClaimant).get()).data()?.currentPairId).toBe(pairId)
+    expect((await firestore.collection('users').doc(losingClaimant).get()).data()?.currentPairId).not.toBe(pairId)
 
     await Promise.all(['users', 'pairs', 'pairInvites'].map(clearCollection))
     const first = await service.createPairInvite(durable('alice'))
@@ -100,6 +110,11 @@ describe('trusted Pair invite backend against Firestore Emulator', () => {
     const competingClaims = await Promise.allSettled([service.claimPairInvite(durable('bob'), first.inviteId), service.claimPairInvite(durable('carol'), second.inviteId)])
     expect(competingClaims.filter((result) => result.status === 'fulfilled')).toHaveLength(1)
     expect((await firestore.collection('pairs').get()).size).toBe(1)
-    expect((await firestore.collection('users').doc('alice').get()).data()?.currentPairId).toBeTruthy()
-  })
+    const competingResult = competingClaims.find((result) => result.status === 'fulfilled')
+    expect(competingResult).toBeDefined()
+    const competingPairId = competingResult?.status === 'fulfilled' ? competingResult.value.pairId : ''
+    expect((await firestore.collection('users').doc('alice').get()).data()?.currentPairId).toBe(competingPairId)
+    const inviteStates = await Promise.all([first.inviteId, second.inviteId].map(async (inviteId) => (await firestore.collection('pairInvites').doc(inviteId).get()).data()?.status))
+    expect(inviteStates.sort()).toEqual(['claimed', 'pending'])
+  }, 15_000)
 })
