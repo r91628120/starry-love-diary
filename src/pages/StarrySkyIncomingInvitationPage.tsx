@@ -45,6 +45,7 @@ export function StarrySkyIncomingInvitationPage() {
         <dl className="starry-sky-incoming-schedule"><div><dt>{t('our.starrySky.incomingDate')}</dt><dd>{date}</dd></div><div><dt>{t('our.starrySky.incomingTime')}</dt><dd>{previewInvitation.startTime}–{previewInvitation.endTime}</dd></div></dl>
         <p className="starry-sky-incoming-card__expiry">{t('our.starrySky.incomingExpiry')}</p>
         <p className="starry-sky-incoming-card__prototype">{t('our.starrySky.incomingPrototype')}</p>
+        <p className="starry-sky-conversation-reminder">{t('our.starrySky.incomingExternalConversation')}</p>
       </SoftCard>
       <section className="starry-sky-incoming-actions" aria-label={t('our.starrySky.incomingTitle')}>
         <PrimaryButton disabled={Boolean(decision)} onClick={() => setDecision('accepted')}>{t('our.starrySky.incomingAccept')}</PrimaryButton>

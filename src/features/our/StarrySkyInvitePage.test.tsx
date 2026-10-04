@@ -4,10 +4,11 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { I18nProvider } from '../../i18n/I18nProvider'
 import { StarrySkyInvitePage } from '../../pages/StarrySkyInvitePage'
 import { StarrySkyTopicsPage } from '../../pages/StarrySkyTopicsPage'
+import { StarrySkyIncomingInvitationPage } from '../../pages/StarrySkyIncomingInvitationPage'
 import { toLocalDate } from '../../services/localDateService'
 
 function renderInvite(path = '/our/starry-sky/invite?topic=Q001', locale = 'zh-TW') {
-  return render(<I18nProvider initialLocale={locale as never}><MemoryRouter initialEntries={[path]}><Routes><Route path="/our/starry-sky/invite" element={<StarrySkyInvitePage />} /><Route path="/our/starry-sky/topics" element={<StarrySkyTopicsPage />} /></Routes></MemoryRouter></I18nProvider>)
+  return render(<I18nProvider initialLocale={locale as never}><MemoryRouter initialEntries={[path]}><Routes><Route path="/our/starry-sky/invite" element={<StarrySkyInvitePage />} /><Route path="/our/starry-sky/topics" element={<StarrySkyTopicsPage />} /><Route path="/our/starry-sky/invitation-preview" element={<StarrySkyIncomingInvitationPage />} /></Routes></MemoryRouter></I18nProvider>)
 }
 afterEach(cleanup)
 
@@ -19,6 +20,8 @@ describe('Starry Sky Phase 2B invitation presentation', () => {
     expect(screen.getAllByRole('listitem')).toHaveLength(7)
     expect(screen.getByRole('button', { name: '開始時間' })).toHaveTextContent('20:00')
     expect(screen.getByRole('button', { name: '結束時間' })).toHaveTextContent('20:30')
+    expect(screen.getByText(/心話邀約只是幫你們約好話題與時間/u)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /開始通話|加入聊天室/u })).not.toBeInTheDocument()
   })
   it('uses a safe select-topic state for invalid or missing topic IDs', () => {
     const invalid = renderInvite('/our/starry-sky/invite?topic=Q999')
@@ -66,6 +69,12 @@ describe('Starry Sky Phase 2B invitation presentation', () => {
     expect(view.container.textContent).not.toMatch(/上午|下午|AM|PM/u)
     view.unmount(); renderInvite()
     expect(screen.queryByText('心話邀約預覽完成')).not.toBeInTheDocument()
+  })
+  it('offers a clearly local review path from composer preview to the incoming preview', () => {
+    renderInvite()
+    fireEvent.click(screen.getByRole('button', { name: '發出心話邀約' }))
+    fireEvent.click(screen.getByRole('button', { name: '查看收到的心話邀約（介面預覽）' }))
+    expect(screen.getByRole('heading', { level: 1, name: '💕 收到心話邀約' })).toBeInTheDocument()
   })
   it('localizes every shell while retaining the zh-TW official topic fallback', () => {
     for (const locale of ['zh-TW', 'en', 'ja', 'ko', 'es', 'fr']) {

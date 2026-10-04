@@ -4,11 +4,18 @@ import { UpdateCheckNotice } from '../components'
 import { ClearPage } from '../pages/ClearPage'
 import { FootprintsPage } from '../pages/FootprintsPage'
 import { OurPage } from '../pages/OurPage'
+import { LoveDeliveryPage } from '../pages/LoveDeliveryPage'
+import { LoveDeliveryIncomingPreviewPage } from '../pages/LoveDeliveryIncomingPreviewPage'
+import { LoveDeliverySessionPreviewPage } from '../pages/LoveDeliverySessionPreviewPage'
+import { LoveDeliveryConfirmationPreviewPage } from '../pages/LoveDeliveryConfirmationPreviewPage'
 import { StarrySkyPage } from '../pages/StarrySkyPage'
 import { StarrySkyTopicsPage } from '../pages/StarrySkyTopicsPage'
 import { StarrySkyInvitePage } from '../pages/StarrySkyInvitePage'
 import { StarrySkyIncomingInvitationPage } from '../pages/StarrySkyIncomingInvitationPage'
 import { StarrySkySessionPreviewPage } from '../pages/StarrySkySessionPreviewPage'
+import { StarrySkyHistoryPreviewPage } from '../pages/StarrySkyHistoryPreviewPage'
+import { AppleIdentityPreviewPage } from '../pages/AppleIdentityPreviewPage'
+import { RelationshipIdentityActionPage } from '../pages/RelationshipIdentityActionPage'
 import { SettingsPage } from '../pages/SettingsPage'
 import { StarBottlePage } from '../pages/StarBottlePage'
 import { TodayPage } from '../pages/TodayPage'
@@ -77,11 +84,18 @@ export function App() {
         <Route path="/star-bottle" element={<StarBottlePage />} />
         <Route path="/footprints" element={<FootprintsPage />} />
         <Route path="/our" element={<OurPage />} />
+        <Route path="/our/love-delivery" element={<LoveDeliveryPage />} />
+        <Route path="/our/love-delivery/incoming-preview" element={<LoveDeliveryIncomingPreviewPage />} />
+        <Route path="/our/love-delivery/session-preview" element={<LoveDeliverySessionPreviewPage />} />
+        <Route path="/our/love-delivery/confirmation-preview" element={<LoveDeliveryConfirmationPreviewPage />} />
         <Route path="/our/starry-sky" element={<StarrySkyPage />} />
         <Route path="/our/starry-sky/topics" element={<StarrySkyTopicsPage />} />
         <Route path="/our/starry-sky/invite" element={<StarrySkyInvitePage />} />
+        <Route path="/our/apple-identity-preview" element={<AppleIdentityPreviewPage />} />
+        <Route path="/our/relationship-identity" element={<RelationshipIdentityActionPage />} />
         <Route path="/our/starry-sky/invitation-preview" element={<StarrySkyIncomingInvitationPage />} />
         <Route path="/our/starry-sky/session-preview" element={<StarrySkySessionPreviewPage />} />
+        <Route path="/our/starry-sky/history-preview" element={<StarrySkyHistoryPreviewPage />} />
         <Route path="/clear" element={<ClearPage />} />
       </Route>
       <Route path="/settings" element={<SettingsPage />} />

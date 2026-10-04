@@ -15,6 +15,9 @@ import { starrySkyPhase2Messages } from './starrySkyPhase2Messages'
 import { starrySkyPhase2bMessages } from './starrySkyPhase2bMessages'
 import { starrySkyPhase2cMessages } from './starrySkyPhase2cMessages'
 import { starrySkyPhase2dMessages } from './starrySkyPhase2dMessages'
+import { loveDeliveryMessages } from './loveDeliveryMessages'
+import { starrySkyPhase2eMessages } from './starrySkyPhase2eMessages'
+import { appleIdentityGateMessages } from './appleIdentityGateMessages'
 import { settingsBatch5Messages } from './settingsBatch5Messages'
 import { onboardingBatch6Messages } from './onboardingBatch6Messages'
 import { memoryWallPhotoLibraryMessages } from './memoryWallPhotoLibraryMessages'
@@ -214,6 +217,9 @@ export const messages = {
     ...starrySkyPhase2bMessages['zh-TW'],
     ...starrySkyPhase2cMessages['zh-TW'],
     ...starrySkyPhase2dMessages['zh-TW'],
+    ...loveDeliveryMessages['zh-TW'],
+    ...starrySkyPhase2eMessages['zh-TW'],
+    ...appleIdentityGateMessages['zh-TW'],
     ...localizedFootprintsMessages['zh-TW'],
     ...footprintsBatch3Messages['zh-TW'],
     'app.brand': '星星戀愛日記',
@@ -351,6 +357,9 @@ export const messages = {
     ...starrySkyPhase2bMessages.en,
     ...starrySkyPhase2cMessages.en,
     ...starrySkyPhase2dMessages.en,
+    ...loveDeliveryMessages.en,
+    ...starrySkyPhase2eMessages.en,
+    ...appleIdentityGateMessages.en,
     ...localizedFootprintsMessages.en,
     ...footprintsBatch3Messages.en,
     'app.brand': 'Starry Love Diary',
@@ -488,6 +497,9 @@ export const messages = {
     ...starrySkyPhase2bMessages.ja,
     ...starrySkyPhase2cMessages.ja,
     ...starrySkyPhase2dMessages.ja,
+    ...loveDeliveryMessages.ja,
+    ...starrySkyPhase2eMessages.ja,
+    ...appleIdentityGateMessages.ja,
     ...localizedFootprintsMessages.ja,
     ...footprintsBatch3Messages.ja,
     'app.brand': '星空恋愛日記',
@@ -625,6 +637,9 @@ export const messages = {
     ...starrySkyPhase2bMessages.ko,
     ...starrySkyPhase2cMessages.ko,
     ...starrySkyPhase2dMessages.ko,
+    ...loveDeliveryMessages.ko,
+    ...starrySkyPhase2eMessages.ko,
+    ...appleIdentityGateMessages.ko,
     ...localizedFootprintsMessages.ko,
     ...footprintsBatch3Messages.ko,
     'app.brand': '별빛 연애 일기',
@@ -762,6 +777,9 @@ export const messages = {
     ...starrySkyPhase2bMessages.es,
     ...starrySkyPhase2cMessages.es,
     ...starrySkyPhase2dMessages.es,
+    ...loveDeliveryMessages.es,
+    ...starrySkyPhase2eMessages.es,
+    ...appleIdentityGateMessages.es,
     ...localizedFootprintsMessages.es,
     ...footprintsBatch3Messages.es,
     'app.brand': 'Diario de amor estelar',
@@ -899,6 +917,9 @@ export const messages = {
     ...starrySkyPhase2bMessages.fr,
     ...starrySkyPhase2cMessages.fr,
     ...starrySkyPhase2dMessages.fr,
+    ...loveDeliveryMessages.fr,
+    ...starrySkyPhase2eMessages.fr,
+    ...appleIdentityGateMessages.fr,
     ...localizedFootprintsMessages.fr,
     ...footprintsBatch3Messages.fr,
     'app.brand': "Journal d’amour étoilé",

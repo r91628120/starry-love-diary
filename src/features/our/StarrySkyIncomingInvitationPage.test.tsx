@@ -20,6 +20,8 @@ describe('Starry Sky Phase 2C incoming invitation presentation', () => {
     expect(screen.getByText(topic?.text ?? '')).toBeInTheDocument()
     expect(screen.getByText('20:00–20:30')).toBeInTheDocument()
     expect(screen.getByText(/正式邀約將在 24 小時內/u)).toBeInTheDocument()
+    expect(screen.getByText(/這個邀約會幫你們約好話題與時間/u)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /開始通話|加入聊天室/u })).not.toBeInTheDocument()
     expect(document.body.textContent).not.toMatch(/上午|下午|AM|PM/u)
   })
 
@@ -29,6 +31,7 @@ describe('Starry Sky Phase 2C incoming invitation presentation', () => {
     expect(screen.getByText('已接受邀約（介面預覽）')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '接受邀約' })).toBeDisabled()
     expect(screen.getByRole('button', { name: '婉拒' })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: /開始通話|加入聊天室/u })).not.toBeInTheDocument()
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
     expect(screen.queryByRole('textarea')).not.toBeInTheDocument()
   })

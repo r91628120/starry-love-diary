@@ -12,7 +12,7 @@ afterEach(() => { cleanup(); vi.restoreAllMocks() })
 
 describe('Starry Sky Phase 2A', () => {
   it('renders the home with twelve categories, featured topic, custom topic, and unpaired pairing card', () => {
-    renderSky(); expect(screen.getByRole('heading', { level: 1, name: '💕 我們的星空' })).toBeInTheDocument(); expect(screen.getByText(/我們已一起點亮 0 次心話/u)).toBeInTheDocument(); expect(screen.getAllByRole('button', { name: /A 我在你心裡/u })).toHaveLength(1); expect(screen.getAllByRole('button', { name: /L 心情/u })).toHaveLength(1); expect(screen.getByText('Q001')).toBeInTheDocument(); expect(screen.getByText('✨ 自己出一題')).toBeInTheDocument(); expect(screen.getByRole('button', { name: '輸入配對碼' })).toBeInTheDocument()
+    renderSky(); expect(screen.getByRole('heading', { level: 1, name: '💕 我們的星空' })).toBeInTheDocument(); expect(screen.getByText(/我們已一起點亮 4 次心話/u)).toBeInTheDocument(); expect(screen.getByRole('button', { name: '查看心話歷史' })).toBeInTheDocument(); expect(screen.getAllByRole('button', { name: /A 我在你心裡/u })).toHaveLength(1); expect(screen.getAllByRole('button', { name: /L 心情/u })).toHaveLength(1); expect(screen.getByText('Q001')).toBeInTheDocument(); expect(screen.getByText('✨ 自己出一題')).toBeInTheDocument(); expect(screen.getByRole('button', { name: '輸入配對碼' })).toBeInTheDocument()
   })
   it('opens the selected category and renders its ten official questions', () => {
     renderSky(); fireEvent.click(screen.getByRole('button', { name: /C 你眼中的我/u })); expect(screen.getByRole('heading', { level: 1, name: '心話題庫' })).toBeInTheDocument(); expect(screen.getByText('Q021')).toBeInTheDocument(); expect(screen.getByText('Q030')).toBeInTheDocument(); expect(screen.getAllByText(/選這題/u)).toHaveLength(10)

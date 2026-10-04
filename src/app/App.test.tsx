@@ -34,6 +34,17 @@ function renderAppWithRuntime(runtime: PersistenceRuntime, initialPath = '/our',
 afterEach(cleanup)
 
 describe('App routing', () => {
+  it('keeps Starry Sky and Love Delivery browse routes open, and renders the inert Apple gate preview', () => {
+    const starrySky = renderApp('/our/starry-sky')
+    expect(screen.getByRole('heading', { name: '💕 我們的星空' })).toBeInTheDocument()
+    starrySky.unmount()
+    const delivery = renderApp('/our/love-delivery')
+    expect(screen.getByRole('heading', { name: '💕 戀愛外送單' })).toBeInTheDocument()
+    delivery.unmount()
+    renderApp('/our/apple-identity-preview')
+    expect(screen.getByRole('heading', { name: '一起走進我們的星空' })).toBeInTheDocument()
+  })
+
   it.each([
     ['/today', '今天'],
     ['/star-bottle', '星星瓶'],
@@ -202,7 +213,11 @@ describe('Our Page static UI', () => {
     expect(wall?.nextElementSibling).toContainElement(screen.getByRole('heading', { level: 2, name: '重要日子' }))
     const importantDates = document.querySelector('.important-dates-anchor')
     expect(importantDates?.nextElementSibling).toContainElement(screen.getByRole('button', { name: /我們的星空/u }))
-    expect(importantDates?.nextElementSibling?.nextElementSibling).toContainElement(screen.getByRole('heading', { level: 2, name: '我們的時刻' }))
+    const starrySkyEntry = importantDates?.nextElementSibling
+    expect(starrySkyEntry).toContainElement(screen.getByRole('button', { name: /我們的星空/u }))
+    const loveDeliveryEntry = starrySkyEntry?.nextElementSibling
+    expect(loveDeliveryEntry).toContainElement(screen.getByRole('button', { name: /戀愛外送單/u }))
+    expect(loveDeliveryEntry?.nextElementSibling).toContainElement(screen.getByRole('heading', { level: 2, name: '我們的時刻' }))
     expect(document.querySelector('.our-stats')).toBeNull()
     for (const emptyState of ['還沒有重要日子，新增一筆開始記錄。', '還沒有我們的時刻，新增一段想留下的回憶。', '還沒有記錄，寫下一件你想記得的小事。']) expect(screen.getByText(emptyState)).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 3, name: '今天，有什麼想對他／她說？' })).toBeInTheDocument()

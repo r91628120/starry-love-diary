@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { PageHeader, PrimaryButton, SecondaryButton, SoftCard } from '../components'
 import { starrySkyTopicById } from '../features/our/starrySkyTopics'
 import { useI18n } from '../i18n/I18nContext'
@@ -25,6 +26,7 @@ function scheduledTime(date: string, time: string) { return new Date(`${date}T${
 
 export function StarrySkySessionPreviewPage({ initialStatus, now = new Date() }: { initialStatus?: HeartTalkSessionStatus, now?: Date }) {
   const { locale, t } = useI18n()
+  const navigate = useNavigate()
   const defaultStatus = initialStatus ?? (now >= scheduledTime(previewSession.date, previewSession.endTime) ? 'completed' : 'accepted')
   const [status, setStatus] = useState<HeartTalkSessionStatus>(defaultStatus)
   const [confirmingCancel, setConfirmingCancel] = useState(false)
@@ -45,7 +47,9 @@ export function StarrySkySessionPreviewPage({ initialStatus, now = new Date() }:
       <SoftCard className="starry-sky-session-card" tone={status === 'cancelled' ? 'purple' : status === 'completed' ? 'pink' : 'cream'}><h2>{statusTitle}</h2><p>{statusBody}</p>{status === 'accepted' ? <div className="starry-sky-session-card__moment"><strong>{isBeforeStart ? t('our.starrySky.sessionBeforeStartTitle') : t('our.starrySky.sessionDuringTitle')}</strong><span>{isBeforeStart ? t('our.starrySky.sessionBeforeStartBody') : t('our.starrySky.sessionDuringBody')}</span></div> : null}</SoftCard>
       <SoftCard className="starry-sky-session-card"><h2>{t('our.starrySky.sessionTopic')}</h2><div className="starry-sky-session-topic"><span>{topic.id}</span><p lang="zh-TW">{topic.text}</p></div></SoftCard>
       <SoftCard className="starry-sky-session-card"><h2>{t('our.starrySky.sessionSchedule')}</h2><dl className="starry-sky-session-schedule"><div><dt>{t('our.starrySky.sessionDate')}</dt><dd>{date}</dd></div><div><dt>{t('our.starrySky.sessionTime')}</dt><dd>{previewSession.startTime}–{previewSession.endTime}</dd></div></dl></SoftCard>
+      <SoftCard className="starry-sky-session-card starry-sky-session-reminder" tone="cream"><p className="starry-sky-conversation-reminder">{t('our.starrySky.sessionExternalConversation')}</p></SoftCard>
       {status === 'accepted' ? <section className="starry-sky-session-actions"><SecondaryButton onClick={() => setConfirmingCancel(true)}>{t('our.starrySky.sessionCancel')}</SecondaryButton></section> : null}
+      {status === 'completed' ? <section className="starry-sky-session-actions"><SecondaryButton onClick={() => navigate('/our/starry-sky/history-preview')}>{t('our.starrySky.sessionViewHistory')}</SecondaryButton></section> : null}
       {confirmingCancel ? <div className="starry-sky-session-dialog-backdrop" role="presentation"><section className="starry-sky-session-dialog" role="dialog" aria-modal="true" aria-labelledby="starry-sky-session-cancel-title" onKeyDown={(event) => { if (event.key === 'Escape') setConfirmingCancel(false) }}><h2 id="starry-sky-session-cancel-title">{t('our.starrySky.sessionCancelDialogTitle')}</h2><p>{t('our.starrySky.sessionCancelDialogBody')}</p><footer><SecondaryButton autoFocus onClick={() => setConfirmingCancel(false)}>{t('our.starrySky.sessionCancelKeep')}</SecondaryButton><PrimaryButton onClick={() => { setStatus('cancelled'); setConfirmingCancel(false) }}>{t('our.starrySky.sessionCancelConfirm')}</PrimaryButton></footer></section></div> : null}
     </main>
   </div>
