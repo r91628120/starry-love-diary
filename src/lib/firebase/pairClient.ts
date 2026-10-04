@@ -10,8 +10,8 @@ function errorCode(error: unknown): PairErrorCode {
 
 async function services() {
   if (!isFirebaseRuntimeConfigured()) throw new Error('unauthenticated')
-  const [{ firebaseAuth }, { firebaseFirestore }, functions] = await Promise.all([import('./firebaseAuth'), import('./firebaseFirestore'), import('firebase/functions')])
-  return { firebaseAuth, firebaseFirestore, ...functions }
+  const [{ firebaseAuth }, { firebaseFirestore }, { firebaseApp }, functions] = await Promise.all([import('./firebaseAuth'), import('./firebaseFirestore'), import('./firebaseApp'), import('firebase/functions')])
+  return { firebaseAuth, firebaseFirestore, firebaseApp, ...functions }
 }
 
 export async function loadPairState(): Promise<PairState> {
@@ -28,7 +28,7 @@ export async function loadPairState(): Promise<PairState> {
 }
 
 async function call<T>(name: string, data?: object): Promise<T> {
-  try { const { httpsCallable, getFunctions } = await services(); return (await httpsCallable(getFunctions(), name)(data)).data as T } catch (error) { throw new Error(errorCode(error)) }
+  try { const { httpsCallable, getFunctions, firebaseApp } = await services(); return (await httpsCallable(getFunctions(firebaseApp, 'asia-east1'), name)(data)).data as T } catch (error) { throw new Error(errorCode(error)) }
 }
 export const createPairInvite = () => call<{ inviteId: string; expiresAt: string }>('createPairInvite')
 export const resolvePairInvite = (inviteId: string) => call<{ valid: true; expiresAt: string }>('resolvePairInvite', { inviteId })

@@ -20,14 +20,14 @@ function callableError(error: unknown): never {
   throw new HttpsError('internal', 'pair-operation-failed')
 }
 
-export const createPairInvite = onCall(async (request) => {
+export const createPairInvite = onCall({ region: 'asia-east1' }, async (request) => {
   try { return await service.createPairInvite(callerFromRequest(request)) } catch (error) { return callableError(error) }
 })
 
-export const claimPairInvite = onCall(async (request) => {
+export const claimPairInvite = onCall({ region: 'asia-east1' }, async (request) => {
   try { return await service.claimPairInvite(callerFromRequest(request), typeof request.data?.inviteId === 'string' ? request.data.inviteId : '') } catch (error) { return callableError(error) }
 })
 
-export const resolvePairInvite = onCall(async (request) => {
+export const resolvePairInvite = onCall({ region: 'asia-east1' }, async (request) => {
   try { return await service.resolvePairInvite(callerFromRequest(request), typeof request.data?.inviteId === 'string' ? request.data.inviteId : '') } catch (error) { return callableError(error) }
 })
