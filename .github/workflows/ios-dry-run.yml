@@ -128,7 +128,7 @@ jobs:
             -configuration Release -destination 'generic/platform=iOS' \
             -showBuildSettings -json > "$CI_DIR/settings.json"
           python3 - <<'PY'
-          import json, os, pathlib, re
+          import json, os, pathlib, plistlib, re
           rows = json.loads((pathlib.Path(os.environ['CI_DIR']) / 'settings.json').read_text())
           targets = [r['buildSettings'] for r in rows if r.get('target') == 'App']
           assert len(targets) == 1, 'Expected exactly one App target'
@@ -144,6 +144,16 @@ jobs:
           assert identity['marketing_version'] == '1.0.0', 'Resolved setting mismatch: MARKETING_VERSION'
           assert re.fullmatch(r'[0-9]+', identity['build_number']), 'Invalid CURRENT_PROJECT_VERSION'
           (pathlib.Path(os.environ['CI_DIR']) / 'release-identity.json').write_text(json.dumps(identity))
+          entitlements_setting = settings.get('CODE_SIGN_ENTITLEMENTS', '')
+          entitlements_path = pathlib.Path('ios/App') / entitlements_setting
+          assert entitlements_path.is_file(), f'App entitlements file unavailable: {entitlements_setting!r}'
+          entitlements = plistlib.loads(entitlements_path.read_bytes())
+          assert entitlements.get('com.apple.developer.applesignin') == ['Default'], 'App Sign in with Apple entitlement mismatch'
+          print('Resolved App Release signing settings:')
+          for key in ('PRODUCT_BUNDLE_IDENTIFIER', 'DEVELOPMENT_TEAM', 'CODE_SIGN_STYLE', 'CODE_SIGN_ENTITLEMENTS',
+                      'PROVISIONING_PROFILE_SPECIFIER', 'PROVISIONING_PROFILE', 'CODE_SIGN_IDENTITY'):
+              print(f'{key}: {settings.get(key, "<unset>")}')
+          print('App Sign in with Apple entitlement: Default')
           print('Resolved Release identity and installable App target: PASS')
           PY
           # The real archive action below is the final archive-capability gate.
@@ -196,6 +206,15 @@ jobs:
           certs = [hashlib.sha1(c).hexdigest().upper() for c in profile.get('DeveloperCertificates', [])]
           assert certs, 'Profile has no distribution certificates'
           (work / 'signing.json').write_text(json.dumps({'uuid': uuid, 'name': profile['Name'], 'certs': certs, 'app_id': ent['application-identifier']}))
+          apple_signin = ent.get('com.apple.developer.applesignin')
+          print('Installed provisioning profile metadata:')
+          print(f'Name: {profile["Name"]}')
+          print(f'UUID: {uuid}')
+          print(f'TeamIdentifier: {", ".join(profile["TeamIdentifier"])}')
+          print(f'application-identifier: {ent["application-identifier"]}')
+          print(f'ExpirationDate: {profile["ExpirationDate"].isoformat()}')
+          print(f'Sign in with Apple entitlement present: {"YES" if apple_signin is not None else "NO"}')
+          print(f'Sign in with Apple entitlement value: {apple_signin!r}')
           print('Profile bundle, team, expiry and App Store type: PASS')
           PY
           security list-keychains -d user > "$CI_DIR/original-keychains.txt"
@@ -218,6 +237,7 @@ jobs:
           assert len(matching) == 1, 'Expected one valid Apple Distribution identity matching profile'
           data['certificate'] = matching[0]
           (work / 'signing.json').write_text(json.dumps(data))
+          print('Profile certificate identity relationship: matching imported Apple Distribution identity: PASS')
           installed = []
           # Cover both modern Xcode and legacy profile search locations.
           for folder in [pathlib.Path.home() / 'Library/Developer/Xcode/UserData/Provisioning Profiles',
