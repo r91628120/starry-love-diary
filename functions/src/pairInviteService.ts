@@ -78,5 +78,17 @@ export function createPairInviteService(dependencies: PairInviteDependencies) {
         return { pairId, status: 'active' as const }
       })
     },
+    async resolvePairInvite(caller: VerifiedCaller, inviteId: string) {
+      const claimant = callerOrThrow(caller)
+      if (!inviteId || typeof inviteId !== 'string') throw new PairInviteError('invite-not-found')
+      const invite = await dependencies.firestore.collection('pairInvites').doc(inviteId).get()
+      if (!invite.exists) throw new PairInviteError('invite-not-found')
+      const data = invite.data() ?? {}
+      if (data.status !== 'pending') throw new PairInviteError('invite-unavailable')
+      const expiresAt = timestampMillis(data.expiresAt)
+      if (expiresAt === undefined || now().toMillis() >= expiresAt) throw new PairInviteError('invite-expired')
+      if (data.inviterUid === claimant.uid) throw new PairInviteError('self-pair-not-allowed')
+      return { valid: true as const, expiresAt: new Date(expiresAt).toISOString() }
+    },
   }
 }

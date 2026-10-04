@@ -18,6 +18,7 @@ import { starrySkyPhase2dMessages } from './starrySkyPhase2dMessages'
 import { loveDeliveryMessages } from './loveDeliveryMessages'
 import { starrySkyPhase2eMessages } from './starrySkyPhase2eMessages'
 import { appleIdentityGateMessages } from './appleIdentityGateMessages'
+import { pairMessages } from './pairMessages'
 import { settingsBatch5Messages } from './settingsBatch5Messages'
 import { onboardingBatch6Messages } from './onboardingBatch6Messages'
 import { memoryWallPhotoLibraryMessages } from './memoryWallPhotoLibraryMessages'
@@ -220,6 +221,7 @@ export const messages = {
     ...loveDeliveryMessages['zh-TW'],
     ...starrySkyPhase2eMessages['zh-TW'],
     ...appleIdentityGateMessages['zh-TW'],
+    ...pairMessages['zh-TW'],
     ...localizedFootprintsMessages['zh-TW'],
     ...footprintsBatch3Messages['zh-TW'],
     'app.brand': '星星戀愛日記',
@@ -360,6 +362,7 @@ export const messages = {
     ...loveDeliveryMessages.en,
     ...starrySkyPhase2eMessages.en,
     ...appleIdentityGateMessages.en,
+    ...pairMessages.en,
     ...localizedFootprintsMessages.en,
     ...footprintsBatch3Messages.en,
     'app.brand': 'Starry Love Diary',
@@ -500,6 +503,7 @@ export const messages = {
     ...loveDeliveryMessages.ja,
     ...starrySkyPhase2eMessages.ja,
     ...appleIdentityGateMessages.ja,
+    ...pairMessages.ja,
     ...localizedFootprintsMessages.ja,
     ...footprintsBatch3Messages.ja,
     'app.brand': '星空恋愛日記',
@@ -640,6 +644,7 @@ export const messages = {
     ...loveDeliveryMessages.ko,
     ...starrySkyPhase2eMessages.ko,
     ...appleIdentityGateMessages.ko,
+    ...pairMessages.ko,
     ...localizedFootprintsMessages.ko,
     ...footprintsBatch3Messages.ko,
     'app.brand': '별빛 연애 일기',
@@ -780,6 +785,7 @@ export const messages = {
     ...loveDeliveryMessages.es,
     ...starrySkyPhase2eMessages.es,
     ...appleIdentityGateMessages.es,
+    ...pairMessages.es,
     ...localizedFootprintsMessages.es,
     ...footprintsBatch3Messages.es,
     'app.brand': 'Diario de amor estelar',
@@ -920,6 +926,7 @@ export const messages = {
     ...loveDeliveryMessages.fr,
     ...starrySkyPhase2eMessages.fr,
     ...appleIdentityGateMessages.fr,
+    ...pairMessages.fr,
     ...localizedFootprintsMessages.fr,
     ...footprintsBatch3Messages.fr,
     'app.brand': "Journal d’amour étoilé",

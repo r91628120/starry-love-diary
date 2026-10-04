@@ -17,6 +17,7 @@ import { StarrySkyHistoryPreviewPage } from '../pages/StarrySkyHistoryPreviewPag
 import { StarrySkyHistoryPage } from '../pages/StarrySkyHistoryPage'
 import { AppleIdentityPreviewPage } from '../pages/AppleIdentityPreviewPage'
 import { RelationshipIdentityActionPage } from '../pages/RelationshipIdentityActionPage'
+import { PairPage } from '../pages/PairPage'
 import { SettingsPage } from '../pages/SettingsPage'
 import { StarBottlePage } from '../pages/StarBottlePage'
 import { TodayPage } from '../pages/TodayPage'
@@ -85,6 +86,7 @@ export function App() {
         <Route path="/star-bottle" element={<StarBottlePage />} />
         <Route path="/footprints" element={<FootprintsPage />} />
         <Route path="/our" element={<OurPage />} />
+        <Route path="/our/pair" element={<PairPage />} />
         <Route path="/our/love-delivery" element={<LoveDeliveryPage />} />
         <Route path="/our/love-delivery/incoming-preview" element={<LoveDeliveryIncomingPreviewPage />} />
         <Route path="/our/love-delivery/session-preview" element={<LoveDeliverySessionPreviewPage />} />

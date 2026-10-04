@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { PageHeader } from '../components'
+import { PageHeader, SecondaryButton } from '../components'
 import { ImportantDatesCard } from '../features/our/ImportantDatesCard'
 import { StarrySkyEntryCard } from '../features/our/StarrySkyEntryCard'
 import { LoveDeliveryEntryCard } from '../features/our/LoveDeliveryEntryCard'
@@ -13,5 +13,5 @@ import '../features/our/our.css'
 export function OurPage() {
   const { t } = useI18n()
   const navigate = useNavigate()
-  return <div className="page our-page"><PageHeader titleKey="our.title" brandOnly /><main className="our-page__content"><div className="our-page__title" aria-hidden="true">♡ {t('our.title')} ♡</div><MemoryWall /><ImportantDatesCard /><StarrySkyEntryCard /><LoveDeliveryEntryCard /><MomentCarousel onManagePhoto={(momentId) => navigate('/settings/moments', { state: { from: '/our', momentId } })} /><MessageCard /><RememberYou /></main></div>
+  return <div className="page our-page"><PageHeader titleKey="our.title" brandOnly /><main className="our-page__content"><div className="our-page__title" aria-hidden="true">♡ {t('our.title')} ♡</div><SecondaryButton onClick={() => navigate('/our/pair')}>{t('pair.title')}</SecondaryButton><MemoryWall /><ImportantDatesCard /><StarrySkyEntryCard /><LoveDeliveryEntryCard /><MomentCarousel onManagePhoto={(momentId) => navigate('/settings/moments', { state: { from: '/our', momentId } })} /><MessageCard /><RememberYou /></main></div>
 }

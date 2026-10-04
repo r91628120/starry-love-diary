@@ -57,6 +57,23 @@ describe('trusted Pair invite backend against Firestore Emulator', () => {
     await expectApplicationError(() => service.claimPairInvite(anonymous, inviteId), 'durable-identity-required')
   })
 
+  it('resolves only a valid durable recipient preview without inviter data', async () => {
+    const now = 1_700_000_000_000
+    const service = serviceAt(now)
+    const { inviteId } = await service.createPairInvite(durable('alice'))
+    await expectApplicationError(() => service.resolvePairInvite(null, inviteId), 'unauthenticated')
+    await expectApplicationError(() => service.resolvePairInvite(anonymous, inviteId), 'durable-identity-required')
+    await expectApplicationError(() => service.resolvePairInvite(durable('alice'), inviteId), 'self-pair-not-allowed')
+    await expect(service.resolvePairInvite(durable('bob'), inviteId)).resolves.toEqual({ valid: true, expiresAt: new Date(now + PAIR_INVITE_LIFETIME_MS).toISOString() })
+    expect((await firestore.collection('pairInvites').doc(inviteId).get()).data()).toMatchObject({ status: 'pending', pairId: null, claimedByUid: null })
+    expect((await firestore.collection('pairs').get()).size).toBe(0)
+    await expectApplicationError(() => service.resolvePairInvite(durable('bob'), 'missing'), 'invite-not-found')
+    const unavailable = await service.createPairInvite(durable('carol'))
+    await service.claimPairInvite(durable('dave'), unavailable.inviteId)
+    await expectApplicationError(() => service.resolvePairInvite(durable('erin'), unavailable.inviteId), 'invite-unavailable')
+    await expectApplicationError(() => serviceAt(now + PAIR_INVITE_LIFETIME_MS).resolvePairInvite(durable('bob'), inviteId), 'invite-expired')
+  })
+
   it('atomically creates the Pair and both relationship references after a valid durable claim', async () => {
     const now = 1_700_000_000_000
     const ids = ['invite-opaque-id', 'pair-opaque-id']

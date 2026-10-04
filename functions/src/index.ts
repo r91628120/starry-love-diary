@@ -27,3 +27,7 @@ export const createPairInvite = onCall(async (request) => {
 export const claimPairInvite = onCall(async (request) => {
   try { return await service.claimPairInvite(callerFromRequest(request), typeof request.data?.inviteId === 'string' ? request.data.inviteId : '') } catch (error) { return callableError(error) }
 })
+
+export const resolvePairInvite = onCall(async (request) => {
+  try { return await service.resolvePairInvite(callerFromRequest(request), typeof request.data?.inviteId === 'string' ? request.data.inviteId : '') } catch (error) { return callableError(error) }
+})
