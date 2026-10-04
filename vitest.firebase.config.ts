@@ -6,7 +6,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
-    include: ['src/lib/firebase/**/*.emulator.test.ts'],
+    include: ['src/lib/firebase/**/*.emulator.test.ts', 'functions/src/**/*.emulator.test.ts'],
     exclude: ['**/node_modules/**'],
     // The rules suite clears the shared demo project after each case. Keep
     // emulator test files serial so it cannot erase the bootstrap fixture.

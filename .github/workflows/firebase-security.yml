@@ -12,6 +12,7 @@ on:
       - src/lib/firebase/**
       - package.json
       - package-lock.json
+      - functions/**
 
 permissions:
   contents: read
@@ -39,10 +40,15 @@ jobs:
           java-version: "21"
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm ci
+          npm ci --prefix functions
 
-      - name: Run Firebase Auth and Firestore emulator authorization tests
+      - name: Typecheck trusted Pair backend
+        run: npm run build --prefix functions
+
+      - name: Run Firebase Functions, Auth, and Firestore emulator authorization tests
         run: >-
           npm exec --yes firebase-tools@15.16.0 -- emulators:exec
-          --project demo-starry-love-diary --only auth,firestore
+          --project demo-starry-love-diary --only functions,auth,firestore
           "npm run test:firebase:emulator"
