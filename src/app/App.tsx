@@ -19,6 +19,7 @@ import { MomentPhotoManagementPage } from '../pages/MomentPhotoManagementPage'
 import { SettingsInformationPage } from '../pages/SettingsInformationPage'
 import { usePersistence } from '../data/PersistenceStateContext'
 import { useEffect, useRef } from 'react'
+import { isFirebaseRuntimeConfigured } from '../lib/firebase/firebaseEnvironment'
 import { installQa12Diagnostics, qa12LocationCommitted, qa12RouteObserverMounted, qa12RouteObserverUnmounted, qa12RouterLocationRendered } from '../services/qa12Diagnostics'
 
 function Qa12RouteCommitObserver() {
@@ -38,6 +39,20 @@ function Qa12RouteCommitObserver() {
   return null
 }
 
+function FirebaseIdentityBootstrapper() {
+  useEffect(() => {
+    if (!isFirebaseRuntimeConfigured()) return
+    let active = true
+    void import('../lib/firebase/userBootstrap')
+      .then(({ bootstrapAnonymousUser }) => bootstrapAnonymousUser())
+      .catch(() => {
+        if (active && import.meta.env.DEV) console.warn('Firebase identity bootstrap failed.')
+      })
+    return () => { active = false }
+  }, [])
+  return null
+}
+
 export function App() {
   const persistence = usePersistence()
   useEffect(() => {
@@ -54,6 +69,7 @@ export function App() {
   return (
     <>
     <UpdateCheckNotice />
+    <FirebaseIdentityBootstrapper />
     <Qa12RouteCommitObserver />
     <Routes>
       <Route element={<MainLayout />}>

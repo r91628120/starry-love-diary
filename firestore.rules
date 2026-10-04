@@ -1,0 +1,15 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Isolated Phase 3B foundation sandbox. Product collections stay closed
+    // until their dedicated data-model phase is approved.
+    match /_firebaseFoundationTestUsers/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Every product and unknown path remains closed until its dedicated phase.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
