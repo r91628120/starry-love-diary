@@ -88,6 +88,16 @@ describe('atomic Restore engine', () => {
     expect(await adapter.getAll('diaries')).toEqual([])
   })
 
+  it('restores valid Heart Talk metadata and treats pre-v9 backups without it as an empty history', async () => {
+    const adapter = new MemoryStorageAdapter(); await adapter.open()
+    await adapter.put('completedHeartTalks', { id: 'local', topicType: 'custom', localDate: '2026-09-03', startTime: '18:00', endTime: '18:30', createdAt: stamp, updatedAt: stamp })
+    const incoming = { id: 'restored', topicType: 'official' as const, questionId: 'Q002', localDate: '2026-09-01', startTime: '20:00', endTime: '20:30', createdAt: stamp, updatedAt: stamp }
+    await restoreAppData({ adapter }, buildRestorePlan(backup({ completedHeartTalks: [incoming] })))
+    expect(await adapter.getAll('completedHeartTalks')).toEqual([incoming])
+    await restoreAppData({ adapter }, buildRestorePlan(backup()))
+    expect(await adapter.getAll('completedHeartTalks')).toEqual([])
+  })
+
   it('restores Mood Stars, Clarity Stars, and score awards as an authoritative snapshot', async () => {
     const adapter = new MemoryStorageAdapter(); await adapter.open()
     await adapter.put('stars', { id: 'day3-mood', type: 'mood', content: 'remove', localDate: '2026-09-03', timezone: 'UTC', createdAt: stamp, updatedAt: stamp })

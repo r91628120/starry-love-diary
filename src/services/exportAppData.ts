@@ -4,10 +4,10 @@ import { Share } from '@capacitor/share'
 import type { ClearFreeTalkRecord, ClearRecord, LikeOrHabitReflection, LoveBoatAssessment, LoveBrainAssessment } from '../data/clearTypes'
 import type { PersistenceRuntime } from '../data/persistence'
 import { SCHEMA_VERSION } from '../data/storage/IndexedDbStorageAdapter'
-import type { AppSettings, DiaryEntry, HeartPhrase, ImportantDate, MemoryMoment, MessageToYouEntry, MoodRecord, Profile, RememberedYouCard, ScoreAward, Star } from '../data/types'
+import type { AppSettings, CompletedHeartTalk, DiaryEntry, HeartPhrase, ImportantDate, MemoryMoment, MessageToYouEntry, MoodRecord, Profile, RememberedYouCard, ScoreAward, Star } from '../data/types'
 import { encodeTextExportUtf8 } from './exportTextData'
 
-type ExportRepositories = Pick<PersistenceRuntime, 'profiles' | 'moods' | 'diaries' | 'settings' | 'stars' | 'scores' | 'heartPhrases' | 'importantDates' | 'memoryMoments' | 'messageToYou' | 'rememberedYou' | 'clearRecords' | 'clearFreeTalkRecords' | 'loveBoatAssessments' | 'loveBrainAssessments' | 'likeOrHabitReflections'>
+type ExportRepositories = Pick<PersistenceRuntime, 'profiles' | 'moods' | 'diaries' | 'settings' | 'stars' | 'scores' | 'heartPhrases' | 'importantDates' | 'memoryMoments' | 'messageToYou' | 'rememberedYou' | 'clearRecords' | 'clearFreeTalkRecords' | 'loveBoatAssessments' | 'loveBrainAssessments' | 'likeOrHabitReflections' | 'completedHeartTalks'>
 
 export const STARLOVE_EXPORT_FORMAT = 'starry-love-diary-data'
 export const STARLOVE_EXPORT_VERSION = 1
@@ -37,6 +37,7 @@ export interface AppDataExport {
     messageToYou: { id: 'message-to-you'; content: string; createdAt: string; updatedAt: string } | null
     messageToYouEntries: MessageToYouEntry[]
     rememberedYouCards: RememberedYouCard[]
+    completedHeartTalks?: CompletedHeartTalk[]
     settings: Pick<AppSettings, 'id' | 'locale' | 'dailyLoveQuoteActivationDate' | 'loveQuoteReminderEnabled' | 'importantDateReminderEnabled' | 'reminderTime' | 'schemaVersion' | 'createdAt' | 'updatedAt'>
   }
 }
@@ -74,7 +75,7 @@ function withoutMomentPhoto({ photoAssetId, ...moment }: MemoryMoment): Omit<Mem
 /** Builds a portable, JSON-only snapshot. Photos, blobs, asset ids, and layout metadata are deliberately excluded. */
 export async function buildAppDataExport(options: AppDataExportOptions): Promise<AppDataExport> {
   const { repositories, localDate } = options
-  const [user, partner, moods, diaries, settings, stars, scoreAwards, heartPhrases, importantDates, memoryMoments, messageToYou, messageToYouEntries, rememberedYouCards, organizeFeelings, freeTalkRecords, loveBoatAssessments, loveBrainAssessments, likeOrHabitReflections] = await Promise.all([
+  const [user, partner, moods, diaries, settings, stars, scoreAwards, heartPhrases, importantDates, memoryMoments, messageToYou, messageToYouEntries, rememberedYouCards, organizeFeelings, freeTalkRecords, loveBoatAssessments, loveBrainAssessments, likeOrHabitReflections, completedHeartTalks] = await Promise.all([
     repositories.profiles.getProfile('user'),
     repositories.profiles.getProfile('partner'),
     repositories.moods.getMoods(),
@@ -93,6 +94,7 @@ export async function buildAppDataExport(options: AppDataExportOptions): Promise
     repositories.loveBoatAssessments.listAll(),
     repositories.loveBrainAssessments.listAll(),
     repositories.likeOrHabitReflections.listAll(),
+    repositories.completedHeartTalks.list(),
   ])
 
   if (!user || !partner || !settings) throw new Error('App data snapshot is incomplete')
@@ -122,6 +124,7 @@ export async function buildAppDataExport(options: AppDataExportOptions): Promise
       messageToYou: messageToYou ? { id: messageToYou.id, content: messageToYou.content, createdAt: messageToYou.createdAt, updatedAt: messageToYou.updatedAt } : null,
       messageToYouEntries: sortByLocalDate(messageToYouEntries),
       rememberedYouCards: sortByLocalDate(rememberedYouCards),
+      completedHeartTalks,
       settings: {
         id: settings.id,
         locale: settings.locale,

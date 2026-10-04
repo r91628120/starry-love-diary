@@ -5,7 +5,7 @@ import { PHOTO_V5_STORE_NAMES } from '../data/storage/StorageAdapter'
 import { SCHEMA_VERSION } from '../data/storage/IndexedDbStorageAdapter'
 import { buildClearCurrentRelationshipPlan, clearCurrentRelationshipData } from './clearCurrentRelationshipData'
 
-const storyStores = ['moods', 'diaries', 'stars', 'scoreAwards', 'heartPhrases', 'importantDates', 'memoryMoments', 'messageToYou', 'rememberedYouCards', 'clearRecords', 'loveBoatAssessments', 'loveBrainAssessments', 'likeOrHabitReflections'] as const
+const storyStores = ['moods', 'diaries', 'stars', 'scoreAwards', 'heartPhrases', 'importantDates', 'memoryMoments', 'messageToYou', 'rememberedYouCards', 'clearRecords', 'loveBoatAssessments', 'loveBrainAssessments', 'likeOrHabitReflections', 'completedHeartTalks'] as const
 
 describe('clear current relationship data', () => {
   it('preflights, clears story and photo stores, preserves app settings, and triggers no business action', async () => {

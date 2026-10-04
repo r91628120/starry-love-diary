@@ -4,6 +4,7 @@ import { LocalDiaryRepository, LocalHeartPhraseRepository, LocalImportantDateRep
 import { LocalClearFreeTalkRepository, LocalClearRecordRepository, LocalLikeOrHabitReflectionRepository, LocalLoveBoatAssessmentRepository, LocalLoveBrainAssessmentRepository } from './repositories/clearRepositories'
 import { LocalStarDropPresentationRepository } from './repositories/starDropPresentationRepository'
 import { LocalDiaryDraftRepository } from './repositories/diaryDraftRepository'
+import { LocalCompletedHeartTalkRepository } from './repositories/heartTalkRepository'
 import { IndexedDbStorageAdapter } from './storage/IndexedDbStorageAdapter'
 import type { StorageAdapter } from './storage/StorageAdapter'
 import type { AppSettings, DiaryEntry, HeartPhrase, HeartRevealProject, ImportantDate, MemoryMoment, MessageToYou, MessageToYouEntry, MoodRecord, Profile, RememberedYouCard, Star } from './types'
@@ -35,6 +36,7 @@ export interface PersistenceRuntime {
   loveBoatAssessments: LocalLoveBoatAssessmentRepository
   loveBrainAssessments: LocalLoveBrainAssessmentRepository
   likeOrHabitReflections: LocalLikeOrHabitReflectionRepository
+  completedHeartTalks: LocalCompletedHeartTalkRepository
   photos: LocalPhotoRepository
   memoryWallLayouts: LocalMemoryWallLayoutRepository
   profilePhotoPlacements: LocalProfilePhotoPlacementRepository
@@ -58,6 +60,7 @@ export interface PersistenceRuntime {
     messageToYouEntries: MessageToYouEntry[]
     rememberedYouCards: RememberedYouCard[]
     diaryCount: number
+    heartTalkCount: number
   }
 }
 
@@ -82,6 +85,7 @@ export async function initializePersistence(options: { adapter?: StorageAdapter;
   const loveBoatAssessments = new LocalLoveBoatAssessmentRepository(adapter, starDropPresentations)
   const loveBrainAssessments = new LocalLoveBrainAssessmentRepository(adapter, starDropPresentations)
   const likeOrHabitReflections = new LocalLikeOrHabitReflectionRepository(adapter, starDropPresentations)
+  const completedHeartTalks = new LocalCompletedHeartTalkRepository(adapter)
   const photos = new LocalPhotoRepository(adapter, new IndexedDbPhotoContentStore(adapter), new BrowserPhotoCompressionService())
   const memoryWallLayouts = new LocalMemoryWallLayoutRepository(adapter, photos)
   const profilePhotoPlacements = new LocalProfilePhotoPlacementRepository(adapter)
@@ -95,9 +99,9 @@ export async function initializePersistence(options: { adapter?: StorageAdapter;
   // sourceType/sourceId identity; failure must not prevent the app from opening.
   await stars.reconcileMoodStars(await moods.getMoods()).catch(() => undefined)
   const messageToYouEntries = await messageToYou.reconcileLegacy()
-  const [todayMood, todayDiary, starHeartTotal, persistedStars, allPersistedHeartPhrases, persistedImportantDates, persistedMemoryMoments, persistedMessage, persistedRememberedYou, persistedDiaries] = await Promise.all([moods.getMoodByLocalDate(localDate), diaries.getDiaryByLocalDate(localDate), scores.getTotal(), stars.getStars(), heartPhrases.getHeartPhrases(), importantDates.getImportantDates(), memoryMoments.getMemoryMoments(), messageToYou.getMessage(), rememberedYou.getRememberedYouCards(), diaries.getDiaries()])
+  const [todayMood, todayDiary, starHeartTotal, persistedStars, allPersistedHeartPhrases, persistedImportantDates, persistedMemoryMoments, persistedMessage, persistedRememberedYou, persistedDiaries, heartTalkCount] = await Promise.all([moods.getMoodByLocalDate(localDate), diaries.getDiaryByLocalDate(localDate), scores.getTotal(), stars.getStars(), heartPhrases.getHeartPhrases(), importantDates.getImportantDates(), memoryMoments.getMemoryMoments(), messageToYou.getMessage(), rememberedYou.getRememberedYouCards(), diaries.getDiaries(), completedHeartTalks.count()])
   // V2 writes optional metadata into the existing v5 record. Existing users
   // with seven phrases keep their ready state rather than being reset.
   const activeHeartRevealProject = await heartRevealPhotos.getCycleState(allPersistedHeartPhrases)
-  return { adapter, profiles, moods, diaries, settings, stars, starDropPresentations, diaryDrafts, scores, heartPhrases, importantDates, memoryMoments, messageToYou, rememberedYou, clearRecords, clearFreeTalkRecords, loveBoatAssessments, loveBrainAssessments, likeOrHabitReflections, photos, memoryWallLayouts, profilePhotoPlacements, heartRevealPhotos, memoryMomentPhotoPlacements, initial: { userProfile: profileDefaults.user, partnerProfile: profileDefaults.partner, settings: appSettings, currentLocalDate: localDate, todayMood, todayDiary, starHeartTotal, stars: persistedStars, heartPhrases: allPersistedHeartPhrases, heartPhraseCount: allPersistedHeartPhrases.length, activeHeartRevealProject, importantDates: persistedImportantDates, memoryMoments: persistedMemoryMoments, messageToYou: persistedMessage, messageToYouEntries, rememberedYouCards: persistedRememberedYou, diaryCount: persistedDiaries.length } }
+  return { adapter, profiles, moods, diaries, settings, stars, starDropPresentations, diaryDrafts, scores, heartPhrases, importantDates, memoryMoments, messageToYou, rememberedYou, clearRecords, clearFreeTalkRecords, loveBoatAssessments, loveBrainAssessments, likeOrHabitReflections, completedHeartTalks, photos, memoryWallLayouts, profilePhotoPlacements, heartRevealPhotos, memoryMomentPhotoPlacements, initial: { userProfile: profileDefaults.user, partnerProfile: profileDefaults.partner, settings: appSettings, currentLocalDate: localDate, todayMood, todayDiary, starHeartTotal, stars: persistedStars, heartPhrases: allPersistedHeartPhrases, heartPhraseCount: allPersistedHeartPhrases.length, activeHeartRevealProject, importantDates: persistedImportantDates, memoryMoments: persistedMemoryMoments, messageToYou: persistedMessage, messageToYouEntries, rememberedYouCards: persistedRememberedYou, diaryCount: persistedDiaries.length, heartTalkCount } }
 }

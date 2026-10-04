@@ -61,6 +61,7 @@ describe('Import App Data V1', () => {
     expect(() => validateAppDataExport({ ...data, exportVersion: 2 })).toThrowError(AppDataImportError)
     expect(() => validateAppDataExport({ ...data, app: { ...data.app, schemaVersion: 99 } })).toThrowError(AppDataImportError)
     expect(() => validateAppDataExport({ ...data, data: { ...data.data, moods: [{ ...data.data.moods[0], mood: 'unknown' }] } })).toThrowError(AppDataImportError)
+    expect(() => validateAppDataExport({ ...data, data: { ...data.data, completedHeartTalks: [{ id: 'heart-talk-1', topicType: 'custom', localDate: '2026-09-11', startTime: '20:00', endTime: '20:20', createdAt: '2026-09-11T12:00:00.000Z', updatedAt: '2026-09-11T12:00:00.000Z', prompt: 'must never persist' }] } })).toThrowError(AppDataImportError)
   })
 
   it('whitelists records so hostile photo fields cannot be imported', async () => {

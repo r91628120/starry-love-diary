@@ -254,3 +254,23 @@ export interface RememberedYouCard {
   createdAt: string
   updatedAt: string
 }
+
+/** Deliberately metadata-only. Custom prompt text is never retained. */
+export type CompletedHeartTalk = {
+  id: string
+  topicType: 'official'
+  questionId: string
+  localDate: string
+  startTime: string
+  endTime: string
+  createdAt: string
+  updatedAt: string
+} | {
+  id: string
+  topicType: 'custom'
+  localDate: string
+  startTime: string
+  endTime: string
+  createdAt: string
+  updatedAt: string
+}

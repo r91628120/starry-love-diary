@@ -14,6 +14,7 @@ import { StarrySkyInvitePage } from '../pages/StarrySkyInvitePage'
 import { StarrySkyIncomingInvitationPage } from '../pages/StarrySkyIncomingInvitationPage'
 import { StarrySkySessionPreviewPage } from '../pages/StarrySkySessionPreviewPage'
 import { StarrySkyHistoryPreviewPage } from '../pages/StarrySkyHistoryPreviewPage'
+import { StarrySkyHistoryPage } from '../pages/StarrySkyHistoryPage'
 import { AppleIdentityPreviewPage } from '../pages/AppleIdentityPreviewPage'
 import { RelationshipIdentityActionPage } from '../pages/RelationshipIdentityActionPage'
 import { SettingsPage } from '../pages/SettingsPage'
@@ -96,6 +97,7 @@ export function App() {
         <Route path="/our/starry-sky/invitation-preview" element={<StarrySkyIncomingInvitationPage />} />
         <Route path="/our/starry-sky/session-preview" element={<StarrySkySessionPreviewPage />} />
         <Route path="/our/starry-sky/history-preview" element={<StarrySkyHistoryPreviewPage />} />
+        <Route path="/our/starry-sky/history" element={<StarrySkyHistoryPage />} />
         <Route path="/clear" element={<ClearPage />} />
       </Route>
       <Route path="/settings" element={<SettingsPage />} />

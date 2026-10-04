@@ -22,6 +22,8 @@ export interface PersistenceContextValue {
   messageToYouEntries: MessageToYouEntry[]
   rememberedYouCards: RememberedYouCard[]
   diaryCount: number
+  heartTalkCount: number
+  refreshHeartTalkCount(): Promise<void>
   updateProfile(kind: ProfileKind, changes: Partial<Pick<Profile, 'nickname' | 'birthday' | 'photoAssetId'>>): Promise<Profile>
   replaceProfilePhoto(kind: ProfileKind, file: File): Promise<Profile>
   removeProfilePhoto(kind: ProfileKind): Promise<Profile>
@@ -60,7 +62,7 @@ export interface PersistenceContextValue {
   refreshScoreAndStars(): Promise<void>
   applyAppDataImport(plan: AppDataImportPlan): Promise<ImportSummary>
   restoreAppData(plan: RestorePlan): Promise<void>
-  repositories: Pick<PersistenceRuntime, 'adapter' | 'profiles' | 'moods' | 'diaries' | 'settings' | 'stars' | 'starDropPresentations' | 'diaryDrafts' | 'scores' | 'heartPhrases' | 'importantDates' | 'memoryMoments' | 'messageToYou' | 'rememberedYou' | 'clearRecords' | 'clearFreeTalkRecords' | 'loveBoatAssessments' | 'loveBrainAssessments' | 'likeOrHabitReflections' | 'photos' | 'memoryWallLayouts' | 'profilePhotoPlacements' | 'heartRevealPhotos' | 'memoryMomentPhotoPlacements'>
+  repositories: Pick<PersistenceRuntime, 'adapter' | 'profiles' | 'moods' | 'diaries' | 'settings' | 'stars' | 'starDropPresentations' | 'diaryDrafts' | 'scores' | 'heartPhrases' | 'importantDates' | 'memoryMoments' | 'messageToYou' | 'rememberedYou' | 'clearRecords' | 'clearFreeTalkRecords' | 'loveBoatAssessments' | 'loveBrainAssessments' | 'likeOrHabitReflections' | 'completedHeartTalks' | 'photos' | 'memoryWallLayouts' | 'profilePhotoPlacements' | 'heartRevealPhotos' | 'memoryMomentPhotoPlacements'>
 }
 
 export const PersistenceStateContext = createContext<PersistenceContextValue | null>(null)

@@ -28,6 +28,7 @@ export function PersistenceProvider({ runtime, children }: { runtime: Persistenc
   const [messageToYouEntries, setMessageToYouEntries] = useState(runtime.initial.messageToYouEntries)
   const [rememberedYouCards, setRememberedYouCards] = useState(runtime.initial.rememberedYouCards)
   const [diaryCount, setDiaryCount] = useState(runtime.initial.diaryCount)
+  const [heartTalkCount, setHeartTalkCount] = useState(runtime.initial.heartTalkCount)
   const currentLocalDateRef = useRef(currentLocalDate)
   const refreshInFlightRef = useRef<Promise<boolean> | undefined>(undefined)
 
@@ -96,6 +97,7 @@ export function PersistenceProvider({ runtime, children }: { runtime: Persistenc
     messageToYouEntries,
     rememberedYouCards,
     diaryCount,
+    heartTalkCount,
     repositories: runtime,
     async updateProfile(kind, changes) {
       const profile = await runtime.profiles.updateProfile(kind, changes)
@@ -301,12 +303,14 @@ export function PersistenceProvider({ runtime, children }: { runtime: Persistenc
       setMessageToYou(undefined)
       setRememberedYouCards([])
       setDiaryCount(0)
+      setHeartTalkCount(0)
     },
     async refreshScoreAndStars() {
       const [total, persistedStars] = await Promise.all([runtime.scores.getTotal(), runtime.stars.getStars()])
       setStarHeartTotal(total)
       setStars(persistedStars)
     },
+    async refreshHeartTalkCount() { setHeartTalkCount(await runtime.completedHeartTalks.count()) },
     async applyAppDataImport(plan: AppDataImportPlan) {
       const summary = await applyImportPlan(runtime, plan)
       await runtime.starDropPresentations.clear()
@@ -330,6 +334,7 @@ export function PersistenceProvider({ runtime, children }: { runtime: Persistenc
       setMessageToYouEntries(nextMessageEntries)
       setRememberedYouCards(nextRemembered)
       setDiaryCount(nextDiaries.length)
+      setHeartTalkCount(await runtime.completedHeartTalks.count())
       return summary
     },
     async restoreAppData(plan) {
@@ -340,8 +345,9 @@ export function PersistenceProvider({ runtime, children }: { runtime: Persistenc
       if (user) setUserProfile(user); if (partner) setPartnerProfile(partner)
       setTodayMoodState(nextMood); setTodayDiary(nextDiary); setStarHeartTotal(nextScore); setStars(nextStars); setHeartPhrases(nextPhrases); setHeartPhraseCount(nextPhrases.length); setImportantDates(nextImportantDates); setMemoryMoments(nextMoments); setMessageToYou(nextMessage); setMessageToYouEntries(nextMessageEntries); setRememberedYouCards(nextRemembered); setDiaryCount(nextDiaries.length)
       setActiveHeartRevealProject(await runtime.heartRevealPhotos.getCycleState(nextPhrases))
+      setHeartTalkCount(await runtime.completedHeartTalks.count())
     },
-  }), [activeHeartRevealProject, currentLocalDate, diaryCount, heartPhraseCount, heartPhrases, importantDates, memoryMoments, messageToYou, messageToYouEntries, partnerProfile, rememberedYouCards, runtime, settings, starHeartTotal, stars, todayDiary, todayMood, userProfile])
+  }), [activeHeartRevealProject, currentLocalDate, diaryCount, heartPhraseCount, heartPhrases, heartTalkCount, importantDates, memoryMoments, messageToYou, messageToYouEntries, partnerProfile, rememberedYouCards, runtime, settings, starHeartTotal, stars, todayDiary, todayMood, userProfile])
 
   return <PersistenceStateContext.Provider value={value}>{children}</PersistenceStateContext.Provider>
 }

@@ -4,7 +4,7 @@ import { PageHeader, PrimaryButton, SecondaryButton, SoftCard } from '../compone
 import { useI18n } from '../i18n/I18nContext'
 import type { TranslationKey } from '../i18n/messages'
 import { featuredStarrySkyTopic, starrySkyCategoryIds } from '../features/our/starrySkyTopics'
-import { starrySkyHistoryDemoRecords } from '../features/our/starrySkyHistoryDemo'
+import { usePersistence } from '../data/PersistenceStateContext'
 import { shareStarrySkyTopic } from '../services/starrySkyTopicShare'
 import '../features/our/our.css'
 
@@ -16,13 +16,14 @@ export function StarrySkyPage() {
   const navigate = useNavigate(), location = useLocation()
   const [view, setView] = useState<StarrySkyView>('unpaired')
   const [code, setCode] = useState('')
+  const persistence = usePersistence()
   const [feedback, setFeedback] = useState<string>((location.state as { pairingGuidance?: boolean } | null)?.pairingGuidance ? t('our.starrySky.chooseUnpaired') : '')
   const reset = () => { setView('unpaired'); setCode('') }
   const shareFeatured = async () => { const result = await shareStarrySkyTopic(featuredStarrySkyTopic.text); setFeedback(result === 'copied' ? t('our.starrySky.copied') : result === 'error' ? t('our.starrySky.shareError') : '') }
 
   return <div className="page our-page starry-sky-page"><PageHeader titleKey="our.starrySky.title" variant="secondary" backFallback="/our" /><main className="our-page__content starry-sky-page__content">
     <section className="starry-sky-hero"><div><p>{t('our.starrySky.heroCopy')}</p></div></section>
-    <SoftCard className="starry-sky-count" tone="purple"><span>{t('our.starrySky.count', { count: starrySkyHistoryDemoRecords.length })}</span><SecondaryButton onClick={() => navigate('/our/starry-sky/history-preview')}>{t('our.starrySky.historyEntry')}</SecondaryButton></SoftCard>
+    <SoftCard className="starry-sky-count" tone="purple"><span>{t('our.starrySky.count', { count: persistence?.heartTalkCount ?? 0 })}</span><SecondaryButton onClick={() => navigate('/our/starry-sky/history')}>{t('our.starrySky.historyEntry')}</SecondaryButton></SoftCard>
     <section className="starry-sky-section starry-sky-discovery"><h2>{t('our.starrySky.tonightTitle')}</h2><p>{t('our.starrySky.librarySubtitle')}</p><div className="starry-sky-category-grid">{starrySkyCategoryIds.map((id, index) => <button type="button" key={id} onClick={() => navigate('/our/starry-sky/topics', { state: { categoryId: id } })}><i aria-hidden="true">{categoryIcons[index]}</i><b>{id}</b><span>{t(`our.starrySky.category.${id}` as TranslationKey)}</span></button>)}</div></section>
     <SoftCard className="starry-sky-custom"><h2>{t('our.starrySky.custom')}</h2><p>{t('our.starrySky.customUnpaired')}</p><SecondaryButton onClick={() => setFeedback(t('our.starrySky.customUnpaired'))}>{t('our.starrySky.invite')}</SecondaryButton></SoftCard>
     <SoftCard className="starry-sky-panel starry-sky-pairing" tone="purple">
