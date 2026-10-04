@@ -128,7 +128,7 @@ jobs:
             -configuration Release -destination 'generic/platform=iOS' \
             -showBuildSettings -json > "$CI_DIR/settings.json"
           python3 - <<'PY'
-          import json, os, pathlib
+          import json, os, pathlib, re
           rows = json.loads((pathlib.Path(os.environ['CI_DIR']) / 'settings.json').read_text())
           targets = [r['buildSettings'] for r in rows if r.get('target') == 'App']
           assert len(targets) == 1, 'Expected exactly one App target'
