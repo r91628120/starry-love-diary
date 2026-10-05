@@ -11,11 +11,15 @@ const firebaseMocks = vi.hoisted(() => ({
   auth: { currentUser: null as User | null },
   onAuthStateChanged: vi.fn(),
   bootstrapAnonymousUser: vi.fn(),
+  releaseStalledAnonymousBootstrap: vi.fn(),
 }))
 
 vi.mock('../../lib/firebase/firebaseEnvironment', () => ({ isFirebaseRuntimeConfigured: () => firebaseMocks.configured }))
 vi.mock('../../lib/firebase/firebaseAuth', () => ({ firebaseAuth: firebaseMocks.auth }))
-vi.mock('../../lib/firebase/userBootstrap', () => ({ bootstrapAnonymousUser: (...args: unknown[]) => firebaseMocks.bootstrapAnonymousUser(...args) }))
+vi.mock('../../lib/firebase/userBootstrap', () => ({
+  bootstrapAnonymousUser: (...args: unknown[]) => firebaseMocks.bootstrapAnonymousUser(...args),
+  releaseStalledAnonymousBootstrap: (...args: unknown[]) => firebaseMocks.releaseStalledAnonymousBootstrap(...args),
+}))
 vi.mock('../../lib/firebase/durableIdentity', () => ({
   getDurableIdentityState: (user: User | null) => ({ hasAppleIdentity: user?.providerData.some((provider) => provider.providerId === 'apple.com') ?? false }),
   upgradeAnonymousUserWithApple: vi.fn(),
@@ -31,12 +35,14 @@ function renderGate(locale: Locale = 'zh-TW', upgrade = vi.fn().mockResolvedValu
 }
 
 afterEach(() => {
+  vi.useRealTimers()
   cleanup()
   firebaseMocks.configured = false
   firebaseMocks.user = null
   firebaseMocks.auth.currentUser = null
   firebaseMocks.onAuthStateChanged.mockReset()
   firebaseMocks.bootstrapAnonymousUser.mockReset()
+  firebaseMocks.releaseStalledAnonymousBootstrap.mockReset()
 })
 
 describe('paired feature Apple identity gate', () => {
@@ -146,6 +152,27 @@ describe('paired feature Apple identity gate', () => {
     expect(screen.getByText('正在準備專屬配對').closest('[aria-busy="true"]')).toBeInTheDocument()
   })
 
+  it('bounds a stalled identity bootstrap, releases it, and retries with a fresh attempt', async () => {
+    vi.useFakeTimers()
+    firebaseMocks.configured = true
+    const stalled = new Promise<never>(() => undefined)
+    firebaseMocks.bootstrapAnonymousUser.mockReturnValueOnce(stalled).mockResolvedValueOnce({ uid: 'anonymous-user', isAnonymous: true })
+    firebaseMocks.user = { uid: 'anonymous-user', isAnonymous: true, providerData: [] } as unknown as User
+    firebaseMocks.auth.currentUser = firebaseMocks.user
+    firebaseMocks.onAuthStateChanged.mockImplementation((_auth, callback: (user: User | null) => void) => { callback(firebaseMocks.user); return vi.fn() })
+    render(<I18nProvider initialLocale="zh-TW"><MemoryRouter><PairedFeatureIdentityBoundary><p>paired feature</p></PairedFeatureIdentityBoundary></MemoryRouter></I18nProvider>)
+    await vi.advanceTimersByTimeAsync(0)
+    await vi.advanceTimersByTimeAsync(12_000)
+    expect(screen.getByText('暫時無法確認配對身分')).toBeInTheDocument()
+    expect(firebaseMocks.releaseStalledAnonymousBootstrap).toHaveBeenCalledWith(stalled)
+    const attemptsBeforeRetry = firebaseMocks.bootstrapAnonymousUser.mock.calls.length
+    fireEvent.click(screen.getByRole('button', { name: '重新嘗試' }))
+    await vi.advanceTimersByTimeAsync(0)
+    expect(screen.getByRole('heading', { name: '一起走進我們的星空' })).toBeInTheDocument()
+    expect(firebaseMocks.bootstrapAnonymousUser.mock.calls.length).toBeGreaterThan(attemptsBeforeRetry)
+    vi.useRealTimers()
+  })
+
   it('renders a recoverable error when identity initialization fails and retries cleanly', async () => {
     firebaseMocks.configured = true
     firebaseMocks.bootstrapAnonymousUser.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce({ uid: 'anonymous-user', isAnonymous: true })
@@ -154,8 +181,8 @@ describe('paired feature Apple identity gate', () => {
     const unsubscribe = vi.fn()
     firebaseMocks.onAuthStateChanged.mockImplementation((_auth, callback: (user: User | null) => void) => { callback(firebaseMocks.user); return unsubscribe })
     render(<I18nProvider initialLocale="zh-TW"><MemoryRouter><PairedFeatureIdentityBoundary><p>paired feature</p></PairedFeatureIdentityBoundary></MemoryRouter></I18nProvider>)
-    expect(await screen.findByText('暫時無法準備配對功能')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: '再試一次' }))
+    expect(await screen.findByText('暫時無法確認配對身分')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '重新嘗試' }))
     expect(screen.getByText('正在準備專屬配對')).toBeInTheDocument()
     expect(await screen.findByRole('heading', { name: '一起走進我們的星空' })).toBeInTheDocument()
     expect(unsubscribe).toHaveBeenCalledOnce()
@@ -166,6 +193,6 @@ describe('paired feature Apple identity gate', () => {
     firebaseMocks.configured = true
     firebaseMocks.onAuthStateChanged.mockImplementation(() => { throw new Error('listener unavailable') })
     render(<I18nProvider initialLocale="zh-TW"><MemoryRouter><PairedFeatureIdentityBoundary><p>paired feature</p></PairedFeatureIdentityBoundary></MemoryRouter></I18nProvider>)
-    expect(await screen.findByText('暫時無法準備配對功能')).toBeInTheDocument()
+    expect(await screen.findByText('暫時無法確認配對身分')).toBeInTheDocument()
   })
 })

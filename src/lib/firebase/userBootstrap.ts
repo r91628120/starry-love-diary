@@ -33,7 +33,18 @@ export function bootstrapAnonymousUser(overrides?: AnonymousIdentityBootstrapDep
   if (!activeBootstrap) {
     const pendingBootstrap = bootstrap()
     activeBootstrap = pendingBootstrap
-    void pendingBootstrap.finally(() => { activeBootstrap = undefined })
+    void pendingBootstrap.finally(() => {
+      if (activeBootstrap === pendingBootstrap) activeBootstrap = undefined
+    })
   }
   return activeBootstrap
+}
+
+/**
+ * Releases only the matching shared attempt after a caller's UI timeout.
+ * The Firebase request itself is not cancellable; a later retry may establish
+ * a fresh bootstrap without an older pending promise clearing that retry.
+ */
+export function releaseStalledAnonymousBootstrap(pendingBootstrap: Promise<AnonymousIdentityBootstrapResult>): void {
+  if (activeBootstrap === pendingBootstrap) activeBootstrap = undefined
 }

@@ -17,11 +17,17 @@ type AppleIdentityGateProps = {
   onResult: (result: IdentityUpgradeResult) => void
   backTo?: string
   upgrade: () => Promise<IdentityUpgradeResult>
+  embedded?: boolean
   /** Visual-only use for localhost product review. It never starts authentication. */
   preview?: boolean
 }
 
-export function AppleIdentityGate({ onResult, backTo = '/our', upgrade, preview = false }: AppleIdentityGateProps) {
+function IdentityPage({ children, busy = false, embedded = false }: { children: ReactNode; busy?: boolean; embedded?: boolean }) {
+  const content = <main className="our-page__content identity-gate-page__content" aria-busy={busy || undefined}>{children}</main>
+  return embedded ? content : <div className="page our-page identity-gate-page">{content}</div>
+}
+
+export function AppleIdentityGate({ onResult, backTo = '/our', upgrade, preview = false, embedded = false }: AppleIdentityGateProps) {
   const { t } = useI18n()
   const navigate = useNavigate()
   const [busy, setBusy] = useState(false)
@@ -42,7 +48,7 @@ export function AppleIdentityGate({ onResult, backTo = '/our', upgrade, preview 
     onResult(result)
   }
   const messageKey = message === 'credential-in-use' ? 'identityGate.credentialInUse' : 'identityGate.failed'
-  return <div className="page our-page identity-gate-page"><main className="our-page__content identity-gate-page__content"><section className="identity-gate-hero"><div><span aria-hidden="true">✦</span><h1>{t('identityGate.title')}</h1><p>{t('identityGate.bodyOne')}</p><p>{t('identityGate.bodyTwo')}</p></div></section><SoftCard className="identity-gate-card" tone="purple"><p className="identity-gate-card__privacy">{t('identityGate.privacy')}</p><PrimaryButton className="identity-gate-card__apple" disabled={busy} aria-busy={busy} onClick={() => void continueWithApple()}><img className="identity-gate-card__apple-logo" src="/assets/auth/apple-logo-white.png" alt="" /><span>{busy ? t('identityGate.loading') : t('identityGate.continue')}</span></PrimaryButton>{message ? <p role="alert" className="identity-gate-card__message">{t(messageKey)}</p> : null}<p className="identity-gate-card__single">{t('identityGate.notRequired')}</p><SecondaryButton onClick={() => navigate(backTo)}>{t('identityGate.notNow')}</SecondaryButton></SoftCard></main></div>
+  return <IdentityPage embedded={embedded}><section className="identity-gate-hero"><div><span aria-hidden="true">✦</span><h1>{t('identityGate.title')}</h1><p>{t('identityGate.bodyOne')}</p><p>{t('identityGate.bodyTwo')}</p></div></section><SoftCard className="identity-gate-card" tone="purple"><p className="identity-gate-card__privacy">{t('identityGate.privacy')}</p><PrimaryButton className="identity-gate-card__apple" disabled={busy} aria-busy={busy} onClick={() => void continueWithApple()}><img className="identity-gate-card__apple-logo" src="/assets/auth/apple-logo-white.png" alt="" /><span>{busy ? t('identityGate.loading') : t('identityGate.continue')}</span></PrimaryButton>{message ? <p role="alert" className="identity-gate-card__message">{t(messageKey)}</p> : null}<p className="identity-gate-card__single">{t('identityGate.notRequired')}</p><SecondaryButton onClick={() => navigate(backTo)}>{t('identityGate.notNow')}</SecondaryButton></SoftCard></IdentityPage>
 }
 
 /**
@@ -50,17 +56,19 @@ export function AppleIdentityGate({ onResult, backTo = '/our', upgrade, preview 
  * Routes stay browseable; callers mount this only after the user chooses a
  * real invite, claim, or paired action.
  */
-function IdentityLoading() {
+function IdentityLoading({ embedded }: { embedded: boolean }) {
   const { t } = useI18n()
-  return <div className="page our-page identity-gate-page" aria-busy="true"><main className="our-page__content identity-gate-page__content"><SoftCard className="identity-gate-status" tone="purple"><h1>{t('identityGate.preparingTitle')}</h1><p>{t('identityGate.preparingBody')}</p></SoftCard></main></div>
+  return <IdentityPage embedded={embedded} busy><SoftCard className="identity-gate-status" tone="purple"><h1>{t('identityGate.preparingTitle')}</h1><p>{t('identityGate.preparingBody')}</p></SoftCard></IdentityPage>
 }
 
-function IdentityInitializationError({ onRetry }: { onRetry: () => void }) {
+function IdentityInitializationError({ onRetry, embedded }: { onRetry: () => void; embedded: boolean }) {
   const { t } = useI18n()
-  return <div className="page our-page identity-gate-page"><main className="our-page__content identity-gate-page__content"><SoftCard className="identity-gate-status" tone="purple"><h1>{t('identityGate.initializeErrorTitle')}</h1><p>{t('identityGate.initializeErrorBody')}</p><PrimaryButton onClick={onRetry}>{t('identityGate.retry')}</PrimaryButton></SoftCard></main></div>
+  return <IdentityPage embedded={embedded}><SoftCard className="identity-gate-status" tone="purple"><h1>{t('identityGate.initializeErrorTitle')}</h1><p>{t('identityGate.initializeErrorBody')}</p><PrimaryButton onClick={onRetry}>{t('identityGate.retry')}</PrimaryButton></SoftCard></IdentityPage>
 }
 
-export function PairedFeatureIdentityBoundary({ children, backTo = '/our' }: { children: ReactNode; backTo?: string }) {
+export const IDENTITY_BOOTSTRAP_TIMEOUT_MS = 12_000
+
+export function PairedFeatureIdentityBoundary({ children, backTo = '/our', embedded = false }: { children: ReactNode; backTo?: string; embedded?: boolean }) {
   const [user, setUser] = useState<User | null | undefined>(() => isFirebaseRuntimeConfigured() ? undefined : null)
   const [services, setServices] = useState<FirebaseIdentityServices>()
   const [initialization, setInitialization] = useState<'loading' | 'ready' | 'error'>(() => isFirebaseRuntimeConfigured() ? 'loading' : 'ready')
@@ -69,24 +77,39 @@ export function PairedFeatureIdentityBoundary({ children, backTo = '/our' }: { c
     if (!isFirebaseRuntimeConfigured()) return
     let active = true
     let unsubscribe: (() => void) | undefined
+    let pendingBootstrap: Promise<{ uid: string; isAnonymous: boolean }> | undefined
+    let releaseStalledBootstrap: ((pending: Promise<{ uid: string; isAnonymous: boolean }>) => void) | undefined
+    const finishWithError = (releasePendingBootstrap = false) => {
+      if (!active) return
+      active = false
+      if (timeoutId) clearTimeout(timeoutId)
+      if (releasePendingBootstrap && pendingBootstrap && releaseStalledBootstrap) releaseStalledBootstrap(pendingBootstrap)
+      unsubscribe?.(); unsubscribe = undefined
+      setServices(undefined); setUser(undefined); setInitialization('error')
+    }
+    const timeoutId = setTimeout(() => finishWithError(true), IDENTITY_BOOTSTRAP_TIMEOUT_MS)
     setInitialization('loading'); setServices(undefined); setUser(undefined)
     void Promise.all([
       import('../../lib/firebase/firebaseAuth'),
       import('../../lib/firebase/durableIdentity'),
       import('../../lib/firebase/userBootstrap'),
       import('firebase/auth'),
-    ]).then(async ([{ firebaseAuth }, durableIdentity, { bootstrapAnonymousUser }, { onAuthStateChanged }]) => {
+    ]).then(async ([{ firebaseAuth }, durableIdentity, { bootstrapAnonymousUser, releaseStalledAnonymousBootstrap }, { onAuthStateChanged }]) => {
+      if (!active) return
       const loaded: FirebaseIdentityServices = { auth: firebaseAuth, getDurableIdentityState: durableIdentity.getDurableIdentityState, upgradeAnonymousUserWithApple: durableIdentity.upgradeAnonymousUserWithApple, onAuthStateChanged }
       unsubscribe = loaded.onAuthStateChanged(loaded.auth, (nextUser) => { if (active) setUser(nextUser) })
-      await bootstrapAnonymousUser()
+      releaseStalledBootstrap = releaseStalledAnonymousBootstrap
+      pendingBootstrap = bootstrapAnonymousUser()
+      await pendingBootstrap
       if (!active || !loaded.auth.currentUser) throw new Error('firebase-user-unavailable')
+      if (timeoutId) clearTimeout(timeoutId)
       setServices(loaded); setUser(loaded.auth.currentUser); setInitialization('ready')
-    }).catch(() => { if (active) { unsubscribe?.(); unsubscribe = undefined; setServices(undefined); setUser(undefined); setInitialization('error') } })
-    return () => { active = false; unsubscribe?.() }
+    }).catch(() => finishWithError())
+    return () => { active = false; if (timeoutId) clearTimeout(timeoutId); unsubscribe?.() }
   }, [attempt])
   if (!isFirebaseRuntimeConfigured()) return <>{children}</>
-  if (initialization === 'loading') return <IdentityLoading />
-  if (initialization === 'error' || user === undefined || !services) return <IdentityInitializationError onRetry={() => setAttempt((current) => current + 1)} />
+  if (initialization === 'loading') return <IdentityLoading embedded={embedded} />
+  if (initialization === 'error' || user === undefined || !services) return <IdentityInitializationError embedded={embedded} onRetry={() => setAttempt((current) => current + 1)} />
   if (services.getDurableIdentityState(user).hasAppleIdentity) return <>{children}</>
-  return <AppleIdentityGate backTo={backTo} upgrade={services.upgradeAnonymousUserWithApple} onResult={(result) => { if (result.status === 'linked' || result.status === 'already-linked') setUser(services.auth.currentUser) }} />
+  return <AppleIdentityGate embedded={embedded} backTo={backTo} upgrade={services.upgradeAnonymousUserWithApple} onResult={(result) => { if (result.status === 'linked' || result.status === 'already-linked') setUser(services.auth.currentUser) }} />
 }

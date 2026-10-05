@@ -15,11 +15,9 @@ function PairScreen() {
   useEffect(refresh, [])
   const message = (code: PairErrorCode) => t(`pair.${code === 'durable-identity-required' ? 'identity' : code === 'unauthenticated' ? 'login' : code === 'unexpected' ? 'error' : code.replace('invite-', '')}` as never)
 
-  if (state === undefined) return <div className="page our-page" aria-busy="true" />
+  if (state === undefined) return <main className="our-page__content" aria-busy="true"><SoftCard className="identity-gate-status" tone="purple"><h2>{t('pair.loadingTitle')}</h2><p>{t('pair.loadingBody')}</p></SoftCard></main>
 
-  return <div className="page our-page">
-    <PageHeader titleKey="pair.title" variant="secondary" backFallback="/our" />
-    <main className="our-page__content">
+  return <main className="our-page__content">
       <SoftCard className="pair-card" tone="purple">
         {state ? <section className="pair-card__active"><h2>{t('pair.paired')}</h2><SecondaryButton onClick={refresh}>{t('pair.refresh')}</SecondaryButton></section> : <>
           <section className="pair-card__section pair-card__section--invite">
@@ -35,7 +33,11 @@ function PairScreen() {
         {error ? <p role="alert" className="pair-card__error">{message(error)}</p> : null}
       </SoftCard>
     </main>
-  </div>
 }
 
-export function PairPage() { return <PairedFeatureIdentityBoundary backTo="/our/pair"><PairScreen /></PairedFeatureIdentityBoundary> }
+export function PairPage() {
+  return <div className="page our-page pair-page">
+    <PageHeader titleKey="pair.title" variant="secondary" backFallback="/our" />
+    <PairedFeatureIdentityBoundary embedded backTo="/our"><PairScreen /></PairedFeatureIdentityBoundary>
+  </div>
+}
