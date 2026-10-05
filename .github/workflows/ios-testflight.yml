@@ -177,7 +177,7 @@ jobs:
           profile = plistlib.loads((work / 'profile.plist').read_bytes())
           ent = profile.get('Entitlements', {})
           assert profile.get('Name') == 'StarryLove_AppStore'
-          assert profile.get('UUID') == '47c5dbe5-b684-4c7e-96e6-65749886f16f'
+          assert profile.get('UUID') == '0b153894-3dda-450d-9085-713ab7f7c036'
           assert profile.get('TeamIdentifier') == ['DJC6HMC9D5']
           assert ent.get('application-identifier') == 'DJC6HMC9D5.com.miracle.starrylovediary'
           assert ent.get('com.apple.developer.team-identifier') == 'DJC6HMC9D5'
