@@ -36,7 +36,7 @@ afterEach(cleanup)
 describe('App routing', () => {
   it('keeps the real Pair route registered', async () => {
     renderApp('/our/pair')
-    expect(await screen.findByRole('button', { name: '建立配對' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: '建立邀請' })).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: '輸入配對邀請識別碼' })).toBeInTheDocument()
   })
 

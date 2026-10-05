@@ -184,4 +184,13 @@ describe('Love Delivery local presentation', () => {
     expect(screen.getByRole('dialog')).not.toHaveTextContent('our.loveDelivery')
     expect(screen.queryByText(/AM|PM|上午|下午/u)).not.toBeInTheDocument()
   })
+
+  it('portals the picker outside the isolated page while retaining its actions', () => {
+    renderDelivery()
+    fireEvent.click(screen.getByRole('button', { name: '開始時間' }))
+    const dialog = screen.getByRole('dialog')
+    expect(dialog.closest('.love-delivery-time-picker-backdrop')?.parentElement).toBe(document.body)
+    expect(within(dialog).getByRole('button', { name: '取消' })).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: '確認' })).toBeInTheDocument()
+  })
 })
