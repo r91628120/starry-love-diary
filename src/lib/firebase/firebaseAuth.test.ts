@@ -9,16 +9,20 @@ const authMocks = vi.hoisted(() => {
     firebaseApp,
     firebaseAuth,
     browserLocalPersistence,
-    initializeAuth: vi.fn(() => firebaseAuth),
-    signInAnonymously: vi.fn(),
+    initializeAuth: vi.fn((app: unknown, options: unknown) => {
+      void app
+      void options
+      return firebaseAuth
+    }),
+    signInAnonymously: vi.fn<(auth: unknown) => Promise<{ user: User }>>(),
   }
 })
 
 vi.mock('./firebaseApp', () => ({ firebaseApp: authMocks.firebaseApp }))
 vi.mock('firebase/auth', () => ({
   browserLocalPersistence: authMocks.browserLocalPersistence,
-  initializeAuth: (...args: unknown[]) => authMocks.initializeAuth(...args),
-  signInAnonymously: (...args: unknown[]) => authMocks.signInAnonymously(...args),
+  initializeAuth: (app: unknown, options: unknown) => authMocks.initializeAuth(app, options),
+  signInAnonymously: (auth: unknown) => authMocks.signInAnonymously(auth),
 }))
 
 import { ensureAnonymousUser, firebaseAuth } from './firebaseAuth'
