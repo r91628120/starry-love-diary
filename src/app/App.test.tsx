@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
+import type { User } from 'firebase/auth'
 import { App } from './App'
 import { APP_VERSION } from './appMetadata'
 import { I18nProvider } from '../i18n/I18nProvider'
@@ -9,6 +10,27 @@ import { PersistenceProvider } from '../data/PersistenceContext'
 import { initializePersistence, type PersistenceRuntime } from '../data/persistence'
 import { createMemoryStorageBacking, MemoryStorageAdapter } from '../data/storage/MemoryStorageAdapter'
 import { getDailyLoveQuote } from '../features/today/dailyLoveQuoteRuntime'
+
+const firebaseMocks = vi.hoisted(() => ({
+  configured: false,
+  auth: { currentUser: null as User | null },
+  onAuthStateChanged: vi.fn(),
+  bootstrapAnonymousUser: vi.fn(),
+  releaseStalledAnonymousBootstrap: vi.fn(),
+  upgradeAnonymousUserWithApple: vi.fn(),
+}))
+
+vi.mock('../lib/firebase/firebaseEnvironment', () => ({ isFirebaseRuntimeConfigured: () => firebaseMocks.configured }))
+vi.mock('../lib/firebase/firebaseAuth', () => ({ firebaseAuth: firebaseMocks.auth }))
+vi.mock('../lib/firebase/userBootstrap', () => ({
+  bootstrapAnonymousUser: (...args: unknown[]) => firebaseMocks.bootstrapAnonymousUser(...args),
+  releaseStalledAnonymousBootstrap: (...args: unknown[]) => firebaseMocks.releaseStalledAnonymousBootstrap(...args),
+}))
+vi.mock('../lib/firebase/durableIdentity', () => ({
+  getDurableIdentityState: (user: User | null) => ({ hasAppleIdentity: user?.providerData.some((provider) => provider.providerId === 'apple.com') ?? false }),
+  upgradeAnonymousUserWithApple: (...args: unknown[]) => firebaseMocks.upgradeAnonymousUserWithApple(...args),
+}))
+vi.mock('firebase/auth', () => ({ onAuthStateChanged: (...args: unknown[]) => firebaseMocks.onAuthStateChanged(...args) }))
 
 function renderApp(initialPath = '/today', locale: Locale = 'zh-TW') {
   return render(
@@ -31,12 +53,28 @@ function renderAppWithRuntime(runtime: PersistenceRuntime, initialPath = '/our',
   )
 }
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  firebaseMocks.configured = false
+  firebaseMocks.auth.currentUser = null
+  firebaseMocks.onAuthStateChanged.mockReset()
+  firebaseMocks.bootstrapAnonymousUser.mockReset()
+  firebaseMocks.releaseStalledAnonymousBootstrap.mockReset()
+  firebaseMocks.upgradeAnonymousUserWithApple.mockReset()
+})
 
 describe('App routing', () => {
   it('keeps the real Pair route behind the durable identity gate when Firebase is configured', async () => {
+    const anonymousUser = { uid: 'anonymous-user', isAnonymous: true, providerData: [] } as unknown as User
+    firebaseMocks.configured = true
+    firebaseMocks.auth.currentUser = anonymousUser
+    firebaseMocks.bootstrapAnonymousUser.mockResolvedValue({ uid: anonymousUser.uid, isAnonymous: true })
+    firebaseMocks.onAuthStateChanged.mockImplementation((_auth, callback: (user: User | null) => void) => { callback(anonymousUser); return vi.fn() })
     renderApp('/our/pair')
+    expect(screen.getByText('正在準備專屬配對')).toBeInTheDocument()
     expect(await screen.findByRole('button', { name: '使用 Apple 繼續' })).toBeInTheDocument()
+    expect(firebaseMocks.bootstrapAnonymousUser).toHaveBeenCalled()
+    expect(firebaseMocks.upgradeAnonymousUserWithApple).not.toHaveBeenCalled()
     expect(screen.queryByRole('button', { name: '建立邀請' })).not.toBeInTheDocument()
   })
 
