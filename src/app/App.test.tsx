@@ -34,10 +34,10 @@ function renderAppWithRuntime(runtime: PersistenceRuntime, initialPath = '/our',
 afterEach(cleanup)
 
 describe('App routing', () => {
-  it('keeps the real Pair route registered', async () => {
+  it('keeps the real Pair route behind the durable identity gate when Firebase is configured', async () => {
     renderApp('/our/pair')
-    expect(await screen.findByRole('button', { name: '建立邀請' })).toBeInTheDocument()
-    expect(screen.getByRole('textbox', { name: '輸入配對邀請識別碼' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: '使用 Apple 繼續' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '建立邀請' })).not.toBeInTheDocument()
   })
 
   it('keeps Starry Sky and Love Delivery browse routes open, and renders the inert Apple gate preview', () => {
