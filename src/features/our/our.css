@@ -185,6 +185,11 @@
   padding: 22px;
 }
 
+.identity-gate-status { display: grid; gap: 14px; margin-top: 18px; padding: 22px; text-align: center; }
+.identity-gate-status h1,.identity-gate-status p { margin: 0; }
+.identity-gate-status h1 { color: #24346e; font-size: clamp(1.3rem, 5vw, 1.7rem); }
+.identity-gate-status p { color: var(--text-secondary, #615d78); line-height: 1.65; }
+
 .identity-gate-card__privacy,
 .identity-gate-card__single,
 .identity-gate-card__message {
@@ -205,5 +210,6 @@
 @media (max-width: 390px) {
   .identity-gate-hero { min-height: 0; padding: 26px 22px; border-radius: 24px; }
   .identity-gate-card { padding: 18px; }
+  .identity-gate-status { padding: 18px; }
 }
 .starry-sky-history-card__toggle{display:grid;gap:.6rem;width:100%;padding:0;border:0;background:transparent;color:inherit;text-align:left;font:inherit;cursor:pointer}.starry-sky-history-card__toggle>span:last-child{color:#5e6789;font-size:.9rem}.starry-sky-history-card__details{display:grid;gap:.8rem}.starry-sky-history-confirm{position:fixed;z-index:20;inset:0;display:grid;place-items:center;padding:1rem;background:rgb(16 20 55 / 48%)}.starry-sky-history-confirm__card{display:grid;gap:0;box-sizing:border-box;width:min(100%,32rem);padding:1.35rem!important}.starry-sky-history-confirm__card h2{margin:0;color:#24346e;font-size:1.15rem;line-height:1.4}.starry-sky-history-confirm__card p{margin:.7rem 0 0;color:#525777;line-height:1.65}.starry-sky-history-confirm__actions{display:flex;flex-wrap:wrap;gap:.75rem;margin-top:1.1rem}.starry-sky-history-confirm__actions .button{flex:1 1 8rem}

@@ -50,32 +50,43 @@ export function AppleIdentityGate({ onResult, backTo = '/our', upgrade, preview 
  * Routes stay browseable; callers mount this only after the user chooses a
  * real invite, claim, or paired action.
  */
+function IdentityLoading() {
+  const { t } = useI18n()
+  return <div className="page our-page identity-gate-page" aria-busy="true"><main className="our-page__content identity-gate-page__content"><SoftCard className="identity-gate-status" tone="purple"><h1>{t('identityGate.preparingTitle')}</h1><p>{t('identityGate.preparingBody')}</p></SoftCard></main></div>
+}
+
+function IdentityInitializationError({ onRetry }: { onRetry: () => void }) {
+  const { t } = useI18n()
+  return <div className="page our-page identity-gate-page"><main className="our-page__content identity-gate-page__content"><SoftCard className="identity-gate-status" tone="purple"><h1>{t('identityGate.initializeErrorTitle')}</h1><p>{t('identityGate.initializeErrorBody')}</p><PrimaryButton onClick={onRetry}>{t('identityGate.retry')}</PrimaryButton></SoftCard></main></div>
+}
+
 export function PairedFeatureIdentityBoundary({ children, backTo = '/our' }: { children: ReactNode; backTo?: string }) {
   const [user, setUser] = useState<User | null | undefined>(() => isFirebaseRuntimeConfigured() ? undefined : null)
   const [services, setServices] = useState<FirebaseIdentityServices>()
+  const [initialization, setInitialization] = useState<'loading' | 'ready' | 'error'>(() => isFirebaseRuntimeConfigured() ? 'loading' : 'ready')
+  const [attempt, setAttempt] = useState(0)
   useEffect(() => {
     if (!isFirebaseRuntimeConfigured()) return
     let active = true
     let unsubscribe: (() => void) | undefined
+    setInitialization('loading'); setServices(undefined); setUser(undefined)
     void Promise.all([
       import('../../lib/firebase/firebaseAuth'),
       import('../../lib/firebase/durableIdentity'),
+      import('../../lib/firebase/userBootstrap'),
       import('firebase/auth'),
-    ]).then(([{ firebaseAuth }, durableIdentity, { onAuthStateChanged }]) => {
-      if (!active) return
-      const loaded: FirebaseIdentityServices = {
-        auth: firebaseAuth,
-        getDurableIdentityState: durableIdentity.getDurableIdentityState,
-        upgradeAnonymousUserWithApple: durableIdentity.upgradeAnonymousUserWithApple,
-        onAuthStateChanged,
-      }
-      setServices(loaded)
-      unsubscribe = loaded.onAuthStateChanged(loaded.auth, setUser)
-    }).catch(() => { if (active) setUser(null) })
+    ]).then(async ([{ firebaseAuth }, durableIdentity, { bootstrapAnonymousUser }, { onAuthStateChanged }]) => {
+      const loaded: FirebaseIdentityServices = { auth: firebaseAuth, getDurableIdentityState: durableIdentity.getDurableIdentityState, upgradeAnonymousUserWithApple: durableIdentity.upgradeAnonymousUserWithApple, onAuthStateChanged }
+      unsubscribe = loaded.onAuthStateChanged(loaded.auth, (nextUser) => { if (active) setUser(nextUser) })
+      await bootstrapAnonymousUser()
+      if (!active || !loaded.auth.currentUser) throw new Error('firebase-user-unavailable')
+      setServices(loaded); setUser(loaded.auth.currentUser); setInitialization('ready')
+    }).catch(() => { if (active) { unsubscribe?.(); unsubscribe = undefined; setServices(undefined); setUser(undefined); setInitialization('error') } })
     return () => { active = false; unsubscribe?.() }
-  }, [])
+  }, [attempt])
   if (!isFirebaseRuntimeConfigured()) return <>{children}</>
-  if (user === undefined || !services) return <div className="page our-page identity-gate-page" aria-busy="true" />
+  if (initialization === 'loading') return <IdentityLoading />
+  if (initialization === 'error' || user === undefined || !services) return <IdentityInitializationError onRetry={() => setAttempt((current) => current + 1)} />
   if (services.getDurableIdentityState(user).hasAppleIdentity) return <>{children}</>
   return <AppleIdentityGate backTo={backTo} upgrade={services.upgradeAnonymousUserWithApple} onResult={(result) => { if (result.status === 'linked' || result.status === 'already-linked') setUser(services.auth.currentUser) }} />
 }
