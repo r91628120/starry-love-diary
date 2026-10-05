@@ -60,6 +60,9 @@ export function ClearContent() {
   const requestedSourceType = searchParams.get('sourceType')
   const requestedReturnTo = searchParams.get('returnTo')
   const requestedNewFreeTalk = searchParams.get('freeTalk') === 'new'
+  const requestedRecordKey = `${requestedSourceType ?? ''}:${requestedRecordId ?? ''}`
+  const requestedRecordKeyRef = useRef(requestedRecordKey)
+  requestedRecordKeyRef.current = requestedRecordKey
   const [tool, setTool] = useState<Tool>('home')
   const [selectedScenario, setSelectedScenario] = useState<number | null>(null)
   const [history, setHistory] = useState<HistoryView[]>([])
@@ -97,14 +100,14 @@ export function ClearContent() {
     ].sort(sortClearHistory)
     setHistory(entries)
     const requestedRecord = entries.find((entry) => entry.id === requestedRecordId && entry.sourceType === requestedSourceType)
-    if (requestedRecord) setSelectedRecord(requestedRecord)
+    if (requestedRecord && requestedRecordKeyRef.current === requestedRecordKey) setSelectedRecord(requestedRecord)
     setDraftProgress({
       freeTalk: freeTalkDraft ? t('clear.freeTalk.continue') : undefined,
       boat: boatDraft ? t('clear.common.draftProgress', { current: boatDraft.currentQuestionIndex + 1, total: boatDraft.currentSection === 'A' ? 12 : 10 }) : undefined,
       brain: brainDraft ? t('clear.common.draftProgress', { current: brainDraft.currentQuestionIndex + 1, total: 25 }) : undefined,
       like: reflectionDraft ? t('clear.common.draftProgress', { current: Math.max(1, ['real_person', 'habit', 'fear_of_loss', 'imagined_relationship'].indexOf(reflectionDraft.currentSection) + 1), total: 4 }) : undefined,
     })
-  }, [persistence, requestedRecordId, requestedSourceType, t])
+  }, [persistence, requestedRecordId, requestedRecordKey, requestedSourceType, t])
 
   useEffect(() => { void loadHistory() }, [loadHistory])
 
