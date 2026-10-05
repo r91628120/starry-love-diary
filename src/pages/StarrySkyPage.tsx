@@ -8,17 +8,13 @@ import { usePersistence } from '../data/PersistenceStateContext'
 import { shareStarrySkyTopic } from '../services/starrySkyTopicShare'
 import '../features/our/our.css'
 
-type StarrySkyView = 'unpaired' | 'invite' | 'enter-code'
 const categoryIcons = ['🤍','💞','👁️','🏠','🌱','👥','☀️','💼','🍃','🌈','✈️','🌙']
 
 export function StarrySkyPage() {
   const { t } = useI18n()
   const navigate = useNavigate(), location = useLocation()
-  const [view, setView] = useState<StarrySkyView>('unpaired')
-  const [code, setCode] = useState('')
   const persistence = usePersistence()
   const [feedback, setFeedback] = useState<string>((location.state as { pairingGuidance?: boolean } | null)?.pairingGuidance ? t('our.starrySky.chooseUnpaired') : '')
-  const reset = () => { setView('unpaired'); setCode('') }
   const shareFeatured = async () => { const result = await shareStarrySkyTopic(featuredStarrySkyTopic.text); setFeedback(result === 'copied' ? t('our.starrySky.copied') : result === 'error' ? t('our.starrySky.shareError') : '') }
 
   return <div className="page our-page starry-sky-page"><PageHeader titleKey="our.starrySky.title" variant="secondary" backFallback="/our" /><main className="our-page__content starry-sky-page__content">
@@ -28,9 +24,7 @@ export function StarrySkyPage() {
     <SoftCard className="starry-sky-custom"><h2>{t('our.starrySky.custom')}</h2><p>{t('our.starrySky.customUnpaired')}</p><SecondaryButton onClick={() => setFeedback(t('our.starrySky.customUnpaired'))}>{t('our.starrySky.invite')}</SecondaryButton></SoftCard>
     <SoftCard className="starry-sky-panel starry-sky-pairing" tone="purple">
       <img className="starry-sky-pairing__cats" src="/assets/starry-sky/starry-sky-pair-cats-card.png" alt="" />
-      {view === 'unpaired' ? <><h2>{t('our.starrySky.pairingTitle')}</h2><p>{t('our.starrySky.pairingPlaceholder')}</p><div className="starry-sky-panel__actions"><PrimaryButton onClick={() => setView('invite')}>{t('our.starrySky.invite')}</PrimaryButton><SecondaryButton onClick={() => setView('enter-code')}>{t('our.starrySky.code')}</SecondaryButton></div></> : null}
-      {view === 'invite' ? <><h2>{t('our.starrySky.invite')}</h2><p>{t('our.starrySky.pairingPlaceholder')}</p><SecondaryButton onClick={reset}>{t('common.cancel')}</SecondaryButton></> : null}
-      {view === 'enter-code' ? <><h2>{t('our.starrySky.code')}</h2><p>{t('our.starrySky.pairingPlaceholder')}</p><label className="starry-sky-panel__code-label" htmlFor="starry-sky-pairing-code">{t('our.starrySky.code')}</label><input id="starry-sky-pairing-code" className="starry-sky-panel__code" type="text" inputMode="numeric" maxLength={6} value={code} onChange={(event) => setCode(event.target.value.replace(/\D/gu, '').slice(0, 6))} /><SecondaryButton onClick={reset}>{t('common.cancel')}</SecondaryButton></> : null}
+      <h2>{t('our.starrySky.pairingTitle')}</h2><div className="starry-sky-panel__actions"><PrimaryButton onClick={() => navigate('/our/pair')}>{t('our.starrySky.invite')}</PrimaryButton><SecondaryButton onClick={() => navigate('/our/pair')}>{t('our.starrySky.code')}</SecondaryButton></div>
     </SoftCard>
     <section className="starry-sky-featured-section"><h2>{t('our.starrySky.featuredTitle')}</h2><SoftCard className="starry-sky-featured" tone="purple"><span>{featuredStarrySkyTopic.id}</span><p lang="zh-TW">{featuredStarrySkyTopic.text}</p><div><SecondaryButton onClick={() => void shareFeatured()}>{t('our.starrySky.share')}</SecondaryButton><PrimaryButton onClick={() => navigate('/our/starry-sky/topics')}>{t('our.starrySky.browse')}</PrimaryButton></div></SoftCard></section>
     {feedback ? <p className="mock-feedback" aria-live="polite">{feedback}</p> : null}
