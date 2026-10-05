@@ -189,6 +189,16 @@ describe('paired feature Apple identity gate', () => {
     expect(firebaseMocks.onAuthStateChanged.mock.calls.length).toBeGreaterThanOrEqual(2)
   })
 
+  it('does not expose the Apple gate when bootstrap resolves without a current Firebase user', async () => {
+    firebaseMocks.configured = true
+    firebaseMocks.bootstrapAnonymousUser.mockResolvedValue({ uid: 'anonymous-user', isAnonymous: true })
+    firebaseMocks.onAuthStateChanged.mockImplementation((_auth, callback: (user: User | null) => void) => { callback(null); return vi.fn() })
+    render(<I18nProvider initialLocale="zh-TW"><MemoryRouter><PairedFeatureIdentityBoundary><p>paired feature</p></PairedFeatureIdentityBoundary></MemoryRouter></I18nProvider>)
+    expect(await screen.findByText('暫時無法確認配對身分')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '使用 Apple 繼續' })).not.toBeInTheDocument()
+    expect(screen.queryByText('paired feature')).not.toBeInTheDocument()
+  })
+
   it('renders a recoverable error when auth listener initialization throws', async () => {
     firebaseMocks.configured = true
     firebaseMocks.onAuthStateChanged.mockImplementation(() => { throw new Error('listener unavailable') })
