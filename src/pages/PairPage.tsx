@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { PageHeader, PrimaryButton, SecondaryButton, SoftCard } from '../components'
 import { PairedFeatureIdentityBoundary } from '../features/our/PairedFeatureIdentityBoundary'
+import { LoveDeliveryOverlay } from '../features/our/LoveDeliveryOverlay'
 import { useI18n } from '../i18n/I18nContext'
 import { claimPairInvite, createPairInvite, endPair, loadPairState, resolvePairInvite, type PairErrorCode, type PairState } from '../lib/firebase/pairClient'
 import { PairClaimDiagnostic } from '../lib/firebase/pairClaimDiagnostic'
@@ -20,6 +21,12 @@ function PairScreen() {
   const [ending, setEnding] = useState(false)
   const refresh = (trace?: PairClaimDiagnostic) => void loadPairState(trace).then((nextState) => { trace?.reconciliationSucceeded(); setState(nextState) }).catch((caught) => { trace?.reconciliationFailed(caught); setState(null); setError('unexpected'); if (trace) setDiagnostic(trace.summary()) })
   useEffect(refresh, [])
+  useEffect(() => {
+    if (!confirmEnd) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = previousOverflow }
+  }, [confirmEnd])
   const message = (code: PairErrorCode) => t(`pair.${code === 'durable-identity-required' ? 'identity' : code === 'unauthenticated' ? 'login' : code === 'unexpected' ? 'error' : code.replace('invite-', '')}` as never)
   const invitationMessage = created ? t('pair.shareMessage', { inviteId: created }) : ''
   const shareInvitation = async () => {
@@ -53,7 +60,7 @@ function PairScreen() {
         {error ? <p role="alert" className="pair-card__error">{message(error)}</p> : null}
         {error && diagnostic ? <pre className="pair-card__diagnostic" aria-label="Pair claim diagnostic">{diagnostic}</pre> : null}
       </SoftCard>
-      {confirmEnd ? <div className="starry-sky-session-dialog-backdrop" role="presentation"><section className="starry-sky-session-dialog" role="dialog" aria-modal="true" aria-labelledby="pair-end-title"><h2 id="pair-end-title">{t('pair.endConfirmTitle')}</h2><p>{t('pair.endConfirmBody')}</p><footer><SecondaryButton disabled={ending} onClick={() => setConfirmEnd(false)}>{t('pair.endCancel')}</SecondaryButton><PrimaryButton className="pair-card__end-confirm" disabled={ending} aria-busy={ending} onClick={confirmEnding}>{ending ? t('pair.ending') : t('pair.endConfirm')}</PrimaryButton></footer></section></div> : null}
+      {confirmEnd ? <LoveDeliveryOverlay><section className="pair-card__end-dialog" role="dialog" aria-modal="true" aria-labelledby="pair-end-title"><h2 id="pair-end-title">{t('pair.endConfirmTitle')}</h2><p>{t('pair.endConfirmBody')}</p><footer><SecondaryButton disabled={ending} onClick={() => setConfirmEnd(false)}>{t('pair.endCancel')}</SecondaryButton><PrimaryButton className="pair-card__end-confirm" disabled={ending} aria-busy={ending} onClick={confirmEnding}>{ending ? t('pair.ending') : t('pair.endConfirm')}</PrimaryButton></footer></section></LoveDeliveryOverlay> : null}
     </main>
 }
 
