@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { Timestamp, type Firestore, type Transaction } from 'firebase-admin/firestore'
 import { resolveActivePairForCaller } from './activePairResolver.js'
-import { PairInviteError, type VerifiedCaller } from './pairInviteService.js'
+import { type VerifiedCaller } from './pairInviteService.js'
 
 const HEART_TALK_PENDING_LIFETIME_MS = 24 * 60 * 60 * 1000
 const OFFICIAL_TOPIC_ID = /^Q(?:00[1-9]|0[1-9][0-9]|1[01][0-9]|120)$/u
@@ -87,7 +87,7 @@ export function createHeartTalkService(dependencies: HeartTalkDependencies) {
             return
           }
           try {
-            const { sender, recipient } = validInvitationRoles(data, context.callerUid, context.partnerUid)
+            const { sender } = validInvitationRoles(data, context.callerUid, context.partnerUid)
             const topicType = data.topicType
             const scheduleValid = typeof data.scheduledLocalDate === 'string' && typeof data.startTime === 'string' && typeof data.endTime === 'string'
             if ((topicType !== 'official' && topicType !== 'custom') || !scheduleValid || (data.status !== 'pending' && data.status !== 'accepted')) return

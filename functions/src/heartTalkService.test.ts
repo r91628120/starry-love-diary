@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { Timestamp } from 'firebase-admin/firestore'
-import { HeartTalkError, createHeartTalkService, type HeartTalkCreateInput } from './heartTalkService.js'
+import { createHeartTalkService, type HeartTalkCreateInput } from './heartTalkService.js'
 import type { VerifiedCaller } from './pairInviteService.js'
 
 type Data = Record<string, unknown>

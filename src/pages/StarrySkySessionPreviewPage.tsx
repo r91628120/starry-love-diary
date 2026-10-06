@@ -7,7 +7,7 @@ import { usePersistence } from '../data/PersistenceStateContext'
 import { cancelHeartTalkInvitation, completeHeartTalkInvitation, getHeartTalkState, type HeartTalkInvitation } from '../lib/firebase/heartTalkClient'
 import '../features/our/our.css'
 
-export function StarrySkySessionPreviewPage(_legacyPreviewProps: { initialStatus?: 'accepted' | 'cancelled' | 'completed'; now?: Date } = {}) {
+export function StarrySkySessionPreviewPage() {
   const { locale, t } = useI18n(); const navigate = useNavigate(); const [params] = useSearchParams()
   const persistence = usePersistence()
   const [invitation, setInvitation] = useState<HeartTalkInvitation>(); const [terminal, setTerminal] = useState<'cancelled' | 'completed'>(); const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const [confirmingCancel, setConfirmingCancel] = useState(false)
