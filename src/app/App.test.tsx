@@ -18,6 +18,7 @@ const firebaseMocks = vi.hoisted(() => ({
   bootstrapAnonymousUser: vi.fn(),
   releaseStalledAnonymousBootstrap: vi.fn(),
   upgradeAnonymousUserWithApple: vi.fn(),
+  recoverExistingAppleIdentity: vi.fn(),
 }))
 
 vi.mock('../lib/firebase/firebaseEnvironment', () => ({ isFirebaseRuntimeConfigured: () => firebaseMocks.configured }))
@@ -29,6 +30,7 @@ vi.mock('../lib/firebase/userBootstrap', () => ({
 vi.mock('../lib/firebase/durableIdentity', () => ({
   getDurableIdentityState: (user: User | null) => ({ hasAppleIdentity: user?.providerData.some((provider) => provider.providerId === 'apple.com') ?? false }),
   upgradeAnonymousUserWithApple: (...args: unknown[]) => firebaseMocks.upgradeAnonymousUserWithApple(...args),
+  recoverExistingAppleIdentity: (...args: unknown[]) => firebaseMocks.recoverExistingAppleIdentity(...args),
 }))
 vi.mock('firebase/auth', () => ({ onAuthStateChanged: (...args: unknown[]) => firebaseMocks.onAuthStateChanged(...args) }))
 
@@ -61,6 +63,7 @@ afterEach(() => {
   firebaseMocks.bootstrapAnonymousUser.mockReset()
   firebaseMocks.releaseStalledAnonymousBootstrap.mockReset()
   firebaseMocks.upgradeAnonymousUserWithApple.mockReset()
+  firebaseMocks.recoverExistingAppleIdentity.mockReset()
 })
 
 describe('App routing', () => {
