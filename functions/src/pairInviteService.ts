@@ -3,7 +3,7 @@ import { Timestamp, type DocumentReference, type DocumentSnapshot, type Firestor
 
 export const PAIR_SCHEMA_VERSION = 1
 export const PAIR_INVITE_LIFETIME_MS = 24 * 60 * 60 * 1000
-export type PairInviteApplicationError = 'unauthenticated' | 'durable-identity-required' | 'already-paired' | 'invite-not-found' | 'invite-expired' | 'invite-unavailable' | 'self-pair-not-allowed'
+export type PairInviteApplicationError = 'unauthenticated' | 'durable-identity-required' | 'already-paired' | 'invite-not-found' | 'invite-expired' | 'invite-unavailable' | 'self-pair-not-allowed' | 'no-active-pair' | 'pair-not-found' | 'not-pair-member'
 export type VerifiedCaller = { uid: string; signInProvider?: string | null } | null
 export type PairInviteDependencies = { firestore: Firestore; now?: () => Timestamp; randomId?: () => string }
 
@@ -20,6 +20,7 @@ function callerOrThrow(caller: VerifiedCaller) {
 function hasActivePair(data: Record<string, unknown> | undefined) { return typeof data?.currentPairId === 'string' && data.currentPairId.length > 0 }
 function opaqueId() { return randomBytes(32).toString('base64url') }
 function timestampMillis(value: unknown) { return value && typeof value === 'object' && 'toMillis' in value && typeof value.toMillis === 'function' ? value.toMillis() : undefined }
+function pairMembers(value: unknown): [string, string] | undefined { return Array.isArray(value) && value.length === 2 && value.every((uid) => typeof uid === 'string' && uid.length > 0) && value[0] !== value[1] ? [value[0], value[1]] : undefined }
 
 function ensureUnpaired(transaction: Transaction, ref: DocumentReference, snapshot: DocumentSnapshot, uid: string, now: Timestamp) {
   if (hasActivePair(snapshot.data())) throw new PairInviteError('already-paired')
@@ -76,6 +77,29 @@ export function createPairInviteService(dependencies: PairInviteDependencies) {
         transaction.set(claimantRef, { currentPairId: pairId, updatedAt: claimedAt }, { merge: true })
         transaction.update(inviteRef, { status: 'claimed', claimedByUid: claimant.uid, claimedAt, pairId })
         return { pairId, status: 'active' as const }
+      })
+    },
+
+    async endPair(caller: VerifiedCaller) {
+      const member = callerOrThrow(caller)
+      return dependencies.firestore.runTransaction(async (transaction) => {
+        const endedAt = now()
+        const callerRef = dependencies.firestore.collection('users').doc(member.uid)
+        const callerRecord = await transaction.get(callerRef)
+        const pairId = callerRecord.data()?.currentPairId
+        if (typeof pairId !== 'string' || !pairId) return { status: 'unpaired' as const }
+        const pairRef = dependencies.firestore.collection('pairs').doc(pairId)
+        const pair = await transaction.get(pairRef)
+        if (!pair.exists) throw new PairInviteError('pair-not-found')
+        const members = pairMembers(pair.data()?.memberUids)
+        if (!members?.includes(member.uid)) throw new PairInviteError('not-pair-member')
+        const pendingInvites = await transaction.get(dependencies.firestore.collection('pairInvites').where('inviterUid', 'in', members))
+        if (pair.data()?.status !== 'active' && pair.data()?.status !== 'ended') throw new PairInviteError('no-active-pair')
+        const memberRefs = members.map((uid) => dependencies.firestore.collection('users').doc(uid))
+        if (pair.data()?.status === 'active') transaction.update(pairRef, { status: 'ended', endedAt })
+        memberRefs.forEach((ref) => transaction.set(ref, { currentPairId: null, updatedAt: endedAt }, { merge: true }))
+        pendingInvites.docs.filter((invite) => invite.data().status === 'pending').forEach((invite) => transaction.update(invite.ref, { status: 'cancelled', cancelledAt: endedAt }))
+        return { status: 'unpaired' as const }
       })
     },
     async resolvePairInvite(caller: VerifiedCaller, inviteId: string) {

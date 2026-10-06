@@ -53,3 +53,4 @@ export async function claimPairInvite(inviteId: string, diagnostic?: PairClaimDi
     throw error
   }
 }
+export const endPair = () => call<{ status: 'unpaired' }>('endPair')

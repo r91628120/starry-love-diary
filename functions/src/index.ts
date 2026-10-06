@@ -28,6 +28,10 @@ export const claimPairInvite = onCall({ region: 'asia-east1' }, async (request) 
   try { return await service.claimPairInvite(callerFromRequest(request), typeof request.data?.inviteId === 'string' ? request.data.inviteId : '') } catch (error) { return callableError(error) }
 })
 
+export const endPair = onCall({ region: 'asia-east1' }, async (request) => {
+  try { return await service.endPair(callerFromRequest(request)) } catch (error) { return callableError(error) }
+})
+
 export const resolvePairInvite = onCall({ region: 'asia-east1' }, async (request) => {
   try { return await service.resolvePairInvite(callerFromRequest(request), typeof request.data?.inviteId === 'string' ? request.data.inviteId : '') } catch (error) { return callableError(error) }
 })
