@@ -1,5 +1,5 @@
 import { FirebaseAuthentication } from '@capacitor-firebase/authentication'
-import { OAuthProvider, linkWithCredential, signInWithCredential, type Auth, type User } from 'firebase/auth'
+import { OAuthProvider, linkWithCredential, signInWithCredential, type Auth, type AuthCredential, type User } from 'firebase/auth'
 import { firebaseAuth } from './firebaseAuth'
 
 export const appleProviderId = 'apple.com'
@@ -28,6 +28,10 @@ export interface AppleCredentialMaterial {
   idToken?: string
   rawNonce?: string
 }
+
+type AppleCredentialBuildResult =
+  | { credential: AuthCredential }
+  | { error: 'missing-apple-id-token' | 'missing-apple-raw-nonce' }
 
 export interface DurableIdentityDependencies {
   auth?: Auth
@@ -62,7 +66,7 @@ async function acquireNativeAppleCredential(): Promise<AppleCredentialMaterial> 
   }
 }
 
-function credentialFromAppleMaterial(credentialMaterial: AppleCredentialMaterial) {
+function credentialFromAppleMaterial(credentialMaterial: AppleCredentialMaterial): AppleCredentialBuildResult {
   if (!credentialMaterial.idToken) return { error: 'missing-apple-id-token' as const }
   if (!credentialMaterial.rawNonce) return { error: 'missing-apple-raw-nonce' as const }
   return { credential: new OAuthProvider(appleProviderId).credential({ idToken: credentialMaterial.idToken, rawNonce: credentialMaterial.rawNonce }) }
