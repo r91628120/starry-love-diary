@@ -12,6 +12,8 @@ const firebaseMocks = vi.hoisted(() => ({
   onAuthStateChanged: vi.fn(),
   bootstrapAnonymousUser: vi.fn(),
   releaseStalledAnonymousBootstrap: vi.fn(),
+  upgradeAnonymousUserWithApple: vi.fn(),
+  recoverExistingAppleIdentity: vi.fn(),
 }))
 
 vi.mock('../../lib/firebase/firebaseEnvironment', () => ({ isFirebaseRuntimeConfigured: () => firebaseMocks.configured }))
@@ -22,16 +24,17 @@ vi.mock('../../lib/firebase/userBootstrap', () => ({
 }))
 vi.mock('../../lib/firebase/durableIdentity', () => ({
   getDurableIdentityState: (user: User | null) => ({ hasAppleIdentity: user?.providerData.some((provider) => provider.providerId === 'apple.com') ?? false }),
-  upgradeAnonymousUserWithApple: vi.fn(),
+  upgradeAnonymousUserWithApple: (...args: unknown[]) => firebaseMocks.upgradeAnonymousUserWithApple(...args),
+  recoverExistingAppleIdentity: (...args: unknown[]) => firebaseMocks.recoverExistingAppleIdentity(...args),
 }))
 vi.mock('firebase/auth', () => ({ onAuthStateChanged: (...args: unknown[]) => firebaseMocks.onAuthStateChanged(...args) }))
 
 import { AppleIdentityGate, PairedFeatureIdentityBoundary } from './PairedFeatureIdentityBoundary'
 
-function renderGate(locale: Locale = 'zh-TW', upgrade = vi.fn().mockResolvedValue({ status: 'cancelled' as const })) {
+function renderGate(locale: Locale = 'zh-TW', upgrade = vi.fn().mockResolvedValue({ status: 'cancelled' as const }), recover = vi.fn().mockResolvedValue({ status: 'cancelled' as const })) {
   const onResult = vi.fn()
-  render(<I18nProvider initialLocale={locale}><MemoryRouter><AppleIdentityGate upgrade={upgrade} onResult={onResult} /></MemoryRouter></I18nProvider>)
-  return { onResult, upgrade }
+  render(<I18nProvider initialLocale={locale}><MemoryRouter><AppleIdentityGate upgrade={upgrade} recover={recover} onResult={onResult} /></MemoryRouter></I18nProvider>)
+  return { onResult, upgrade, recover }
 }
 
 afterEach(() => {
@@ -43,6 +46,8 @@ afterEach(() => {
   firebaseMocks.onAuthStateChanged.mockReset()
   firebaseMocks.bootstrapAnonymousUser.mockReset()
   firebaseMocks.releaseStalledAnonymousBootstrap.mockReset()
+  firebaseMocks.upgradeAnonymousUserWithApple.mockReset()
+  firebaseMocks.recoverExistingAppleIdentity.mockReset()
 })
 
 describe('paired feature Apple identity gate', () => {
@@ -71,11 +76,38 @@ describe('paired feature Apple identity gate', () => {
     expect(screen.getByRole('heading', { name: '一起走進我們的星空' })).toBeInTheDocument()
   })
 
-  it('shows a safe explanation for a credential already in use without offering a merge', async () => {
-    renderGate('zh-TW', vi.fn().mockResolvedValue({ status: 'credential-in-use' }))
+  it('shows explicit recovery consent for a credential already in use without auto-switching', async () => {
+    const recover = vi.fn().mockResolvedValue({ status: 'recovered' as const })
+    renderGate('zh-TW', vi.fn().mockResolvedValue({ status: 'credential-in-use' }), recover)
     fireEvent.click(screen.getByRole('button', { name: '使用 Apple 繼續' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('無法自動合併')
+    expect(await screen.findByRole('heading', { name: '找到你原本的星空' })).toBeInTheDocument()
+    expect(recover).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: '回到我的星空' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /合併|登出/u })).not.toBeInTheDocument()
+  })
+
+  it('cancels recovery back to the stable anonymous Apple gate without signing in', async () => {
+    const recover = vi.fn()
+    renderGate('zh-TW', vi.fn().mockResolvedValue({ status: 'credential-in-use' }), recover)
+    fireEvent.click(screen.getByRole('button', { name: '使用 Apple 繼續' }))
+    await screen.findByRole('heading', { name: '找到你原本的星空' })
+    fireEvent.click(screen.getByRole('button', { name: '取消' }))
+    expect(screen.getByRole('button', { name: '使用 Apple 繼續' })).toBeEnabled()
+    expect(recover).not.toHaveBeenCalled()
+  })
+
+  it('uses explicit recovery, returns cancellation to consent, and allows retry after failure', async () => {
+    const recover = vi.fn().mockResolvedValueOnce({ status: 'cancelled' as const }).mockResolvedValueOnce({ status: 'failed' as const, code: 'auth/internal-error' }).mockResolvedValueOnce({ status: 'cancelled' as const })
+    renderGate('zh-TW', vi.fn().mockResolvedValue({ status: 'credential-in-use' }), recover)
+    fireEvent.click(screen.getByRole('button', { name: '使用 Apple 繼續' }))
+    await screen.findByRole('heading', { name: '找到你原本的星空' })
+    fireEvent.click(screen.getByRole('button', { name: '回到我的星空' }))
+    await vi.waitFor(() => expect(recover).toHaveBeenCalledOnce())
+    await screen.findByRole('heading', { name: '找到你原本的星空' })
+    fireEvent.click(screen.getByRole('button', { name: '回到我的星空' }))
+    expect(await screen.findByRole('heading', { name: '暫時無法回到原本的星空' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '重新嘗試' }))
+    await vi.waitFor(() => expect(recover).toHaveBeenCalledTimes(3))
   })
 
   it('keeps the anonymous gate in place after an unexpected failure and allows retry', async () => {
@@ -129,6 +161,30 @@ describe('paired feature Apple identity gate', () => {
     render(<I18nProvider initialLocale="zh-TW"><MemoryRouter><PairedFeatureIdentityBoundary><p>paired feature</p></PairedFeatureIdentityBoundary></MemoryRouter></I18nProvider>)
     expect(await screen.findByRole('heading', { name: '一起走進我們的星空' })).toBeInTheDocument()
     expect(screen.queryByText('paired feature')).not.toBeInTheDocument()
+  })
+
+  it('admits the paired feature only after the auth listener observes the recovered Apple user', async () => {
+    firebaseMocks.configured = true
+    const anonymousUser = { uid: 'anonymous-user', isAnonymous: true, providerData: [] } as unknown as User
+    const recoveredUser = { uid: 'durable-user', isAnonymous: false, providerData: [{ providerId: 'apple.com' }] } as unknown as User
+    let notifyAuthState: ((user: User | null) => void) | undefined
+    firebaseMocks.user = anonymousUser
+    firebaseMocks.auth.currentUser = anonymousUser
+    firebaseMocks.bootstrapAnonymousUser.mockResolvedValue({ uid: 'anonymous-user', isAnonymous: true })
+    firebaseMocks.upgradeAnonymousUserWithApple.mockResolvedValue({ status: 'credential-in-use' })
+    firebaseMocks.recoverExistingAppleIdentity.mockImplementation(async () => {
+      firebaseMocks.auth.currentUser = recoveredUser
+      notifyAuthState?.(recoveredUser)
+      return { status: 'recovered' }
+    })
+    firebaseMocks.onAuthStateChanged.mockImplementation((_auth, callback: (user: User | null) => void) => { notifyAuthState = callback; callback(anonymousUser); return vi.fn() })
+    render(<I18nProvider initialLocale="zh-TW"><MemoryRouter><PairedFeatureIdentityBoundary><p>paired feature</p></PairedFeatureIdentityBoundary></MemoryRouter></I18nProvider>)
+    await screen.findByRole('button', { name: '使用 Apple 繼續' })
+    fireEvent.click(screen.getByRole('button', { name: '使用 Apple 繼續' }))
+    await screen.findByRole('button', { name: '回到我的星空' })
+    expect(screen.queryByText('paired feature')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '回到我的星空' }))
+    expect(await screen.findByText('paired feature')).toBeInTheDocument()
   })
 
   it('skips the gate for an Apple-linked user', async () => {

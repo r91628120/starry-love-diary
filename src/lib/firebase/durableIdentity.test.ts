@@ -5,7 +5,7 @@ const nativeAuthMocks = vi.hoisted(() => ({ signInWithApple: vi.fn() }))
 vi.mock('@capacitor-firebase/authentication', () => ({ FirebaseAuthentication: nativeAuthMocks }))
 vi.mock('./firebaseAuth', () => ({ firebaseAuth: {} }))
 
-import { getDurableIdentityState, upgradeAnonymousUserWithApple } from './durableIdentity'
+import { getDurableIdentityState, recoverExistingAppleIdentity, upgradeAnonymousUserWithApple } from './durableIdentity'
 
 function user(overrides: Partial<User> = {}): User {
   return {
@@ -73,8 +73,34 @@ describe('anonymous to Apple upgrade', () => {
   })
 
   it('uses native Apple authorization only to obtain transient material with native auth skipped', async () => {
-    nativeAuthMocks.signInWithApple.mockResolvedValue({ credential: appleCredential })
+    nativeAuthMocks.signInWithApple.mockResolvedValue({ credential: { idToken: 'second-token', rawNonce: 'second-nonce' } })
     await upgradeAnonymousUserWithApple({ auth: auth(user()), linkCredential: vi.fn().mockResolvedValue({ user: user() }) })
     expect(nativeAuthMocks.signInWithApple).toHaveBeenCalledWith({ skipNativeAuth: true })
+  })
+})
+
+describe('existing Apple identity recovery', () => {
+  it('starts a second native Apple authorization for recovery with native Firebase auth skipped', async () => {
+    nativeAuthMocks.signInWithApple.mockResolvedValue({ credential: { idToken: 'second-token', rawNonce: 'second-nonce' } })
+    await recoverExistingAppleIdentity({ auth: auth(user()), signInCredential: vi.fn().mockResolvedValue({ user: user({ isAnonymous: false, providerData: [{ providerId: 'apple.com' } as User['providerData'][number]] }) }) })
+    expect(nativeAuthMocks.signInWithApple).toHaveBeenCalledWith({ skipNativeAuth: true })
+  })
+
+  it('uses a fresh native Apple assertion to sign into an existing Apple-linked user without signing out', async () => {
+    const temporaryAnonymousUser = user()
+    const existingAppleUser = user({ uid: 'existing-apple-user', isAnonymous: false, providerData: [{ providerId: 'apple.com' } as User['providerData'][number]] })
+    const signInCredential = vi.fn().mockResolvedValue({ user: existingAppleUser })
+    await expect(recoverExistingAppleIdentity({ auth: auth(temporaryAnonymousUser), acquireAppleCredential: vi.fn().mockResolvedValue({ idToken: 'fresh-token', rawNonce: 'fresh-nonce' }), signInCredential })).resolves.toEqual({ status: 'recovered' })
+    expect(signInCredential).toHaveBeenCalledOnce()
+    expect(signInCredential).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ providerId: 'apple.com' }))
+  })
+
+  it('does not treat a non-Apple sign-in result as recovered', async () => {
+    await expect(recoverExistingAppleIdentity({ auth: auth(user()), acquireAppleCredential: vi.fn().mockResolvedValue({ idToken: 'second-token', rawNonce: 'second-nonce' }), signInCredential: vi.fn().mockResolvedValue({ user: user({ uid: 'unexpected-user', isAnonymous: false }) }) })).resolves.toEqual({ status: 'failed', code: 'apple-identity-not-linked' })
+  })
+
+  it('returns cancellation and failure as sanitized recoverable results', async () => {
+    await expect(recoverExistingAppleIdentity({ auth: auth(user()), acquireAppleCredential: vi.fn().mockRejectedValue({ code: 'cancelled' }) })).resolves.toEqual({ status: 'cancelled' })
+    await expect(recoverExistingAppleIdentity({ auth: auth(user()), acquireAppleCredential: vi.fn().mockRejectedValue({ code: 'auth/internal-error' }) })).resolves.toEqual({ status: 'failed', code: 'auth/internal-error' })
   })
 })
