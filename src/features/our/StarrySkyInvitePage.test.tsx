@@ -1,7 +1,9 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { I18nProvider } from '../../i18n/I18nProvider'
+const api = vi.hoisted(() => ({ createHeartTalkInvitation: vi.fn() }))
+vi.mock('../../lib/firebase/heartTalkClient', () => api)
 import { StarrySkyInvitePage } from '../../pages/StarrySkyInvitePage'
 import { StarrySkyTopicsPage } from '../../pages/StarrySkyTopicsPage'
 import { StarrySkyIncomingInvitationPage } from '../../pages/StarrySkyIncomingInvitationPage'
@@ -10,7 +12,7 @@ import { toLocalDate } from '../../services/localDateService'
 function renderInvite(path = '/our/starry-sky/invite?topic=Q001', locale = 'zh-TW') {
   return render(<I18nProvider initialLocale={locale as never}><MemoryRouter initialEntries={[path]}><Routes><Route path="/our/starry-sky/invite" element={<StarrySkyInvitePage />} /><Route path="/our/starry-sky/topics" element={<StarrySkyTopicsPage />} /><Route path="/our/starry-sky/invitation-preview" element={<StarrySkyIncomingInvitationPage />} /></Routes></MemoryRouter></I18nProvider>)
 }
-afterEach(cleanup)
+afterEach(() => { cleanup(); vi.resetAllMocks() })
 
 describe('Starry Sky Phase 2B invitation presentation', () => {
   it('resolves a valid official Q ID and keeps the exact official source text', () => {
@@ -46,7 +48,8 @@ describe('Starry Sky Phase 2B invitation presentation', () => {
     fireEvent.change(screen.getByLabelText('選擇日期'), { target: { value: `${year}-01-01` } })
     expect([...container.querySelectorAll<HTMLElement>('[data-local-date]')].map((element) => element.dataset.localDate)).toEqual([`${year - 1}-12-29`,`${year - 1}-12-30`,`${year - 1}-12-31`,`${year}-01-01`,`${year}-01-02`,`${year}-01-03`,`${year}-01-04`])
   })
-  it('keeps date and time only in component state, blocks invalid time, and shows a local preview', () => {
+  it('keeps date and time only in component state, blocks invalid time, and shows authoritative send success', async () => {
+    api.createHeartTalkInvitation.mockResolvedValue({ invitationId: 'invite-12345678', status: 'pending' })
     const view = renderInvite()
     const dates = screen.getAllByRole('listitem')
     fireEvent.click(dates[1]); expect(dates[1]).toHaveAttribute('aria-pressed', 'true')
@@ -64,17 +67,19 @@ describe('Starry Sky Phase 2B invitation presentation', () => {
     fireEvent.click(screen.getByRole('button', { name: '結束時間' })); fireEvent.change(screen.getByLabelText('分'), { target: { value: '30' } }); fireEvent.click(screen.getByRole('button', { name: '取消' }))
     expect(screen.getByRole('button', { name: '結束時間' })).toHaveTextContent('22:00')
     fireEvent.click(screen.getByRole('button', { name: '發出心話邀約' }))
-    expect(screen.getByText('心話邀約預覽完成')).toBeInTheDocument()
+    await waitFor(() => expect(api.createHeartTalkInvitation).toHaveBeenCalledWith({ topicType: 'official', officialTopicId: 'Q001', scheduledLocalDate: expect.any(String), startTime: '21:15', endTime: '22:00' }))
+    expect(screen.getByText('心話邀約已送出')).toBeInTheDocument()
     expect(screen.getByText('21:15 – 22:00')).toBeInTheDocument()
     expect(view.container.textContent).not.toMatch(/上午|下午|AM|PM/u)
     view.unmount(); renderInvite()
-    expect(screen.queryByText('心話邀約預覽完成')).not.toBeInTheDocument()
+    expect(screen.queryByText('心話邀約已送出')).not.toBeInTheDocument()
   })
-  it('offers a clearly local review path from composer preview to the incoming preview', () => {
+  it('does not claim success when the production create callable fails', async () => {
+    api.createHeartTalkInvitation.mockRejectedValue(new Error('no-active-pair'))
     renderInvite()
     fireEvent.click(screen.getByRole('button', { name: '發出心話邀約' }))
-    fireEvent.click(screen.getByRole('button', { name: '查看收到的心話邀約（介面預覽）' }))
-    expect(screen.getByRole('heading', { level: 1, name: '💕 收到心話邀約' })).toBeInTheDocument()
+    await waitFor(() => expect(api.createHeartTalkInvitation).toHaveBeenCalled())
+    expect(screen.queryByText('心話邀約已送出')).not.toBeInTheDocument()
   })
   it('localizes every shell while retaining the zh-TW official topic fallback', () => {
     for (const locale of ['zh-TW', 'en', 'ja', 'ko', 'es', 'fr']) {
