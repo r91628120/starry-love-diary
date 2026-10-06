@@ -1,7 +1,10 @@
-import { shareText, type ShareTextResult, type ShareTextTarget } from './shareText'
+import { shareNativeText, type NativeTextShareOptions } from './nativeTextShare'
+import type { ShareTextResult } from './shareText'
+import { starrySkyShareMessages } from '../i18n/starrySkyShareMessages'
+import type { Locale } from '../i18n/messages'
 
-export const formatStarrySkyTopicShare = (topicText: string) => `${topicText}\n\n——《星星戀愛日記》\n🌙 來自「我們的星空」`
+export const formatStarrySkyTopicShare = (topicText: string, locale: Locale = 'zh-TW') => `${topicText}\n\n${starrySkyShareMessages[locale].attribution}`
 
-export function shareStarrySkyTopic(topicText: string, target?: ShareTextTarget): Promise<ShareTextResult> {
-  return shareText(formatStarrySkyTopicShare(topicText), '星星戀愛日記', target)
+export function shareStarrySkyTopic(topicText: string, locale: Locale = 'zh-TW', options?: NativeTextShareOptions): Promise<ShareTextResult> {
+  return shareNativeText(formatStarrySkyTopicShare(topicText, locale), starrySkyShareMessages[locale].title, options)
 }

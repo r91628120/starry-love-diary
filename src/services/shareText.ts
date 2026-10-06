@@ -52,3 +52,7 @@ export async function shareText(
     const copied = document.execCommand?.('copy') ?? false; area.remove(); return copied ? 'copied' : 'error'
   } catch { return 'error' }
 }
+
+export function copyText(text: string, target: ShareTextTarget = globalThis.navigator): Promise<ShareTextResult> {
+  return shareText(text, undefined, { clipboard: target.clipboard })
+}

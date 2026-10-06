@@ -9,7 +9,7 @@ import type { StarrySkyCategoryId } from '../features/our/starrySkyTopics.zh-TW'
 import '../features/our/our.css'
 
 export function StarrySkyTopicsPage() {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const navigate = useNavigate()
   const location = useLocation()
   const requested = (location.state as { categoryId?: StarrySkyCategoryId } | null)?.categoryId
@@ -21,7 +21,7 @@ export function StarrySkyTopicsPage() {
   const pillRefs = useRef<Partial<Record<StarrySkyCategoryId, HTMLButtonElement>>>({})
   const topics = starrySkyTopicsForCategory(categoryId)
   const share = async (text: string) => {
-    const result = await shareStarrySkyTopic(text)
+    const result = await shareStarrySkyTopic(text, locale)
     setFeedback(result === 'copied' ? t('our.starrySky.copied') : result === 'error' ? t('our.starrySky.shareError') : undefined)
   }
   const syncScrollControls = () => {

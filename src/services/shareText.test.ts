@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { SHARE_PENDING_SAFETY_TIMEOUT_MS, shareText } from './shareText'
+import { SHARE_PENDING_SAFETY_TIMEOUT_MS, copyText, shareText } from './shareText'
 
 describe('shareText', () => {
   it('shares only the supplied text when Web Share is available', async () => {
@@ -19,6 +19,11 @@ describe('shareText', () => {
     const writeText = vi.fn().mockResolvedValue(undefined)
     await expect(shareText('my message', undefined, { clipboard: { writeText } })).resolves.toBe('copied')
     expect(writeText).toHaveBeenCalledWith('my message')
+  })
+  it('copies without opening Web Share when copy is explicitly requested', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    await expect(copyText('complete invitation', { share: vi.fn(), clipboard: { writeText } })).resolves.toBe('copied')
+    expect(writeText).toHaveBeenCalledWith('complete invitation')
   })
   it('reports an unavailable or failing share path', async () => {
     await expect(shareText('text', undefined, { clipboard: { writeText: vi.fn().mockRejectedValue(new Error('no')) } })).resolves.toBe('error')

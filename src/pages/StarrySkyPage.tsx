@@ -11,11 +11,11 @@ import '../features/our/our.css'
 const categoryIcons = ['🤍','💞','👁️','🏠','🌱','👥','☀️','💼','🍃','🌈','✈️','🌙']
 
 export function StarrySkyPage() {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const navigate = useNavigate(), location = useLocation()
   const persistence = usePersistence()
   const [feedback, setFeedback] = useState<string>((location.state as { pairingGuidance?: boolean } | null)?.pairingGuidance ? t('our.starrySky.chooseUnpaired') : '')
-  const shareFeatured = async () => { const result = await shareStarrySkyTopic(featuredStarrySkyTopic.text); setFeedback(result === 'copied' ? t('our.starrySky.copied') : result === 'error' ? t('our.starrySky.shareError') : '') }
+  const shareFeatured = async () => { const result = await shareStarrySkyTopic(featuredStarrySkyTopic.text, locale); setFeedback(result === 'copied' ? t('our.starrySky.copied') : result === 'error' ? t('our.starrySky.shareError') : '') }
 
   return <div className="page our-page starry-sky-page"><PageHeader titleKey="our.starrySky.title" variant="secondary" backFallback="/our" /><main className="our-page__content starry-sky-page__content">
     <section className="starry-sky-hero"><div><p>{t('our.starrySky.heroCopy')}</p></div></section>

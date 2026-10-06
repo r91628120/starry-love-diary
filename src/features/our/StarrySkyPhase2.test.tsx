@@ -52,4 +52,8 @@ describe('Starry Sky Phase 2A', () => {
   it('formats an official share without pairing, date, or private content', () => {
     expect(formatStarrySkyTopicShare('官方題目')).toBe('官方題目\n\n——《星星戀愛日記》\n🌙 來自「我們的星空」')
   })
+  it('keeps both featured and browse sharing on the same official-topic service', () => {
+    expect(formatStarrySkyTopicShare('Q001 題目')).toContain('Q001 題目')
+    expect(formatStarrySkyTopicShare('Q011 題目')).toContain('Q011 題目')
+  })
 })
