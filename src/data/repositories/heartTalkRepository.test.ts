@@ -19,6 +19,20 @@ describe('completed Heart Talk local repository', () => {
     await repository.clearAll(); expect(await repository.list()).toEqual([])
   })
 
+  it('deduplicates Firebase completions by source invitation without retaining custom text, while legacy records remain readable', async () => {
+    const adapter = new MemoryStorageAdapter(); await adapter.open()
+    const repository = new LocalCompletedHeartTalkRepository(adapter)
+    await adapter.put('completedHeartTalks', { id: 'legacy', topicType: 'custom', localDate: '2026-10-01', startTime: '19:00', endTime: '19:30', createdAt: '2026-10-01T00:00:00.000Z', updatedAt: '2026-10-01T00:00:00.000Z' })
+    const input = { sourceInvitationId: 'invite-12345678', topicType: 'custom' as const, localDate: '2026-10-04', startTime: '18:00', endTime: '18:30' }
+    const first = await repository.addCompletedHeartTalk(input)
+    const second = await repository.addCompletedHeartTalk(input)
+    expect(first.id).toBe(second.id)
+    expect(await repository.list()).toHaveLength(2)
+    expect(first).toMatchObject({ sourceInvitationId: 'invite-12345678', topicType: 'custom' })
+    expect(JSON.stringify(await repository.list())).not.toContain('customTopicText')
+    expect(JSON.stringify(await repository.list())).not.toContain('private custom text')
+  })
+
   it('upgrades a representative v8 database additively without changing existing records', async () => {
     const name = `heart-talk-v8-${crypto.randomUUID()}`
     await new Promise<void>((resolve, reject) => { const request = indexedDB.open(name, 8); request.onupgradeneeded = () => { for (const store of LEGACY_V4_STORE_NAMES) request.result.createObjectStore(store, { keyPath: 'id' }) }; request.onsuccess = () => { const database = request.result; const transaction = database.transaction('profiles', 'readwrite'); transaction.objectStore('profiles').put({ id: 'user', nickname: 'v8 user' }); transaction.oncomplete = () => { database.close(); resolve() }; transaction.onerror = () => reject(transaction.error) }; request.onerror = () => reject(request.error) })

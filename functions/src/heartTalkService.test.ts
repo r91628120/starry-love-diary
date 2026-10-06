@@ -10,12 +10,12 @@ function memoryFirestore(initial: Record<string, Data> = {}) {
   const ref = (path: string) => ({ path, get: async () => snapshot(path) })
   const snapshot = (path: string) => ({ exists: documents.has(path), data: () => documents.get(path) })
   const firestore = {
-    collection: (name: string) => ({ doc: (id: string) => ref(`${name}/${id}`) }),
+    collection: (name: string) => ({ doc: (id: string) => ref(`${name}/${id}`), where: () => ({ limit: () => ({ queryPath: name }) }) }),
     doc: (path: string) => ref(path),
-    runTransaction: async <T>(work: (transaction: { get: (reference: { path: string }) => Promise<ReturnType<typeof snapshot>>; create: (reference: { path: string }, value: Data) => void; update: (reference: { path: string }, value: Data) => void }) => Promise<T>) => {
+    runTransaction: async <T>(work: (transaction: { get: (reference: { path?: string, queryPath?: string }) => Promise<unknown>; create: (reference: { path: string }, value: Data) => void; update: (reference: { path: string }, value: Data) => void }) => Promise<T>) => {
       const writes: { path: string, value: Data, create?: boolean }[] = []
       const transaction = {
-        get: async (reference: { path: string }) => snapshot(reference.path),
+        get: async (reference: { path?: string, queryPath?: string }) => reference.queryPath ? { docs: [...documents.entries()].filter(([path]) => path.startsWith(`${reference.queryPath}/`) && path.split('/').length === 4).map(([path]) => ({ id: path.split('/').at(-1) as string, ref: ref(path), data: () => documents.get(path) })) } : snapshot(reference.path as string),
         create: (reference: { path: string }, value: Data) => writes.push({ path: reference.path, value, create: true }),
         update: (reference: { path: string }, value: Data) => writes.push({ path: reference.path, value }),
       }
@@ -104,5 +104,14 @@ describe('trusted Heart Talk lifecycle', () => {
     await expectCode(() => endedApi.respondToHeartTalkInvitation(durable('bob'), 'invite-001', 'accept'), 'no-active-pair')
     const newPairStore = memoryFirestore({ 'users/alice': { currentPairId: 'pair-alice-carol' }, 'users/carol': { currentPairId: 'pair-alice-carol' }, 'pairs/pair-alice-carol': { memberUids: ['alice', 'carol'], status: 'active' }, 'pairs/pair-alice-bob/heartTalkInvitations/invite-001': { ...store.read(invitationPath) } }); const newPairApi = service(newPairStore as ReturnType<typeof pairedStore>)
     await expectCode(() => newPairApi.respondToHeartTalkInvitation(durable('alice'), 'invite-001', 'accept'), 'heart-talk-not-found')
+  })
+
+  it('reads only bounded current-Pair active records and normalizes expired custom invitations', async () => {
+    const store = pairedStore(); const start = Timestamp.fromMillis(1_700_000_000_000); const api = service(store, start)
+    await api.createHeartTalkInvitation(durable('alice'), official)
+    await expect(api.getHeartTalkState(durable('bob'))).resolves.toEqual({ invitations: [expect.objectContaining({ invitationId: 'invite-001', viewerRole: 'recipient', status: 'pending', officialTopicId: 'Q001' })] })
+    const expired = service(store, Timestamp.fromMillis(start.toMillis() + 86_400_000))
+    await expect(expired.getHeartTalkState(durable('alice'))).resolves.toEqual({ invitations: [] })
+    expect(store.read(invitationPath)).toMatchObject({ status: 'expired' })
   })
 })

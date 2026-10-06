@@ -258,6 +258,8 @@ export interface RememberedYouCard {
 /** Deliberately metadata-only. Custom prompt text is never retained. */
 export type CompletedHeartTalk = {
   id: string
+  /** Optional for records written before Firebase-backed Heart Talk delivery. */
+  sourceInvitationId?: string
   topicType: 'official'
   questionId: string
   localDate: string
@@ -267,6 +269,7 @@ export type CompletedHeartTalk = {
   updatedAt: string
 } | {
   id: string
+  sourceInvitationId?: string
   topicType: 'custom'
   localDate: string
   startTime: string

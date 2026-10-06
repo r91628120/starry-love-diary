@@ -48,6 +48,10 @@ export const createHeartTalkInvitation = onCall({ region: 'asia-east1' }, async 
   try { return await heartTalk.createHeartTalkInvitation(callerFromRequest(request), createInput(request.data)) } catch (error) { return callableError(error) }
 })
 
+export const getHeartTalkState = onCall({ region: 'asia-east1' }, async (request) => {
+  try { return await heartTalk.getHeartTalkState(callerFromRequest(request)) } catch (error) { return callableError(error) }
+})
+
 export const respondToHeartTalkInvitation = onCall({ region: 'asia-east1' }, async (request) => {
   const data = request.data && typeof request.data === 'object' ? request.data as Record<string, unknown> : {}
   try { return await heartTalk.respondToHeartTalkInvitation(callerFromRequest(request), typeof data.invitationId === 'string' ? data.invitationId : '', data.action as HeartTalkResponseAction) } catch (error) { return callableError(error) }

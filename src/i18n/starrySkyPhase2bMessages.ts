@@ -20,5 +20,13 @@ const incomingReview: Record<Locale, string> = {
   es: 'Ver invitación recibida (vista previa)',
   fr: 'Voir l’invitation reçue (aperçu)',
 }
+const production: Record<Locale, Partial<Record<InviteKey, string>>> = {
+  'zh-TW': { inviteNotice: '另一半可在「我們的星空」重新整理後查看這份心話邀約。', inviteExpiry: '邀約會等待回覆 24 小時。', invitePreviewTitle: '心話邀約已送出', invitePreviewBody: '邀約已安全送至你們目前的配對關係。' },
+  en: { inviteNotice: 'Your partner can refresh Our Starry Sky to see this Heart Talk invitation.', inviteExpiry: 'This invitation waits up to 24 hours for a response.', invitePreviewTitle: 'Heart Talk invitation sent', invitePreviewBody: 'The invitation was sent to your current Pair.' },
+  ja: { inviteNotice: '相手は「ふたりの星空」を更新して、この心話の招待を確認できます。', inviteExpiry: '招待は24時間返答を待ちます。', invitePreviewTitle: '心話の招待を送信しました', invitePreviewBody: '招待は現在のペアに送信されました。' },
+  ko: { inviteNotice: '상대는 우리의 별하늘을 새로고침하여 이 마음 대화 초대를 확인할 수 있어요.', inviteExpiry: '초대는 24시간 동안 응답을 기다려요.', invitePreviewTitle: '마음 대화 초대를 보냈어요', invitePreviewBody: '초대가 현재 페어에게 전송되었어요.' },
+  es: { inviteNotice: 'Tu pareja puede actualizar Nuestro cielo estrellado para ver esta invitación.', inviteExpiry: 'La invitación espera una respuesta durante 24 horas.', invitePreviewTitle: 'Invitación enviada', invitePreviewBody: 'La invitación se envió a su pareja actual.' },
+  fr: { inviteNotice: 'Votre partenaire peut actualiser Notre ciel étoilé pour voir cette invitation.', inviteExpiry: 'Cette invitation attend une réponse pendant 24 heures.', invitePreviewTitle: 'Invitation envoyée', invitePreviewBody: 'L’invitation a été envoyée à votre duo actuel.' },
+}
 
-export const starrySkyPhase2bMessages: Record<Locale, Record<`our.starrySky.${InviteKey}`, string>> = Object.fromEntries((Object.keys(values) as Locale[]).map((locale) => [locale, Object.fromEntries(keys.map((key, index) => [`our.starrySky.${key}`, key === 'inviteReviewIncoming' ? incomingReview[locale] : values[locale][index] ?? values.en[index]]))])) as Record<Locale, Record<`our.starrySky.${InviteKey}`, string>>
+export const starrySkyPhase2bMessages: Record<Locale, Record<`our.starrySky.${InviteKey}`, string>> = Object.fromEntries((Object.keys(values) as Locale[]).map((locale) => [locale, Object.fromEntries(keys.map((key, index) => [`our.starrySky.${key}`, production[locale][key] ?? (key === 'inviteReviewIncoming' ? incomingReview[locale] : values[locale][index] ?? values.en[index])]))])) as Record<Locale, Record<`our.starrySky.${InviteKey}`, string>>

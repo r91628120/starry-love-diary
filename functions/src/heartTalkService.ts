@@ -25,6 +25,7 @@ export type HeartTalkCreateInput = {
 }
 export type HeartTalkResponseAction = 'accept' | 'decline'
 export type HeartTalkDependencies = { firestore: Firestore; now?: () => Timestamp; randomId?: () => string }
+export type HeartTalkStateItem = { invitationId: string; viewerRole: 'sender' | 'recipient'; topicType: 'official' | 'custom'; officialTopicId?: string; customTopicText?: string; scheduledLocalDate: string; startTime: string; endTime: string; status: 'pending' | 'accepted' }
 
 function invalid() { throw new HeartTalkError('invalid-heart-talk-input') }
 function opaqueId() { return randomBytes(32).toString('base64url') }
@@ -71,6 +72,33 @@ export function createHeartTalkService(dependencies: HeartTalkDependencies) {
   const resolveInTransaction = (caller: VerifiedCaller, transaction: Transaction) => resolveActivePairForCaller(caller, { firestore: dependencies.firestore, readDocument: (reference) => transaction.get(reference) })
 
   return {
+    async getHeartTalkState(caller: VerifiedCaller) {
+      return dependencies.firestore.runTransaction(async (transaction) => {
+        const context = await resolveInTransaction(caller, transaction)
+        // This deliberately remains a small active-state read rather than an inbox/history API.
+        const query = dependencies.firestore.collection(`pairs/${context.pairId}/heartTalkInvitations`).where('status', 'in', ['pending', 'accepted']).limit(20)
+        const snapshot = await transaction.get(query)
+        const updatedAt = now()
+        const invitations: HeartTalkStateItem[] = []
+        snapshot.docs.forEach((document) => {
+          const data = document.data() as Record<string, unknown>
+          if (data.status === 'pending' && isExpired(data, updatedAt)) {
+            transaction.update(document.ref, { status: 'expired', updatedAt, expiredAt: updatedAt, ...redactCustom(data) })
+            return
+          }
+          try {
+            const { sender, recipient } = validInvitationRoles(data, context.callerUid, context.partnerUid)
+            const topicType = data.topicType
+            const scheduleValid = typeof data.scheduledLocalDate === 'string' && typeof data.startTime === 'string' && typeof data.endTime === 'string'
+            if ((topicType !== 'official' && topicType !== 'custom') || !scheduleValid || (data.status !== 'pending' && data.status !== 'accepted')) return
+            if (topicType === 'official' && (typeof data.officialTopicId !== 'string' || !OFFICIAL_TOPIC_ID.test(data.officialTopicId))) return
+            if (topicType === 'custom' && typeof data.customTopicText !== 'string') return
+            invitations.push({ invitationId: document.id, viewerRole: context.callerUid === sender ? 'sender' : 'recipient', topicType, ...(topicType === 'official' ? { officialTopicId: data.officialTopicId as string } : { customTopicText: data.customTopicText as string }), scheduledLocalDate: data.scheduledLocalDate as string, startTime: data.startTime as string, endTime: data.endTime as string, status: data.status })
+          } catch { /* malformed records are not UI data */ }
+        })
+        return { invitations }
+      })
+    },
     async createHeartTalkInvitation(caller: VerifiedCaller, input: HeartTalkCreateInput) {
       const topic = validateCreate(input)
       const id = randomId()
