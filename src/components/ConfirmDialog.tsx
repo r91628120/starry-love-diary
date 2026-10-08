@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { useI18n } from '../i18n/I18nContext'
 import { PrimaryButton, SecondaryButton } from './Buttons'
+import { ModalOverlay } from './ModalOverlay'
 
 interface ConfirmDialogProps {
   open: boolean
@@ -18,5 +19,5 @@ export function ConfirmDialog({ open, title, description, onConfirm, onCancel, c
   const { t } = useI18n()
   if (!open) return null
 
-  return <div className="dialog-backdrop" data-qa12-overlay="confirm-dialog" role="presentation"><section className="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="confirm-dialog-title" aria-describedby="confirm-dialog-description"><h2 id="confirm-dialog-title">{title}</h2><p id="confirm-dialog-description">{description}</p>{children}<div className="confirm-dialog__actions"><SecondaryButton onClick={onCancel}>{cancelLabel ?? t('common.cancel')}</SecondaryButton><PrimaryButton className={danger ? 'button--danger' : ''} onClick={onConfirm}>{confirmLabel ?? t('common.confirm')}</PrimaryButton></div></section></div>
+  return <ModalOverlay className="dialog-backdrop" qa12Overlay="confirm-dialog"><section className="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="confirm-dialog-title" aria-describedby="confirm-dialog-description"><h2 id="confirm-dialog-title">{title}</h2><p id="confirm-dialog-description">{description}</p>{children}<div className="confirm-dialog__actions"><SecondaryButton onClick={onCancel}>{cancelLabel ?? t('common.cancel')}</SecondaryButton><PrimaryButton className={danger ? 'button--danger' : ''} onClick={onConfirm}>{confirmLabel ?? t('common.confirm')}</PrimaryButton></div></section></ModalOverlay>
 }

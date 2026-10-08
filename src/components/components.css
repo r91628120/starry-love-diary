@@ -224,9 +224,40 @@
   background: var(--color-overlay);
 }
 
+/* Shared portal layer for every app dialog, picker, sheet, and photo preview.
+   Specific feature backdrop classes intentionally remain for their visual theme. */
+.modal-overlay.modal-overlay {
+  position: fixed;
+  z-index: 50;
+  inset: var(--modal-viewport-offset, 0px) 0 auto;
+  block-size: var(--modal-viewport-height, 100dvh);
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: max(var(--space-3), env(safe-area-inset-top)) max(var(--space-3), env(safe-area-inset-right)) max(var(--space-3), env(safe-area-inset-bottom)) max(var(--space-3), env(safe-area-inset-left));
+  background: var(--color-overlay);
+  -webkit-overflow-scrolling: touch;
+}
+
+.modal-overlay.modal-overlay--bottom-sheet {
+  place-items: end center;
+}
+
+@media (min-width: 40rem) {
+  .modal-overlay.modal-overlay--bottom-sheet {
+    place-items: center;
+  }
+}
+
 .confirm-dialog {
   width: min(100%, 28rem);
+  box-sizing: border-box;
+  max-block-size: 100%;
   padding: var(--space-6);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-cream-50);
@@ -245,9 +276,15 @@
 
 .confirm-dialog__actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: var(--space-3);
   margin-top: var(--space-6);
+}
+
+.confirm-dialog__actions .button {
+  min-width: 0;
+  flex: 1 1 8rem;
 }
 
 .update-check-notice__backdrop {
@@ -262,7 +299,11 @@
 
 .update-check-notice {
   width: min(100%, 28rem);
+  box-sizing: border-box;
+  max-block-size: 100%;
   padding: var(--space-6);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-cream-50);

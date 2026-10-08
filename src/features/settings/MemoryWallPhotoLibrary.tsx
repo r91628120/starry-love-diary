@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ConfirmDialog, PrimaryButton, SecondaryButton } from '../../components'
+import { ConfirmDialog, ModalOverlay, PrimaryButton, SecondaryButton } from '../../components'
 import { GalleryCapacityError, importGalleryPhotos, MAX_GALLERY_PHOTOS } from '../../data/photo/galleryPhotoActions'
 import { PhotoInUseError, type PhotoRepository } from '../../data/photo/PhotoRepository'
 import { usePersistence } from '../../data/PersistenceStateContext'
@@ -126,10 +126,10 @@ function PhotoPreview({ assetId, repository, onClose }: { assetId?: string; repo
   const { t } = useI18n()
   const masterUrl = usePhotoObjectUrl(repository, assetId, 'master')
   if (!assetId) return null
-  return <div className="memory-wall-lightbox" role="presentation">
+  return <ModalOverlay className="memory-wall-lightbox">
     <section className="memory-wall-lightbox__dialog" role="dialog" aria-modal="true" aria-label={t('memoryWallPhotos.view')}>
       <button type="button" className="memory-wall-lightbox__close" aria-label={t('memoryWallPhotos.closePreview')} onClick={onClose}>×</button>
       {masterUrl ? <img src={masterUrl} alt={t('memoryWallPhotos.view')} /> : null}
     </section>
-  </div>
+  </ModalOverlay>
 }

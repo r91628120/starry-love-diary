@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ourAssets } from '../../assets/uiAssets'
-import { PhotoPlacementImage, PrimaryButton, SecondaryButton, SectionHeader, SoftCard } from '../../components'
+import { ModalOverlay, PhotoPlacementImage, PrimaryButton, SecondaryButton, SectionHeader, SoftCard } from '../../components'
 import { MAX_MEMORY_WALL_PHOTOS, memoryWallLayoutType } from '../../data/photo/MemoryWallLayoutRepository'
 import type { PhotoRepository } from '../../data/photo/PhotoRepository'
 import { usePersistence } from '../../data/PersistenceStateContext'
@@ -219,10 +219,10 @@ function MemoryWallLightbox({ slots, index, repository, onChange, onClose }: { s
   const url = usePhotoObjectUrl(repository, slot?.photoAssetId, 'master')
   const previous = () => onChange((index - 1 + slots.length) % slots.length)
   const next = () => onChange((index + 1) % slots.length)
-  return <div className="memory-lightbox" role="presentation"><section className="memory-lightbox__dialog" role="dialog" aria-modal="true" aria-label={t('our.memoryWall.openPhoto')}>
+  return <ModalOverlay className="memory-lightbox"><section className="memory-lightbox__dialog" role="dialog" aria-modal="true" aria-label={t('our.memoryWall.openPhoto')}>
     <button type="button" className="memory-lightbox__close" aria-label={t('memoryWallEditor.closeLightbox')} onClick={onClose}>×</button>
     {slots.length > 1 ? <button type="button" className="memory-lightbox__previous" aria-label={t('memoryWallEditor.previousPhoto')} onClick={previous}>‹</button> : null}
     {url ? <img src={url} alt={t('our.memoryWall.photoAlt')} /> : null}
     {slots.length > 1 ? <button type="button" className="memory-lightbox__next" aria-label={t('memoryWallEditor.nextPhoto')} onClick={next}>›</button> : null}
-  </section></div>
+  </section></ModalOverlay>
 }

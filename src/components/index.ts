@@ -1,6 +1,7 @@
 export { BottomNavigation } from './BottomNavigation'
 export { PrimaryButton, SecondaryButton } from './Buttons'
 export { ConfirmDialog } from './ConfirmDialog'
+export { ModalOverlay } from './ModalOverlay'
 export { UpdateCheckNotice } from './UpdateCheckNotice'
 export { EmptyStateCard } from './EmptyStateCard'
 export { FilterChip } from './FilterChip'

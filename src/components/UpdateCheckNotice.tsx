@@ -3,6 +3,7 @@ import { APP_VERSION } from '../app/appMetadata'
 import { useI18n } from '../i18n/I18nContext'
 import { checkForSoftUpdate, dismissUpdateVersion, getDismissedUpdateVersion, hasSupportedStoreUrl, openStoreUrl, type UpdateCheckResult } from '../services/updateCheckService'
 import { PrimaryButton, SecondaryButton } from './Buttons'
+import { ModalOverlay } from './ModalOverlay'
 
 interface UpdateCheckNoticeProps {
   check?: () => Promise<UpdateCheckResult | undefined>
@@ -32,5 +33,5 @@ export function UpdateCheckNotice({ check }: UpdateCheckNoticeProps) {
     dismiss()
   }
 
-  return <div className="update-check-notice__backdrop" data-qa12-overlay="update-check" role="presentation"><section className="update-check-notice" role="dialog" aria-modal="true" aria-labelledby="update-check-title" aria-describedby="update-check-description"><h2 id="update-check-title">{t('update.title')}</h2><p id="update-check-description">{t('update.body')}</p><div className="update-check-notice__actions"><SecondaryButton onClick={dismiss}>{t('update.later')}</SecondaryButton>{canOpenStore ? <PrimaryButton onClick={goToUpdate}>{t('update.now')}</PrimaryButton> : null}</div></section></div>
+  return <ModalOverlay className="update-check-notice__backdrop" qa12Overlay="update-check"><section className="update-check-notice" role="dialog" aria-modal="true" aria-labelledby="update-check-title" aria-describedby="update-check-description"><h2 id="update-check-title">{t('update.title')}</h2><p id="update-check-description">{t('update.body')}</p><div className="update-check-notice__actions"><SecondaryButton onClick={dismiss}>{t('update.later')}</SecondaryButton>{canOpenStore ? <PrimaryButton onClick={goToUpdate}>{t('update.now')}</PrimaryButton> : null}</div></section></ModalOverlay>
 }

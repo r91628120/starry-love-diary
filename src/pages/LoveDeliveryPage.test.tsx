@@ -187,10 +187,17 @@ describe('Love Delivery local presentation', () => {
 
   it('portals the picker outside the isolated page while retaining its actions', () => {
     renderDelivery()
-    fireEvent.click(screen.getByRole('button', { name: '開始時間' }))
+    const opener = screen.getByRole('button', { name: '開始時間' })
+    opener.focus()
+    fireEvent.click(opener)
     const dialog = screen.getByRole('dialog')
     expect(dialog.closest('.love-delivery-time-picker-backdrop')?.parentElement).toBe(document.body)
+    expect(dialog.closest('.modal-overlay')).toHaveClass('modal-overlay--bottom-sheet')
+    expect(document.body.style.overflow).toBe('hidden')
     expect(within(dialog).getByRole('button', { name: '取消' })).toBeInTheDocument()
     expect(within(dialog).getByRole('button', { name: '確認' })).toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole('button', { name: '取消' }))
+    expect(document.body.style.overflow).toBe('')
+    expect(document.activeElement).toBe(opener)
   })
 })
