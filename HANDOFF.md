@@ -509,3 +509,12 @@ The iOS 1.0.0 (1) identity is reserved for the first TestFlight candidate; it do
 - Added local `.github/workflows/ios-testflight.yml`, a manual-only workflow that preserves the proven Starry signing/archive/export pipeline and uploads only when `upload_to_testflight` is explicitly `true`.
 - The new workflow requires three future App Store Connect secrets: `APP_STORE_CONNECT_ISSUER_ID`, `APP_STORE_CONNECT_KEY_ID`, and `APP_STORE_CONNECT_PRIVATE_KEY`. They are intentionally not configured by this change.
 - This workflow is not staged, committed, pushed, or executed. No TestFlight upload occurred.
+
+## Phase 3A — Our Starry Sky UI and Apple Recovery Follow-up (2026-10-09)
+
+- Build 38 iPhone evidence showed a completed explicit Apple-identity recovery could re-open the Apple gate after navigation. The recovery operation had already completed `signInWithCredential`, but `AppleIdentityGate` only relied on a later `onAuthStateChanged` delivery to update its boundary state. The recovered branch did not report its completed result to the boundary.
+- The boundary now consumes a sanitized `recovered` result by reading Firebase JS Auth's authoritative `auth.currentUser`, then retains the existing Apple-provider durable-identity check before rendering protected Pair content. It neither supplies a UID nor weakens the identity gate. First-time `linkWithCredential` UID-continuity behavior, Pair data, Functions, rules, and schema are unchanged.
+- The Our Starry Sky Heart Talk total and active invitation/session state are separate normal-flow cards. The cat hero asset and existing routes remain unchanged.
+- The directly related Starry Sky pages share safe-area-aware header padding and bottom content clearance for the fixed navigation. Cards use minimum-width and wrapping safeguards. The history total card now uses deep-purple text on a soft lavender background; count calculation and localized text remain unchanged.
+- Focused automated validation passed locally: `PairedFeatureIdentityBoundary`, Starry Sky home, history, incoming invitation, and invitation composer (47 tests). The recovery regression test delays the auth-listener notification and verifies the boundary still admits only the Apple-linked Firebase user.
+- Real-device confirmation remains required for: no second Apple prompt after recovery, iPhone safe-area/header clearance, long localized card text, fixed-navigation clearance, and history count contrast. This entry is implementation evidence, not device acceptance.

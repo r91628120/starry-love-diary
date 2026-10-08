@@ -163,21 +163,19 @@ describe('paired feature Apple identity gate', () => {
     expect(screen.queryByText('paired feature')).not.toBeInTheDocument()
   })
 
-  it('admits the paired feature only after the auth listener observes the recovered Apple user', async () => {
+  it('admits the paired feature when recovery succeeds even if the auth listener notification is delayed', async () => {
     firebaseMocks.configured = true
     const anonymousUser = { uid: 'anonymous-user', isAnonymous: true, providerData: [] } as unknown as User
     const recoveredUser = { uid: 'durable-user', isAnonymous: false, providerData: [{ providerId: 'apple.com' }] } as unknown as User
-    let notifyAuthState: ((user: User | null) => void) | undefined
     firebaseMocks.user = anonymousUser
     firebaseMocks.auth.currentUser = anonymousUser
     firebaseMocks.bootstrapAnonymousUser.mockResolvedValue({ uid: 'anonymous-user', isAnonymous: true })
     firebaseMocks.upgradeAnonymousUserWithApple.mockResolvedValue({ status: 'credential-in-use' })
     firebaseMocks.recoverExistingAppleIdentity.mockImplementation(async () => {
       firebaseMocks.auth.currentUser = recoveredUser
-      notifyAuthState?.(recoveredUser)
       return { status: 'recovered' }
     })
-    firebaseMocks.onAuthStateChanged.mockImplementation((_auth, callback: (user: User | null) => void) => { notifyAuthState = callback; callback(anonymousUser); return vi.fn() })
+    firebaseMocks.onAuthStateChanged.mockImplementation((_auth, callback: (user: User | null) => void) => { callback(anonymousUser); return vi.fn() })
     render(<I18nProvider initialLocale="zh-TW"><MemoryRouter><PairedFeatureIdentityBoundary><p>paired feature</p></PairedFeatureIdentityBoundary></MemoryRouter></I18nProvider>)
     await screen.findByRole('button', { name: '使用 Apple 繼續' })
     fireEvent.click(screen.getByRole('button', { name: '使用 Apple 繼續' }))

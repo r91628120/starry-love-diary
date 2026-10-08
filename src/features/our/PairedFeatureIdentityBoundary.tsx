@@ -16,6 +16,7 @@ interface FirebaseIdentityServices {
 
 type AppleIdentityGateProps = {
   onResult: (result: IdentityUpgradeResult) => void
+  onRecoveryResult?: (result: ExistingIdentityRecoveryResult) => void
   backTo?: string
   upgrade: () => Promise<IdentityUpgradeResult>
   recover?: () => Promise<ExistingIdentityRecoveryResult>
@@ -29,7 +30,7 @@ function IdentityPage({ children, busy = false, embedded = false }: { children: 
   return embedded ? content : <div className="page our-page identity-gate-page">{content}</div>
 }
 
-export function AppleIdentityGate({ onResult, backTo = '/our', upgrade, recover, preview = false, embedded = false }: AppleIdentityGateProps) {
+export function AppleIdentityGate({ onResult, onRecoveryResult, backTo = '/our', upgrade, recover, preview = false, embedded = false }: AppleIdentityGateProps) {
   const { t } = useI18n()
   const navigate = useNavigate()
   const [busy, setBusy] = useState(false)
@@ -60,6 +61,7 @@ export function AppleIdentityGate({ onResult, backTo = '/our', upgrade, recover,
       result = { status: 'failed', code: 'unexpected' }
     }
     setBusy(false)
+    onRecoveryResult?.(result)
     if (result.status === 'cancelled') setRecovery('consent')
     if (result.status === 'failed') setRecovery('failed')
   }
@@ -128,5 +130,5 @@ export function PairedFeatureIdentityBoundary({ children, backTo = '/our', embed
   if (initialization === 'loading') return <IdentityLoading embedded={embedded} />
   if (initialization === 'error' || user === undefined || !services) return <IdentityInitializationError embedded={embedded} onRetry={() => setAttempt((current) => current + 1)} />
   if (services.getDurableIdentityState(user).hasAppleIdentity) return <>{children}</>
-  return <AppleIdentityGate embedded={embedded} backTo={backTo} upgrade={services.upgradeAnonymousUserWithApple} recover={services.recoverExistingAppleIdentity} onResult={(result) => { if (result.status === 'linked' || result.status === 'already-linked') setUser(services.auth.currentUser) }} />
+  return <AppleIdentityGate embedded={embedded} backTo={backTo} upgrade={services.upgradeAnonymousUserWithApple} recover={services.recoverExistingAppleIdentity} onResult={(result) => { if (result.status === 'linked' || result.status === 'already-linked') setUser(services.auth.currentUser) }} onRecoveryResult={(result) => { if (result.status === 'recovered') setUser(services.auth.currentUser) }} />
 }
