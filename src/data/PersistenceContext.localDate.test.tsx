@@ -107,6 +107,27 @@ describe('PersistenceProvider local-date rollover', () => {
     expect((await runtime.scores.getAwards()).filter((award) => award.awardType === 'daily_open' && award.localDate === '2026-09-30')).toHaveLength(1)
   })
 
+  it('contains a foreground refresh rejection and allows the next lifecycle event to retry', async () => {
+    const runtime = await createRuntime()
+    renderToday(runtime)
+    const failure = new DOMException('The database connection is closed', 'InvalidStateError')
+    const moodLookup = vi.spyOn(runtime.moods, 'getMoodByLocalDate').mockRejectedValueOnce(failure)
+    const unhandled = vi.fn()
+    window.addEventListener('unhandledrejection', unhandled)
+
+    localDate.value = '2026-09-30'
+    await act(async () => { document.dispatchEvent(new Event('visibilitychange')) })
+    await waitFor(() => expect(moodLookup).toHaveBeenCalledWith('2026-09-30'))
+    await act(async () => { await Promise.resolve() })
+
+    expect(screen.getByTestId('current-local-date')).toHaveTextContent('2026-09-29')
+    expect(unhandled).not.toHaveBeenCalled()
+
+    await act(async () => { window.dispatchEvent(new Event('focus')) })
+    await waitFor(() => expect(screen.getByTestId('current-local-date')).toHaveTextContent('2026-09-30'))
+    window.removeEventListener('unhandledrejection', unhandled)
+  })
+
   it('refreshes at local midnight without navigation', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date(2026, 8, 29, 23, 59, 59, 900))

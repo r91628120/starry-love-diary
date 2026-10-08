@@ -37,6 +37,7 @@ export function PersistenceProvider({ runtime, children }: { runtime: Persistenc
     const nextLocalDate = toLocalDate()
     if (nextLocalDate === currentLocalDateRef.current) return Promise.resolve(false)
 
+    const previousLocalDate = currentLocalDateRef.current
     currentLocalDateRef.current = nextLocalDate
     const refresh = (async () => {
       const [nextMood, nextDiary] = await Promise.all([
@@ -51,7 +52,13 @@ export function PersistenceProvider({ runtime, children }: { runtime: Persistenc
       return true
     })()
     refreshInFlightRef.current = refresh
-    void refresh.finally(() => { refreshInFlightRef.current = undefined })
+    void refresh.then(
+      () => { if (refreshInFlightRef.current === refresh) refreshInFlightRef.current = undefined },
+      () => {
+        currentLocalDateRef.current = previousLocalDate
+        if (refreshInFlightRef.current === refresh) refreshInFlightRef.current = undefined
+      },
+    )
     return refresh
   }, [runtime])
 
@@ -61,21 +68,22 @@ export function PersistenceProvider({ runtime, children }: { runtime: Persistenc
       const now = new Date()
       const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
       timer = globalThis.setTimeout(() => {
-        void refreshCurrentLocalDate().finally(scheduleNextLocalMidnight)
+        void refreshCurrentLocalDate().then(scheduleNextLocalMidnight, scheduleNextLocalMidnight)
       }, nextMidnight.getTime() - now.getTime() + 100)
     }
     const refreshWhenVisible = () => {
-      if (document.visibilityState === 'visible') void refreshCurrentLocalDate()
+      if (document.visibilityState === 'visible') void refreshCurrentLocalDate().catch(() => undefined)
     }
+    const refreshOnForeground = () => { void refreshCurrentLocalDate().catch(() => undefined) }
     scheduleNextLocalMidnight()
     document.addEventListener('visibilitychange', refreshWhenVisible)
-    window.addEventListener('focus', refreshCurrentLocalDate)
-    window.addEventListener('pageshow', refreshCurrentLocalDate)
+    window.addEventListener('focus', refreshOnForeground)
+    window.addEventListener('pageshow', refreshOnForeground)
     return () => {
       globalThis.clearTimeout(timer)
       document.removeEventListener('visibilitychange', refreshWhenVisible)
-      window.removeEventListener('focus', refreshCurrentLocalDate)
-      window.removeEventListener('pageshow', refreshCurrentLocalDate)
+      window.removeEventListener('focus', refreshOnForeground)
+      window.removeEventListener('pageshow', refreshOnForeground)
     }
   }, [refreshCurrentLocalDate])
 
