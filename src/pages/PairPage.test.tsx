@@ -119,4 +119,13 @@ describe('PairPage stable shell', () => {
     await waitFor(() => expect(pairMocks.endPair).toHaveBeenCalledTimes(1))
     await screen.findByRole('button', { name: '建立邀請' })
   })
+
+  it('keeps the active Pair visible when a later refresh fails', async () => {
+    pairMocks.loadPairState.mockResolvedValueOnce({ pairId: 'pair-id', memberUids: ['alice', 'bob'], status: 'active' }).mockRejectedValueOnce(new Error('network failure'))
+    renderPairPage('pair screen')
+    await screen.findByRole('button', { name: '解除專屬配對' })
+    fireEvent.click(screen.getByRole('button', { name: '重新整理配對狀態' }))
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('現在無法完成操作'))
+    expect(screen.getByRole('button', { name: '解除專屬配對' })).toBeInTheDocument()
+  })
 })

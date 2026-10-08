@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { I18nProvider } from '../../i18n/I18nProvider'
-const api = vi.hoisted(() => ({ createHeartTalkInvitation: vi.fn() }))
+const api = vi.hoisted(() => ({ createHeartTalkInvitation: vi.fn(), getHeartTalkState: vi.fn(), heartTalkErrorCode: vi.fn((error: unknown) => error instanceof Error ? error.message : 'service-unavailable') }))
 vi.mock('../../lib/firebase/heartTalkClient', () => api)
 import { StarrySkyInvitePage } from '../../pages/StarrySkyInvitePage'
 import { StarrySkyTopicsPage } from '../../pages/StarrySkyTopicsPage'
@@ -50,6 +50,7 @@ describe('Starry Sky Phase 2B invitation presentation', () => {
   })
   it('keeps date and time only in component state, blocks invalid time, and shows authoritative send success', async () => {
     api.createHeartTalkInvitation.mockResolvedValue({ invitationId: 'invite-12345678', status: 'pending' })
+    api.getHeartTalkState.mockResolvedValue({ invitations: [{ invitationId: 'invite-12345678' }] })
     const view = renderInvite()
     const dates = screen.getAllByRole('listitem')
     fireEvent.click(dates[1]); expect(dates[1]).toHaveAttribute('aria-pressed', 'true')
@@ -68,6 +69,7 @@ describe('Starry Sky Phase 2B invitation presentation', () => {
     expect(screen.getByRole('button', { name: '結束時間' })).toHaveTextContent('22:00')
     fireEvent.click(screen.getByRole('button', { name: '發出心話邀約' }))
     await waitFor(() => expect(api.createHeartTalkInvitation).toHaveBeenCalledWith({ topicType: 'official', officialTopicId: 'Q001', scheduledLocalDate: expect.any(String), startTime: '21:15', endTime: '22:00' }))
+    expect(api.getHeartTalkState).toHaveBeenCalledTimes(1)
     expect(screen.getByText('心話邀約已送出')).toBeInTheDocument()
     expect(screen.getByText('21:15 – 22:00')).toBeInTheDocument()
     expect(view.container.textContent).not.toMatch(/上午|下午|AM|PM/u)
@@ -80,6 +82,15 @@ describe('Starry Sky Phase 2B invitation presentation', () => {
     fireEvent.click(screen.getByRole('button', { name: '發出心話邀約' }))
     await waitFor(() => expect(api.createHeartTalkInvitation).toHaveBeenCalled())
     expect(screen.queryByText('心話邀約已送出')).not.toBeInTheDocument()
+  })
+  it('does not invite again when creation succeeds but state synchronization fails', async () => {
+    api.createHeartTalkInvitation.mockResolvedValue({ invitationId: 'invite-12345678', status: 'pending' })
+    api.getHeartTalkState.mockRejectedValue(new Error('network-unavailable'))
+    renderInvite()
+    fireEvent.click(screen.getByRole('button', { name: '發出心話邀約' }))
+    await waitFor(() => expect(api.getHeartTalkState).toHaveBeenCalledTimes(1))
+    expect(screen.getByRole('alert')).toHaveTextContent('邀約已建立')
+    expect(api.createHeartTalkInvitation).toHaveBeenCalledTimes(1)
   })
   it('localizes every shell while retaining the zh-TW official topic fallback', () => {
     for (const locale of ['zh-TW', 'en', 'ja', 'ko', 'es', 'fr']) {

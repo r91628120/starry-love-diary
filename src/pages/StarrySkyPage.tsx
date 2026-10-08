@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { PageHeader, PrimaryButton, SecondaryButton, SoftCard } from '../components'
 import { useI18n } from '../i18n/I18nContext'
@@ -6,7 +6,8 @@ import type { TranslationKey } from '../i18n/messages'
 import { featuredStarrySkyTopic, starrySkyCategoryIds } from '../features/our/starrySkyTopics'
 import { usePersistence } from '../data/PersistenceStateContext'
 import { shareStarrySkyTopic } from '../services/starrySkyTopicShare'
-import { createHeartTalkInvitation, getHeartTalkState, type HeartTalkInvitation } from '../lib/firebase/heartTalkClient'
+import { createHeartTalkInvitation, getHeartTalkState, heartTalkErrorCode, type HeartTalkInvitation } from '../lib/firebase/heartTalkClient'
+import { useVisibleRefresh } from '../lib/firebase/useVisibleRefresh'
 import '../features/our/our.css'
 
 const categoryIcons = ['🤍','💞','👁️','🏠','🌱','👥','☀️','💼','🍃','🌈','✈️','🌙']
@@ -23,8 +24,10 @@ export function StarrySkyPage() {
   const [customEnd, setCustomEnd] = useState('20:30')
   const [customSending, setCustomSending] = useState(false)
   const shareFeatured = async () => { const result = await shareStarrySkyTopic(featuredStarrySkyTopic.text, locale); setFeedback(result === 'copied' ? t('our.starrySky.copied') : result === 'error' ? t('our.starrySky.shareError') : '') }
-  useEffect(() => { void getHeartTalkState().then((state) => setActive(state.invitations.find((item) => item.status === 'accepted') ?? state.invitations.find((item) => item.status === 'pending'))).catch(() => undefined) }, [])
-  const sendCustom = async () => { const text = customTopic.trim(); if (!text || text.length > 1000 || customStart >= customEnd || customSending) return; setCustomSending(true); try { await createHeartTalkInvitation({ topicType: 'custom', customTopicText: text, scheduledLocalDate: customDate, startTime: customStart, endTime: customEnd }); const state = await getHeartTalkState(); setActive(state.invitations.find((item) => item.status === 'accepted') ?? state.invitations.find((item) => item.status === 'pending')); setCustomTopic('') } catch { setFeedback(t('our.starrySky.invitePreviewBody')) } finally { setCustomSending(false) } }
+  const errorMessage = (error: unknown) => t(`our.heartTalk.${heartTalkErrorCode(error) === 'durable-identity-required' || heartTalkErrorCode(error) === 'unauthenticated' ? 'identity' : heartTalkErrorCode(error) === 'no-active-pair' ? 'pair' : heartTalkErrorCode(error) === 'invalid-heart-talk-input' ? 'invalid' : heartTalkErrorCode(error) === 'network-unavailable' ? 'network' : 'service'}` as TranslationKey)
+  const updateActive = async (isCurrent: () => boolean) => { const state = await getHeartTalkState(); if (isCurrent()) setActive(state.invitations.find((item) => item.status === 'accepted') ?? state.invitations.find((item) => item.status === 'pending')) }
+  const { refresh } = useVisibleRefresh(updateActive, (error) => setFeedback(errorMessage(error)))
+  const sendCustom = async () => { const text = customTopic.trim(); if (!text || text.length > 1000 || customStart >= customEnd || customSending) return; setCustomSending(true); setFeedback(''); let created = false; try { await createHeartTalkInvitation({ topicType: 'custom', customTopicText: text, scheduledLocalDate: customDate, startTime: customStart, endTime: customEnd }); created = true; setCustomTopic(''); await refresh({ afterCurrent: true }) } catch (error) { setFeedback(created ? t('our.heartTalk.syncPending') : errorMessage(error)) } finally { setCustomSending(false) } }
 
   return <div className="page our-page starry-sky-page"><PageHeader titleKey="our.starrySky.title" variant="secondary" backFallback="/our" /><main className="our-page__content starry-sky-page__content">
     <section className="starry-sky-hero"><div><p>{t('our.starrySky.heroCopy')}</p></div></section>

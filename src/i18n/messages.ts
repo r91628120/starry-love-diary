@@ -28,6 +28,7 @@ import { memoryMomentPhotoMessages } from './memoryMomentPhotoMessages'
 import { messageShareMessages } from './messageShareMessages'
 import { heartCardMessages } from './heartCardMessages'
 import { heartRevealCycleMessages } from './heartRevealCycleMessages'
+import { heartTalkMessages } from './heartTalkMessages'
 import { settingsInformationMessages } from './settingsInformationMessages'
 import { exportTextMessages } from './exportTextMessages'
 import { exportAppDataMessages } from './exportAppDataMessages'
@@ -209,6 +210,7 @@ export const messages = {
     ...messageToYouVisualPolishMessages['zh-TW'],
     ...updateMessages['zh-TW'],
     ...heartRevealCycleMessages['zh-TW'],
+    ...heartTalkMessages['zh-TW'],
     ...onboardingBatch6Messages['zh-TW'],
     ...localizedClearMessages['zh-TW'],
     ...clearScenarioRecommendationMessages['zh-TW'],
@@ -350,6 +352,7 @@ export const messages = {
     ...messageToYouVisualPolishMessages.en,
     ...updateMessages.en,
     ...heartRevealCycleMessages.en,
+    ...heartTalkMessages.en,
     ...onboardingBatch6Messages.en,
     ...localizedClearMessages.en,
     ...clearScenarioRecommendationMessages.en,
@@ -491,6 +494,7 @@ export const messages = {
     ...messageToYouVisualPolishMessages.ja,
     ...updateMessages.ja,
     ...heartRevealCycleMessages.ja,
+    ...heartTalkMessages.ja,
     ...onboardingBatch6Messages.ja,
     ...localizedClearMessages.ja,
     ...clearScenarioRecommendationMessages.ja,
@@ -632,6 +636,7 @@ export const messages = {
     ...messageToYouVisualPolishMessages.ko,
     ...updateMessages.ko,
     ...heartRevealCycleMessages.ko,
+    ...heartTalkMessages.ko,
     ...onboardingBatch6Messages.ko,
     ...localizedClearMessages.ko,
     ...clearScenarioRecommendationMessages.ko,
@@ -773,6 +778,7 @@ export const messages = {
     ...messageToYouVisualPolishMessages.es,
     ...updateMessages.es,
     ...heartRevealCycleMessages.es,
+    ...heartTalkMessages.es,
     ...onboardingBatch6Messages.es,
     ...localizedClearMessages.es,
     ...clearScenarioRecommendationMessages.es,
@@ -914,6 +920,7 @@ export const messages = {
     ...messageToYouVisualPolishMessages.fr,
     ...updateMessages.fr,
     ...heartRevealCycleMessages.fr,
+    ...heartTalkMessages.fr,
     ...onboardingBatch6Messages.fr,
     ...localizedClearMessages.fr,
     ...clearScenarioRecommendationMessages.fr,

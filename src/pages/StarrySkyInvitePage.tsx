@@ -4,7 +4,7 @@ import { ModalOverlay, PageHeader, PrimaryButton, SecondaryButton, SoftCard } fr
 import { useI18n } from '../i18n/I18nContext'
 import { starrySkyTopicById } from '../features/our/starrySkyTopics'
 import { toLocalDate } from '../services/localDateService'
-import { createHeartTalkInvitation } from '../lib/firebase/heartTalkClient'
+import { createHeartTalkInvitation, getHeartTalkState, heartTalkErrorCode } from '../lib/firebase/heartTalkClient'
 import '../features/our/our.css'
 
 function addDays(localDate: string, days: number) {
@@ -42,8 +42,9 @@ export function StarrySkyInvitePage() {
   const submit = async () => {
     if (!topic || !selectedDate || !isTwentyFourHourTime(startTime) || !isTwentyFourHourTime(endTime) || endTime <= startTime) { setError(t('our.starrySky.inviteInvalidTime')); setPreview(false); return }
     setSending(true); setError(undefined)
-    try { await createHeartTalkInvitation({ topicType: 'official', officialTopicId: topic.id, scheduledLocalDate: selectedDate, startTime, endTime }); setPreview(true) }
-    catch { setError(t('our.starrySky.invitePreviewBody')) }
+    let created = false
+    try { await createHeartTalkInvitation({ topicType: 'official', officialTopicId: topic.id, scheduledLocalDate: selectedDate, startTime, endTime }); created = true; await getHeartTalkState(); setPreview(true) }
+    catch (caught) { setError(created ? t('our.heartTalk.syncPending') : t(`our.heartTalk.${heartTalkErrorCode(caught) === 'durable-identity-required' || heartTalkErrorCode(caught) === 'unauthenticated' ? 'identity' : heartTalkErrorCode(caught) === 'no-active-pair' ? 'pair' : heartTalkErrorCode(caught) === 'invalid-heart-talk-input' ? 'invalid' : heartTalkErrorCode(caught) === 'network-unavailable' ? 'network' : 'service'}` as never)) }
     finally { setSending(false) }
   }
   const openTimePicker = (target: 'start' | 'end') => {
