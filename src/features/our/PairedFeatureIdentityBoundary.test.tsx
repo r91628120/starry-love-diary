@@ -8,7 +8,7 @@ import type { User } from 'firebase/auth'
 const firebaseMocks = vi.hoisted(() => ({
   configured: false,
   user: null as User | null,
-  auth: { currentUser: null as User | null },
+  auth: { currentUser: null as User | null, authStateReady: vi.fn<() => Promise<void>>().mockResolvedValue(undefined) },
   onAuthStateChanged: vi.fn(),
   bootstrapAnonymousUser: vi.fn(),
   releaseStalledAnonymousBootstrap: vi.fn(),
@@ -43,6 +43,8 @@ afterEach(() => {
   firebaseMocks.configured = false
   firebaseMocks.user = null
   firebaseMocks.auth.currentUser = null
+  firebaseMocks.auth.authStateReady.mockReset()
+  firebaseMocks.auth.authStateReady.mockResolvedValue(undefined)
   firebaseMocks.onAuthStateChanged.mockReset()
   firebaseMocks.bootstrapAnonymousUser.mockReset()
   firebaseMocks.releaseStalledAnonymousBootstrap.mockReset()
@@ -163,6 +165,48 @@ describe('paired feature Apple identity gate', () => {
     expect(screen.queryByText('paired feature')).not.toBeInTheDocument()
   })
 
+  it('does not bootstrap an anonymous user before persisted auth restoration settles', () => {
+    firebaseMocks.configured = true
+    firebaseMocks.auth.authStateReady.mockReturnValue(new Promise(() => undefined))
+    firebaseMocks.onAuthStateChanged.mockReturnValue(vi.fn())
+    render(<I18nProvider initialLocale="zh-TW"><MemoryRouter><PairedFeatureIdentityBoundary><p>paired feature</p></PairedFeatureIdentityBoundary></MemoryRouter></I18nProvider>)
+    expect(screen.getByText('正在準備專屬配對')).toBeInTheDocument()
+    expect(firebaseMocks.bootstrapAnonymousUser).not.toHaveBeenCalled()
+  })
+
+  it('reuses a restored Apple-linked user without anonymous bootstrap', async () => {
+    firebaseMocks.configured = true
+    const restoredUser = { uid: 'durable-user', isAnonymous: false, providerData: [{ providerId: 'apple.com' }] } as unknown as User
+    firebaseMocks.auth.authStateReady.mockImplementation(async () => { firebaseMocks.auth.currentUser = restoredUser })
+    firebaseMocks.onAuthStateChanged.mockReturnValue(vi.fn())
+    render(<I18nProvider initialLocale="zh-TW"><MemoryRouter><PairedFeatureIdentityBoundary><p>paired feature</p></PairedFeatureIdentityBoundary></MemoryRouter></I18nProvider>)
+    expect(await screen.findByText('paired feature')).toBeInTheDocument()
+    expect(firebaseMocks.bootstrapAnonymousUser).not.toHaveBeenCalled()
+  })
+
+  it('bootstraps an anonymous user only after auth restoration completes with no user', async () => {
+    firebaseMocks.configured = true
+    const anonymousUser = { uid: 'anonymous-user', isAnonymous: true, providerData: [] } as unknown as User
+    firebaseMocks.bootstrapAnonymousUser.mockImplementation(async () => {
+      firebaseMocks.auth.currentUser = anonymousUser
+      return { uid: 'anonymous-user', isAnonymous: true }
+    })
+    firebaseMocks.onAuthStateChanged.mockReturnValue(vi.fn())
+    render(<I18nProvider initialLocale="zh-TW"><MemoryRouter><PairedFeatureIdentityBoundary><p>paired feature</p></PairedFeatureIdentityBoundary></MemoryRouter></I18nProvider>)
+    expect(await screen.findByRole('heading', { name: '一起走進我們的星空' })).toBeInTheDocument()
+    expect(firebaseMocks.auth.authStateReady).toHaveBeenCalledOnce()
+    expect(firebaseMocks.bootstrapAnonymousUser).toHaveBeenCalledOnce()
+  })
+
+  it('renders a recoverable error when persisted auth restoration fails without anonymous bootstrap', async () => {
+    firebaseMocks.configured = true
+    firebaseMocks.auth.authStateReady.mockRejectedValue(new Error('auth persistence unavailable'))
+    firebaseMocks.onAuthStateChanged.mockReturnValue(vi.fn())
+    render(<I18nProvider initialLocale="zh-TW"><MemoryRouter><PairedFeatureIdentityBoundary><p>paired feature</p></PairedFeatureIdentityBoundary></MemoryRouter></I18nProvider>)
+    expect(await screen.findByText('暫時無法確認配對身分')).toBeInTheDocument()
+    expect(firebaseMocks.bootstrapAnonymousUser).not.toHaveBeenCalled()
+  })
+
   it('admits the paired feature when recovery succeeds even if the auth listener notification is delayed', async () => {
     firebaseMocks.configured = true
     const anonymousUser = { uid: 'anonymous-user', isAnonymous: true, providerData: [] } as unknown as User
@@ -210,9 +254,12 @@ describe('paired feature Apple identity gate', () => {
     vi.useFakeTimers()
     firebaseMocks.configured = true
     const stalled = new Promise<never>(() => undefined)
-    firebaseMocks.bootstrapAnonymousUser.mockReturnValueOnce(stalled).mockResolvedValueOnce({ uid: 'anonymous-user', isAnonymous: true })
     firebaseMocks.user = { uid: 'anonymous-user', isAnonymous: true, providerData: [] } as unknown as User
-    firebaseMocks.auth.currentUser = firebaseMocks.user
+    firebaseMocks.auth.currentUser = null
+    firebaseMocks.bootstrapAnonymousUser.mockReturnValueOnce(stalled).mockImplementationOnce(async () => {
+      firebaseMocks.auth.currentUser = firebaseMocks.user
+      return { uid: 'anonymous-user', isAnonymous: true }
+    })
     firebaseMocks.onAuthStateChanged.mockImplementation((_auth, callback: (user: User | null) => void) => { callback(firebaseMocks.user); return vi.fn() })
     render(<I18nProvider initialLocale="zh-TW"><MemoryRouter><PairedFeatureIdentityBoundary><p>paired feature</p></PairedFeatureIdentityBoundary></MemoryRouter></I18nProvider>)
     await vi.advanceTimersByTimeAsync(0)
@@ -229,9 +276,12 @@ describe('paired feature Apple identity gate', () => {
 
   it('renders a recoverable error when identity initialization fails and retries cleanly', async () => {
     firebaseMocks.configured = true
-    firebaseMocks.bootstrapAnonymousUser.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce({ uid: 'anonymous-user', isAnonymous: true })
     firebaseMocks.user = { uid: 'anonymous-user', isAnonymous: true, providerData: [] } as unknown as User
-    firebaseMocks.auth.currentUser = firebaseMocks.user
+    firebaseMocks.auth.currentUser = null
+    firebaseMocks.bootstrapAnonymousUser.mockRejectedValueOnce(new Error('offline')).mockImplementationOnce(async () => {
+      firebaseMocks.auth.currentUser = firebaseMocks.user
+      return { uid: 'anonymous-user', isAnonymous: true }
+    })
     const unsubscribe = vi.fn()
     firebaseMocks.onAuthStateChanged.mockImplementation((_auth, callback: (user: User | null) => void) => { callback(firebaseMocks.user); return unsubscribe })
     render(<I18nProvider initialLocale="zh-TW"><MemoryRouter><PairedFeatureIdentityBoundary><p>paired feature</p></PairedFeatureIdentityBoundary></MemoryRouter></I18nProvider>)

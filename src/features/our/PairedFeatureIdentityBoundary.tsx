@@ -118,8 +118,12 @@ export function PairedFeatureIdentityBoundary({ children, backTo = '/our', embed
       const loaded: FirebaseIdentityServices = { auth: firebaseAuth, getDurableIdentityState: durableIdentity.getDurableIdentityState, upgradeAnonymousUserWithApple: durableIdentity.upgradeAnonymousUserWithApple, recoverExistingAppleIdentity: durableIdentity.recoverExistingAppleIdentity, onAuthStateChanged }
       unsubscribe = loaded.onAuthStateChanged(loaded.auth, (nextUser) => { if (active) setUser(nextUser) })
       releaseStalledBootstrap = releaseStalledAnonymousBootstrap
-      pendingBootstrap = bootstrapAnonymousUser()
-      await pendingBootstrap
+      await loaded.auth.authStateReady()
+      if (!active) return
+      if (!loaded.auth.currentUser) {
+        pendingBootstrap = bootstrapAnonymousUser()
+        await pendingBootstrap
+      }
       if (!active || !loaded.auth.currentUser) throw new Error('firebase-user-unavailable')
       if (timeoutId) clearTimeout(timeoutId)
       setServices(loaded); setUser(loaded.auth.currentUser); setInitialization('ready')
