@@ -527,3 +527,10 @@ The iOS 1.0.0 (1) identity is reserved for the first TestFlight candidate; it do
 - Official and custom flows share the same client-side schedule conversion and validation. Six locales distinguish past date, passed start time, and invalid end time while retaining the entered form values for correction.
 - Local focused validation passed: frontend schedule/form tests (15 tests), callable service tests (17 tests), targeted ESLint, root TypeScript check, and Functions TypeScript build. No emulator, production Firebase deployment, schema/rules change, build-number change, or TestFlight action occurred.
 - Production effect remains pending an explicitly authorized deployment of the asia-east1 Heart Talk Functions. Real-device verification must cover current-day time rollover, a non-UTC device zone, server-rejected stale form submission, and acceptance before versus at scheduled start.
+
+## Phase 3B-1C — Build 38 Heart Talk Callable Compatibility (2026-10-09)
+
+- The deploy-preflight found that Build 38 does not supply the new schedule instant and time-zone fields. The callable now recognizes a legacy request only when all three fields are entirely absent; it retains the original validated date/time and `createdAt + 24h` pending deadline for that branch.
+- A request with any schedule field present must provide all three valid values. Partial, `null`, malformed, or invalid mixed payloads are rejected and never silently fall back to legacy handling.
+- Complete modern payloads retain the Phase 3B-1 server-time, explicit-time-zone, start-time deadline, and expired-acceptance protection. Existing stored invitations still use the safe `scheduledStartAt`-then-`expiresAt` fallback.
+- Focused Functions validation passed: 20 service tests and TypeScript build. No deployment, Firestore production access, rules/indexes/schema change, iOS build, or TestFlight action occurred. Deploy the compatible asia-east1 Heart Talk callable set only after separate authorization.

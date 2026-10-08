@@ -25,7 +25,8 @@ function callableError(error: unknown): never {
 
 function createInput(data: unknown): HeartTalkCreateInput {
   const value = data && typeof data === 'object' ? data as Record<string, unknown> : {}
-  return { topicType: value.topicType as HeartTalkCreateInput['topicType'], officialTopicId: typeof value.officialTopicId === 'string' ? value.officialTopicId : undefined, customTopicText: typeof value.customTopicText === 'string' ? value.customTopicText : undefined, scheduledLocalDate: typeof value.scheduledLocalDate === 'string' ? value.scheduledLocalDate : '', startTime: typeof value.startTime === 'string' ? value.startTime : '', endTime: typeof value.endTime === 'string' ? value.endTime : '', scheduledStartAt: typeof value.scheduledStartAt === 'string' ? value.scheduledStartAt : '', scheduledEndAt: typeof value.scheduledEndAt === 'string' ? value.scheduledEndAt : '', scheduledTimeZone: typeof value.scheduledTimeZone === 'string' ? value.scheduledTimeZone : '' }
+  const scheduleField = (key: 'scheduledStartAt' | 'scheduledEndAt' | 'scheduledTimeZone') => key in value ? typeof value[key] === 'string' ? value[key] : null : undefined
+  return { topicType: value.topicType as HeartTalkCreateInput['topicType'], officialTopicId: typeof value.officialTopicId === 'string' ? value.officialTopicId : undefined, customTopicText: typeof value.customTopicText === 'string' ? value.customTopicText : undefined, scheduledLocalDate: typeof value.scheduledLocalDate === 'string' ? value.scheduledLocalDate : '', startTime: typeof value.startTime === 'string' ? value.startTime : '', endTime: typeof value.endTime === 'string' ? value.endTime : '', scheduledStartAt: scheduleField('scheduledStartAt'), scheduledEndAt: scheduleField('scheduledEndAt'), scheduledTimeZone: scheduleField('scheduledTimeZone') }
 }
 
 export const createPairInvite = onCall({ region: 'asia-east1' }, async (request) => {

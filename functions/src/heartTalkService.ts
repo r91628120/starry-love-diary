@@ -3,6 +3,7 @@ import { Timestamp, type Firestore, type Transaction } from 'firebase-admin/fire
 import { resolveActivePairForCaller } from './activePairResolver.js'
 import { type VerifiedCaller } from './pairInviteService.js'
 
+const HEART_TALK_PENDING_LIFETIME_MS = 24 * 60 * 60 * 1000
 const OFFICIAL_TOPIC_ID = /^Q(?:00[1-9]|0[1-9][0-9]|1[01][0-9]|120)$/u
 const LOCAL_DATE = /^\d{4}-\d{2}-\d{2}$/u
 const TIME = /^(?:[01]\d|2[0-3]):[0-5]\d$/u
@@ -21,9 +22,9 @@ export type HeartTalkCreateInput = {
   scheduledLocalDate: string
   startTime: string
   endTime: string
-  scheduledStartAt: string
-  scheduledEndAt: string
-  scheduledTimeZone: string
+  scheduledStartAt?: string | null
+  scheduledEndAt?: string | null
+  scheduledTimeZone?: string | null
 }
 export type HeartTalkResponseAction = 'accept' | 'decline'
 export type HeartTalkDependencies = { firestore: Firestore; now?: () => Timestamp; randomId?: () => string }
@@ -54,21 +55,28 @@ function localDateTimeAt(timestamp: Timestamp, timeZone: string) {
 
 function validateCreate(input: HeartTalkCreateInput, now: Timestamp) {
   if (!validLocalDate(input.scheduledLocalDate) || !TIME.test(input.startTime) || !TIME.test(input.endTime)) invalid()
-  if (!input.scheduledTimeZone || input.scheduledTimeZone.length > 100) invalid()
-  const scheduledStartAt = timestampFromIso(input.scheduledStartAt)
-  const scheduledEndAt = timestampFromIso(input.scheduledEndAt)
-  if (localDateTimeAt(scheduledStartAt, input.scheduledTimeZone) !== `${input.scheduledLocalDate}T${input.startTime}` || localDateTimeAt(scheduledEndAt, input.scheduledTimeZone) !== `${input.scheduledLocalDate}T${input.endTime}`) invalid()
-  if (scheduledEndAt.toMillis() <= scheduledStartAt.toMillis()) throw new HeartTalkError('heart-talk-end-time-invalid')
-  if (scheduledStartAt.toMillis() <= now.toMillis()) throw new HeartTalkError('heart-talk-start-time-passed')
-  const schedule = { scheduledStartAt, scheduledEndAt, scheduledTimeZone: input.scheduledTimeZone }
+  const scheduleValues = [input.scheduledStartAt, input.scheduledEndAt, input.scheduledTimeZone]
+  const usesNewSchedule = scheduleValues.some((value) => value !== undefined)
+  if (!usesNewSchedule && input.endTime <= input.startTime) invalid()
+  if (usesNewSchedule && scheduleValues.some((value) => typeof value !== 'string')) invalid()
+  const schedule = usesNewSchedule ? (() => {
+    const [startAt, endAt, timeZone] = scheduleValues as [string, string, string]
+    if (!timeZone || timeZone.length > 100) invalid()
+    const scheduledStartAt = timestampFromIso(startAt)
+    const scheduledEndAt = timestampFromIso(endAt)
+    if (localDateTimeAt(scheduledStartAt, timeZone) !== `${input.scheduledLocalDate}T${input.startTime}` || localDateTimeAt(scheduledEndAt, timeZone) !== `${input.scheduledLocalDate}T${input.endTime}`) invalid()
+    if (scheduledEndAt.toMillis() <= scheduledStartAt.toMillis()) throw new HeartTalkError('heart-talk-end-time-invalid')
+    if (scheduledStartAt.toMillis() <= now.toMillis()) throw new HeartTalkError('heart-talk-start-time-passed')
+    return { scheduledStartAt, scheduledEndAt, scheduledTimeZone: timeZone }
+  })() : undefined
   if (input.topicType === 'official') {
     if (!input.officialTopicId || !OFFICIAL_TOPIC_ID.test(input.officialTopicId) || input.customTopicText !== undefined) invalid()
-    return { topicType: 'official' as const, officialTopicId: input.officialTopicId, ...schedule }
+    return { topicType: 'official' as const, officialTopicId: input.officialTopicId, ...(schedule ?? {}) }
   }
   if (input.topicType === 'custom') {
     const text = input.customTopicText?.trim()
     if (!text || text.length > CUSTOM_TOPIC_MAX_LENGTH || input.officialTopicId !== undefined) invalid()
-    return { topicType: 'custom' as const, customTopicText: text, ...schedule }
+    return { topicType: 'custom' as const, customTopicText: text, ...(schedule ?? {}) }
   }
   invalid()
 }
@@ -129,7 +137,8 @@ export function createHeartTalkService(dependencies: HeartTalkDependencies) {
         const createdAt = now()
         const topic = validateCreate(input, createdAt)
         const invitationRef = dependencies.firestore.doc(invitationPath(context.pairId, id))
-        transaction.create(invitationRef, { schemaVersion: 1, createdByUid: context.callerUid, recipientUid: context.partnerUid, ...topic, scheduledLocalDate: input.scheduledLocalDate, startTime: input.startTime, endTime: input.endTime, status: 'pending', createdAt, updatedAt: createdAt, expiresAt: topic.scheduledStartAt, acceptedAt: null, declinedAt: null, cancelledAt: null, completedAt: null, expiredAt: null, cancelReason: null })
+        const expiresAt = 'scheduledStartAt' in topic ? topic.scheduledStartAt : Timestamp.fromMillis(createdAt.toMillis() + HEART_TALK_PENDING_LIFETIME_MS)
+        transaction.create(invitationRef, { schemaVersion: 1, createdByUid: context.callerUid, recipientUid: context.partnerUid, ...topic, scheduledLocalDate: input.scheduledLocalDate, startTime: input.startTime, endTime: input.endTime, status: 'pending', createdAt, updatedAt: createdAt, expiresAt, acceptedAt: null, declinedAt: null, cancelledAt: null, completedAt: null, expiredAt: null, cancelReason: null })
         return { invitationId: id, status: 'pending' as const }
       })
       return result
