@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useVisibleRefresh } from './useVisibleRefresh'
 
 function RefreshHarness({ task }: { task: () => Promise<void> }) {
-  useVisibleRefresh(async (isCurrent) => { await task(); if (isCurrent()) undefined }, () => undefined)
+  useVisibleRefresh(async (isCurrent) => { await task(); if (!isCurrent()) return }, () => undefined)
   return null
 }
 
