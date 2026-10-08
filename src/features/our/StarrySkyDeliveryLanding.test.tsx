@@ -12,7 +12,7 @@ describe('Heart Talk landing production routing and custom composer', () => {
     api.getHeartTalkState.mockResolvedValue({ invitations: [] }); api.createHeartTalkInvitation.mockResolvedValue({ invitationId: 'invite-12345678', status: 'pending' })
     renderSky(); await waitFor(() => expect(api.getHeartTalkState).toHaveBeenCalledTimes(1))
     fireEvent.change(screen.getByLabelText('✨ 自己出一題'), { target: { value: '今天最想被理解的是什麼？' } }); fireEvent.change(screen.getByLabelText('選擇日期'), { target: { value: '2026-12-22' } }); fireEvent.click(screen.getAllByRole('button', { name: '邀請另一半' })[0])
-    await waitFor(() => expect(api.createHeartTalkInvitation).toHaveBeenCalledWith({ topicType: 'custom', customTopicText: '今天最想被理解的是什麼？', scheduledLocalDate: '2026-12-22', startTime: '20:00', endTime: '20:30' }))
+    await waitFor(() => expect(api.createHeartTalkInvitation).toHaveBeenCalledWith(expect.objectContaining({ topicType: 'custom', customTopicText: '今天最想被理解的是什麼？', scheduledLocalDate: '2026-12-22', startTime: '20:00', endTime: '20:30', scheduledStartAt: expect.stringMatching(/Z$/u), scheduledEndAt: expect.stringMatching(/Z$/u), scheduledTimeZone: expect.any(String) })))
     expect(api.createHeartTalkInvitation.mock.calls[0][0]).not.toHaveProperty('pairId'); expect(api.createHeartTalkInvitation.mock.calls[0][0]).not.toHaveProperty('recipientUid')
   })
   it.each([

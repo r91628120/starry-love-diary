@@ -68,7 +68,7 @@ describe('Starry Sky Phase 2B invitation presentation', () => {
     fireEvent.click(screen.getByRole('button', { name: '結束時間' })); fireEvent.change(screen.getByLabelText('分'), { target: { value: '30' } }); fireEvent.click(screen.getByRole('button', { name: '取消' }))
     expect(screen.getByRole('button', { name: '結束時間' })).toHaveTextContent('22:00')
     fireEvent.click(screen.getByRole('button', { name: '發出心話邀約' }))
-    await waitFor(() => expect(api.createHeartTalkInvitation).toHaveBeenCalledWith({ topicType: 'official', officialTopicId: 'Q001', scheduledLocalDate: expect.any(String), startTime: '21:15', endTime: '22:00' }))
+    await waitFor(() => expect(api.createHeartTalkInvitation).toHaveBeenCalledWith(expect.objectContaining({ topicType: 'official', officialTopicId: 'Q001', scheduledLocalDate: expect.any(String), startTime: '21:15', endTime: '22:00', scheduledStartAt: expect.stringMatching(/Z$/u), scheduledEndAt: expect.stringMatching(/Z$/u), scheduledTimeZone: expect.any(String) })))
     expect(api.getHeartTalkState).toHaveBeenCalledTimes(1)
     expect(screen.getByText('心話邀約已送出')).toBeInTheDocument()
     expect(screen.getByText('21:15 – 22:00')).toBeInTheDocument()

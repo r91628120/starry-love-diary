@@ -8,6 +8,8 @@ import { usePersistence } from '../data/PersistenceStateContext'
 import { shareStarrySkyTopic } from '../services/starrySkyTopicShare'
 import { createHeartTalkInvitation, getHeartTalkState, heartTalkErrorCode, type HeartTalkInvitation } from '../lib/firebase/heartTalkClient'
 import { useVisibleRefresh } from '../lib/firebase/useVisibleRefresh'
+import { validateHeartTalkSchedule } from '../lib/heartTalkSchedule'
+import { toLocalDate } from '../services/localDateService'
 import '../features/our/our.css'
 
 const categoryIcons = ['🤍','💞','👁️','🏠','🌱','👥','☀️','💼','🍃','🌈','✈️','🌙']
@@ -19,15 +21,15 @@ export function StarrySkyPage() {
   const [feedback, setFeedback] = useState<string>((location.state as { pairingGuidance?: boolean } | null)?.pairingGuidance ? t('our.starrySky.chooseUnpaired') : '')
   const [active, setActive] = useState<HeartTalkInvitation>()
   const [customTopic, setCustomTopic] = useState('')
-  const [customDate, setCustomDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [customDate, setCustomDate] = useState(() => toLocalDate())
   const [customStart, setCustomStart] = useState('20:00')
   const [customEnd, setCustomEnd] = useState('20:30')
   const [customSending, setCustomSending] = useState(false)
   const shareFeatured = async () => { const result = await shareStarrySkyTopic(featuredStarrySkyTopic.text, locale); setFeedback(result === 'copied' ? t('our.starrySky.copied') : result === 'error' ? t('our.starrySky.shareError') : '') }
-  const errorMessage = (error: unknown) => t(`our.heartTalk.${heartTalkErrorCode(error) === 'durable-identity-required' || heartTalkErrorCode(error) === 'unauthenticated' ? 'identity' : heartTalkErrorCode(error) === 'no-active-pair' ? 'pair' : heartTalkErrorCode(error) === 'invalid-heart-talk-input' ? 'invalid' : heartTalkErrorCode(error) === 'network-unavailable' ? 'network' : 'service'}` as TranslationKey)
+  const errorMessage = (error: unknown) => { const code = heartTalkErrorCode(error); return t(`our.heartTalk.${code === 'durable-identity-required' || code === 'unauthenticated' ? 'identity' : code === 'no-active-pair' ? 'pair' : code === 'heart-talk-start-time-passed' ? 'startPassed' : code === 'heart-talk-end-time-invalid' ? 'endBeforeStart' : code === 'invalid-heart-talk-input' ? 'invalid' : code === 'network-unavailable' ? 'network' : 'service'}` as TranslationKey) }
   const updateActive = async (isCurrent: () => boolean) => { const state = await getHeartTalkState(); if (isCurrent()) setActive(state.invitations.find((item) => item.status === 'accepted') ?? state.invitations.find((item) => item.status === 'pending')) }
   const { refresh } = useVisibleRefresh(updateActive, (error) => setFeedback(errorMessage(error)))
-  const sendCustom = async () => { const text = customTopic.trim(); if (!text || text.length > 1000 || customStart >= customEnd || customSending) return; setCustomSending(true); setFeedback(''); let created = false; try { await createHeartTalkInvitation({ topicType: 'custom', customTopicText: text, scheduledLocalDate: customDate, startTime: customStart, endTime: customEnd }); created = true; setCustomTopic(''); await refresh({ afterCurrent: true }) } catch (error) { setFeedback(created ? t('our.heartTalk.syncPending') : errorMessage(error)) } finally { setCustomSending(false) } }
+  const sendCustom = async () => { const text = customTopic.trim(); const schedule = validateHeartTalkSchedule(customDate, customStart, customEnd); if (!text || text.length > 1000 || customSending) return; if (schedule.status !== 'valid') { setFeedback(t(`our.heartTalk.${schedule.status === 'past-date' ? 'pastDate' : schedule.status === 'start-passed' ? 'startPassed' : schedule.status === 'end-not-after-start' ? 'endBeforeStart' : 'invalid'}` as TranslationKey)); return } setCustomSending(true); setFeedback(''); let created = false; try { await createHeartTalkInvitation({ topicType: 'custom', customTopicText: text, scheduledLocalDate: customDate, startTime: customStart, endTime: customEnd, ...schedule }); created = true; setCustomTopic(''); await refresh({ afterCurrent: true }) } catch (error) { setFeedback(created ? t('our.heartTalk.syncPending') : errorMessage(error)) } finally { setCustomSending(false) } }
 
   return <div className="page our-page starry-sky-page"><PageHeader titleKey="our.starrySky.title" variant="secondary" backFallback="/our" /><main className="our-page__content starry-sky-page__content">
     <section className="starry-sky-hero"><div><p>{t('our.starrySky.heroCopy')}</p></div></section>

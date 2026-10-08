@@ -4,6 +4,7 @@ import { ModalOverlay, PageHeader, PrimaryButton, SecondaryButton, SoftCard } fr
 import { useI18n } from '../i18n/I18nContext'
 import { starrySkyTopicById } from '../features/our/starrySkyTopics'
 import { toLocalDate } from '../services/localDateService'
+import { validateHeartTalkSchedule } from '../lib/heartTalkSchedule'
 import { createHeartTalkInvitation, getHeartTalkState, heartTalkErrorCode } from '../lib/firebase/heartTalkClient'
 import '../features/our/our.css'
 
@@ -36,15 +37,16 @@ export function StarrySkyInvitePage() {
   }, [selectedDate, today])
   const formatDate = (value: string, withWeekday = true) => new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', ...(withWeekday ? { weekday: 'short' } : {}) }).format(new Date(`${value}T00:00:00`))
   const chooseDate = (value: string) => {
-    if (value < today) { setError(t('our.starrySky.invitePastDate')); return }
+    if (value < today) { setError(t('our.heartTalk.pastDate')); return }
     setSelectedDate(value); setError(undefined); setPreview(false)
   }
   const submit = async () => {
-    if (!topic || !selectedDate || !isTwentyFourHourTime(startTime) || !isTwentyFourHourTime(endTime) || endTime <= startTime) { setError(t('our.starrySky.inviteInvalidTime')); setPreview(false); return }
+    const schedule = validateHeartTalkSchedule(selectedDate, startTime, endTime)
+    if (!topic || schedule.status !== 'valid') { setError(t(`our.heartTalk.${schedule.status === 'past-date' ? 'pastDate' : schedule.status === 'start-passed' ? 'startPassed' : schedule.status === 'end-not-after-start' ? 'endBeforeStart' : 'invalid'}` as never)); setPreview(false); return }
     setSending(true); setError(undefined)
     let created = false
-    try { await createHeartTalkInvitation({ topicType: 'official', officialTopicId: topic.id, scheduledLocalDate: selectedDate, startTime, endTime }); created = true; await getHeartTalkState(); setPreview(true) }
-    catch (caught) { setError(created ? t('our.heartTalk.syncPending') : t(`our.heartTalk.${heartTalkErrorCode(caught) === 'durable-identity-required' || heartTalkErrorCode(caught) === 'unauthenticated' ? 'identity' : heartTalkErrorCode(caught) === 'no-active-pair' ? 'pair' : heartTalkErrorCode(caught) === 'invalid-heart-talk-input' ? 'invalid' : heartTalkErrorCode(caught) === 'network-unavailable' ? 'network' : 'service'}` as never)) }
+    try { await createHeartTalkInvitation({ topicType: 'official', officialTopicId: topic.id, scheduledLocalDate: selectedDate, startTime, endTime, ...schedule }); created = true; await getHeartTalkState(); setPreview(true) }
+    catch (caught) { const code = heartTalkErrorCode(caught); setError(created ? t('our.heartTalk.syncPending') : t(`our.heartTalk.${code === 'durable-identity-required' || code === 'unauthenticated' ? 'identity' : code === 'no-active-pair' ? 'pair' : code === 'heart-talk-start-time-passed' ? 'startPassed' : code === 'heart-talk-end-time-invalid' ? 'endBeforeStart' : code === 'invalid-heart-talk-input' ? 'invalid' : code === 'network-unavailable' ? 'network' : 'service'}` as never)) }
     finally { setSending(false) }
   }
   const openTimePicker = (target: 'start' | 'end') => {

@@ -1,12 +1,12 @@
 import { isFirebaseRuntimeConfigured } from './firebaseEnvironment'
 
 export type HeartTalkInvitation = { invitationId: string; viewerRole: 'sender' | 'recipient'; topicType: 'official' | 'custom'; officialTopicId?: string; customTopicText?: string; scheduledLocalDate: string; startTime: string; endTime: string; status: 'pending' | 'accepted' }
-export type HeartTalkCreateInput = { topicType: 'official' | 'custom'; officialTopicId?: string; customTopicText?: string; scheduledLocalDate: string; startTime: string; endTime: string }
-export type HeartTalkErrorCode = 'unauthenticated' | 'durable-identity-required' | 'no-active-pair' | 'invalid-heart-talk-input' | 'network-unavailable' | 'service-unavailable'
+export type HeartTalkCreateInput = { topicType: 'official' | 'custom'; officialTopicId?: string; customTopicText?: string; scheduledLocalDate: string; startTime: string; endTime: string; scheduledStartAt: string; scheduledEndAt: string; scheduledTimeZone: string }
+export type HeartTalkErrorCode = 'unauthenticated' | 'durable-identity-required' | 'no-active-pair' | 'invalid-heart-talk-input' | 'heart-talk-start-time-passed' | 'heart-talk-end-time-invalid' | 'network-unavailable' | 'service-unavailable'
 
 export function heartTalkErrorCode(error: unknown): HeartTalkErrorCode {
   const message = typeof error === 'object' && error && 'message' in error && typeof error.message === 'string' ? error.message : ''
-  if (['unauthenticated', 'durable-identity-required', 'no-active-pair', 'invalid-heart-talk-input'].includes(message)) return message as HeartTalkErrorCode
+  if (['unauthenticated', 'durable-identity-required', 'no-active-pair', 'invalid-heart-talk-input', 'heart-talk-start-time-passed', 'heart-talk-end-time-invalid'].includes(message)) return message as HeartTalkErrorCode
   const firebaseCode = typeof error === 'object' && error && 'code' in error && typeof error.code === 'string' ? error.code.replace(/^functions\//u, '') : ''
   if (['unavailable', 'deadline-exceeded', 'network-request-failed'].includes(firebaseCode)) return 'network-unavailable'
   return 'service-unavailable'

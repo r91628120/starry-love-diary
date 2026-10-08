@@ -29,8 +29,9 @@ function memoryFirestore(initial: Record<string, Data> = {}) {
 
 const durable = (uid: string): VerifiedCaller => ({ uid, signInProvider: 'apple.com' })
 const anonymous: VerifiedCaller = { uid: 'anonymous', signInProvider: 'anonymous' }
-const official: HeartTalkCreateInput = { topicType: 'official', officialTopicId: 'Q001', scheduledLocalDate: '2026-10-06', startTime: '20:00', endTime: '20:30' }
-const custom: HeartTalkCreateInput = { topicType: 'custom', customTopicText: '今天最想被理解的是什麼？', scheduledLocalDate: '2026-10-06', startTime: '20:00', endTime: '20:30' }
+function schedule(scheduledLocalDate = '2026-10-06', startTime = '20:00', endTime = '20:30') { return { scheduledLocalDate, startTime, endTime, scheduledStartAt: `${scheduledLocalDate}T${startTime}:00.000Z`, scheduledEndAt: `${scheduledLocalDate}T${endTime}:00.000Z`, scheduledTimeZone: 'UTC' } }
+const official: HeartTalkCreateInput = { topicType: 'official', officialTopicId: 'Q001', ...schedule() }
+const custom: HeartTalkCreateInput = { topicType: 'custom', customTopicText: '今天最想被理解的是什麼？', ...schedule() }
 const invitationPath = 'pairs/pair-alice-bob/heartTalkInvitations/invite-001'
 
 function pairedStore() { return memoryFirestore({ 'users/alice': { currentPairId: 'pair-alice-bob' }, 'users/bob': { currentPairId: 'pair-alice-bob' }, 'pairs/pair-alice-bob': { memberUids: ['alice', 'bob'], status: 'active' } }) }
@@ -38,12 +39,12 @@ function service(store: ReturnType<typeof pairedStore>, at = Timestamp.fromMilli
 async function expectCode(work: () => Promise<unknown>, code: string) { await expect(work()).rejects.toMatchObject({ applicationCode: code }) }
 
 describe('trusted Heart Talk lifecycle', () => {
-  it('creates a Pair-scoped pending invitation with derived recipient and server expiry', async () => {
+  it('creates a Pair-scoped pending invitation with derived recipient and a start-time deadline', async () => {
     const store = pairedStore(); const result = await service(store).createHeartTalkInvitation({ ...durable('alice'), recipientUid: 'mallory' } as VerifiedCaller, official)
     const record = store.read(invitationPath)
     expect(result).toEqual({ invitationId: 'invite-001', status: 'pending' })
     expect(record).toMatchObject({ createdByUid: 'alice', recipientUid: 'bob', topicType: 'official', officialTopicId: 'Q001', status: 'pending' })
-    expect((record?.expiresAt as Timestamp).toMillis()).toBe(1_700_086_400_000)
+    expect((record?.expiresAt as Timestamp).toMillis()).toBe(Date.parse(official.scheduledStartAt))
   })
 
   it.each([
@@ -66,6 +67,24 @@ describe('trusted Heart Talk lifecycle', () => {
     expect(customStore.read(invitationPath)?.customTopicText).toBe(custom.customTopicText)
   })
 
+  it('uses server time to reject past starts and end times that are not after the start for official and custom invitations', async () => {
+    const now = Timestamp.fromDate(new Date('2026-10-06T12:00:00.000Z'))
+    await expectCode(() => service(pairedStore(), now).createHeartTalkInvitation(durable('alice'), { ...official, ...schedule('2026-10-05') }), 'heart-talk-start-time-passed')
+    await expectCode(() => service(pairedStore(), now).createHeartTalkInvitation(durable('alice'), { ...official, ...schedule('2026-10-06', '11:00', '11:30') }), 'heart-talk-start-time-passed')
+    await expectCode(() => service(pairedStore(), now).createHeartTalkInvitation(durable('alice'), { ...official, ...schedule('2026-10-07', '20:00', '20:00') }), 'heart-talk-end-time-invalid')
+    await expect(service(pairedStore(), now).createHeartTalkInvitation(durable('alice'), { ...official, ...schedule('2026-10-07') })).resolves.toMatchObject({ status: 'pending' })
+    await expect(service(pairedStore(), now).createHeartTalkInvitation(durable('alice'), { ...custom, ...schedule('2026-10-07') })).resolves.toMatchObject({ status: 'pending' })
+  })
+
+  it('allows a pending invitation past 24 hours until its scheduled start, then rejects acceptance at the start', async () => {
+    const createdAt = Timestamp.fromDate(new Date('2026-10-01T12:00:00.000Z'))
+    const store = pairedStore(); await service(store, createdAt).createHeartTalkInvitation(durable('alice'), { ...official, ...schedule('2026-10-03', '20:00', '20:30') })
+    await expect(service(store, Timestamp.fromDate(new Date('2026-10-02T13:00:00.000Z'))).respondToHeartTalkInvitation(durable('bob'), 'invite-001', 'accept')).resolves.toEqual({ status: 'accepted' })
+    const expiredStore = pairedStore(); await service(expiredStore, createdAt).createHeartTalkInvitation(durable('alice'), { ...official, ...schedule('2026-10-03', '20:00', '20:30') })
+    await expectCode(() => service(expiredStore, Timestamp.fromDate(new Date('2026-10-03T20:00:00.000Z'))).respondToHeartTalkInvitation(durable('bob'), 'invite-001', 'accept'), 'heart-talk-transition-not-allowed')
+    expect(expiredStore.read(invitationPath)).toMatchObject({ status: 'expired' })
+  })
+
   it('allows only the recipient to accept or decline a pending invitation', async () => {
     const store = pairedStore(); const api = service(store); await api.createHeartTalkInvitation(durable('alice'), official)
     await expectCode(() => api.respondToHeartTalkInvitation(durable('alice'), 'invite-001', 'accept'), 'heart-talk-recipient-required')
@@ -79,7 +98,7 @@ describe('trusted Heart Talk lifecycle', () => {
       await api.createHeartTalkInvitation(durable('alice'), custom)
       if (operation === 'decline') await api.respondToHeartTalkInvitation(durable('bob'), 'invite-001', 'decline')
       if (operation === 'cancel') await api.cancelHeartTalkInvitation(durable('alice'), 'invite-001')
-      if (operation === 'expire') await expectCode(() => service(store, Timestamp.fromMillis(start.toMillis() + 86_400_000)).respondToHeartTalkInvitation(durable('bob'), 'invite-001', 'accept'), 'heart-talk-transition-not-allowed')
+      if (operation === 'expire') await expectCode(() => service(store, Timestamp.fromMillis(Date.parse(custom.scheduledStartAt))).respondToHeartTalkInvitation(durable('bob'), 'invite-001', 'accept'), 'heart-talk-transition-not-allowed')
       if (operation === 'complete') { await api.respondToHeartTalkInvitation(durable('bob'), 'invite-001', 'accept'); expect(store.read(invitationPath)?.customTopicText).toBe(custom.customTopicText); await api.completeHeartTalkInvitation(durable('alice'), 'invite-001') }
       expect(store.read(invitationPath)?.customTopicText).toBeNull()
     }
@@ -110,7 +129,7 @@ describe('trusted Heart Talk lifecycle', () => {
     const store = pairedStore(); const start = Timestamp.fromMillis(1_700_000_000_000); const api = service(store, start)
     await api.createHeartTalkInvitation(durable('alice'), official)
     await expect(api.getHeartTalkState(durable('bob'))).resolves.toEqual({ invitations: [expect.objectContaining({ invitationId: 'invite-001', viewerRole: 'recipient', status: 'pending', officialTopicId: 'Q001' })] })
-    const expired = service(store, Timestamp.fromMillis(start.toMillis() + 86_400_000))
+    const expired = service(store, Timestamp.fromMillis(Date.parse(official.scheduledStartAt)))
     await expect(expired.getHeartTalkState(durable('alice'))).resolves.toEqual({ invitations: [] })
     expect(store.read(invitationPath)).toMatchObject({ status: 'expired' })
   })
