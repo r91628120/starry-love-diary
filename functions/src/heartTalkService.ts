@@ -1,9 +1,12 @@
 import { randomBytes } from 'node:crypto'
-import { Timestamp, type Firestore, type Transaction } from 'firebase-admin/firestore'
+import { FieldPath, Timestamp, type Firestore, type Transaction } from 'firebase-admin/firestore'
 import { resolveActivePairForCaller } from './activePairResolver.js'
 import { type VerifiedCaller } from './pairInviteService.js'
 
 const HEART_TALK_PENDING_LIFETIME_MS = 24 * 60 * 60 * 1000
+const HEART_TALK_TERMINAL_RETENTION_MS = 30 * 24 * 60 * 60 * 1000
+const HEART_TALK_TERMINAL_HISTORY_DEFAULT_PAGE_SIZE = 25
+const HEART_TALK_TERMINAL_HISTORY_MAX_PAGE_SIZE = 50
 const OFFICIAL_TOPIC_ID = /^Q(?:00[1-9]|0[1-9][0-9]|1[01][0-9]|120)$/u
 const LOCAL_DATE = /^\d{4}-\d{2}-\d{2}$/u
 const TIME = /^(?:[01]\d|2[0-3]):[0-5]\d$/u
@@ -29,6 +32,11 @@ export type HeartTalkCreateInput = {
 export type HeartTalkResponseAction = 'accept' | 'decline'
 export type HeartTalkDependencies = { firestore: Firestore; now?: () => Timestamp; randomId?: () => string }
 export type HeartTalkStateItem = { invitationId: string; viewerRole: 'sender' | 'recipient'; topicType: 'official' | 'custom'; officialTopicId?: string; customTopicText?: string; scheduledLocalDate: string; startTime: string; endTime: string; status: 'pending' | 'accepted' }
+export type HeartTalkTerminalStatus = 'completed' | 'declined' | 'cancelled' | 'expired'
+export type HeartTalkTerminalHistoryInput = { cursor?: string | null; pageSize?: number | null }
+export type HeartTalkTerminalHistoryItem = { invitationId: string; pairId: string; status: HeartTalkTerminalStatus; terminalAt: string; scheduledLocalDate: string; startTime: string; endTime: string; topicType: 'official' | 'custom'; officialTopicId?: string; completionReason?: string }
+
+type HeartTalkTerminalCursor = { terminalSeconds: number; terminalNanoseconds: number; invitationId: string; snapshotSeconds: number; snapshotNanoseconds: number }
 
 function invalid(): never { throw new HeartTalkError('invalid-heart-talk-input') }
 function opaqueId() { return randomBytes(32).toString('base64url') }
@@ -83,6 +91,33 @@ function validateCreate(input: HeartTalkCreateInput, now: Timestamp) {
 
 function invitationPath(pairId: string, id: string) { return `pairs/${pairId}/heartTalkInvitations/${id}` }
 function redactCustom(data: Record<string, unknown>) { return data.topicType === 'custom' ? { customTopicText: null } : {} }
+function terminalFields(terminalAt: Timestamp) { return { terminalAt, terminalExpiresAt: Timestamp.fromMillis(terminalAt.toMillis() + HEART_TALK_TERMINAL_RETENTION_MS) } }
+function terminalTimestamp(value: unknown) { return value instanceof Timestamp ? value : undefined }
+function timestampFromCursor(seconds: unknown, nanoseconds: unknown) {
+  if (!Number.isSafeInteger(seconds) || !Number.isSafeInteger(nanoseconds) || (nanoseconds as number) < 0 || (nanoseconds as number) > 999_999_999) invalid()
+  return new Timestamp(seconds as number, nanoseconds as number)
+}
+function encodeTerminalCursor(cursor: HeartTalkTerminalCursor) { return Buffer.from(JSON.stringify(cursor), 'utf8').toString('base64url') }
+function decodeTerminalCursor(value: string | null | undefined) {
+  if (value === undefined || value === null) return undefined
+  if (!value || value.length > 1_024) invalid()
+  try {
+    const decoded = JSON.parse(Buffer.from(value, 'base64url').toString('utf8')) as Record<string, unknown>
+    if (typeof decoded.invitationId !== 'string' || !INVITATION_ID.test(decoded.invitationId)) invalid()
+    const terminalAt = timestampFromCursor(decoded.terminalSeconds, decoded.terminalNanoseconds)
+    const snapshotAt = timestampFromCursor(decoded.snapshotSeconds, decoded.snapshotNanoseconds)
+    if (terminalAt.toMillis() > snapshotAt.toMillis()) invalid()
+    return { invitationId: decoded.invitationId, terminalAt, snapshotAt }
+  } catch (error) {
+    if (error instanceof HeartTalkError) throw error
+    invalid()
+  }
+}
+function terminalHistoryPageSize(value: number | null | undefined) {
+  if (value === undefined || value === null) return HEART_TALK_TERMINAL_HISTORY_DEFAULT_PAGE_SIZE
+  if (!Number.isInteger(value) || value < 1 || value > HEART_TALK_TERMINAL_HISTORY_MAX_PAGE_SIZE) invalid()
+  return value
+}
 
 function validInvitationRoles(data: Record<string, unknown>, callerUid: string, partnerUid: string) {
   const sender = data.createdByUid
@@ -114,7 +149,7 @@ export function createHeartTalkService(dependencies: HeartTalkDependencies) {
         snapshot.docs.forEach((document) => {
           const data = document.data() as Record<string, unknown>
           if (data.status === 'pending' && isExpired(data, updatedAt)) {
-            transaction.update(document.ref, { status: 'expired', updatedAt, expiredAt: updatedAt, ...redactCustom(data) })
+            transaction.update(document.ref, { status: 'expired', updatedAt, expiredAt: updatedAt, ...terminalFields(updatedAt), ...redactCustom(data) })
             return
           }
           try {
@@ -129,6 +164,45 @@ export function createHeartTalkService(dependencies: HeartTalkDependencies) {
         })
         return { invitations }
       })
+    },
+    async getHeartTalkTerminalHistory(caller: VerifiedCaller, input: HeartTalkTerminalHistoryInput = {}) {
+      const context = await resolveActivePairForCaller(caller, { firestore: dependencies.firestore })
+      const pageSize = terminalHistoryPageSize(input.pageSize)
+      const cursor = decodeTerminalCursor(input.cursor)
+      const currentTime = now()
+      const snapshotAt = cursor?.snapshotAt ?? currentTime
+      if (snapshotAt.toMillis() > currentTime.toMillis()) invalid()
+      const cutoff = Timestamp.fromMillis(snapshotAt.toMillis() - HEART_TALK_TERMINAL_RETENTION_MS)
+      let query = dependencies.firestore.collection(`pairs/${context.pairId}/heartTalkInvitations`)
+        .where('status', 'in', ['completed', 'declined', 'cancelled', 'expired'])
+        .where('terminalAt', '>=', cutoff)
+        .where('terminalAt', '<=', snapshotAt)
+        .orderBy('terminalAt', 'desc')
+        .orderBy(FieldPath.documentId(), 'desc')
+      if (cursor) query = query.startAfter(cursor.terminalAt, cursor.invitationId)
+      const snapshot = await query.limit(pageSize + 1).get()
+      const documents = snapshot.docs.slice(0, pageSize)
+      const items: HeartTalkTerminalHistoryItem[] = []
+      documents.forEach((document) => {
+        const data = document.data() as Record<string, unknown>
+        const terminalAt = terminalTimestamp(data.terminalAt)
+        const status = data.status
+        const topicType = data.topicType
+        if (!terminalAt || (status !== 'completed' && status !== 'declined' && status !== 'cancelled' && status !== 'expired')) return
+        try { validInvitationRoles(data, context.callerUid, context.partnerUid) } catch { return }
+        if (typeof data.scheduledLocalDate !== 'string' || !validLocalDate(data.scheduledLocalDate) || typeof data.startTime !== 'string' || !TIME.test(data.startTime) || typeof data.endTime !== 'string' || !TIME.test(data.endTime)) return
+        if (topicType !== 'official' && topicType !== 'custom') return
+        if (topicType === 'official' && (typeof data.officialTopicId !== 'string' || !OFFICIAL_TOPIC_ID.test(data.officialTopicId))) return
+        const completionReason = status === 'completed' && typeof data.completionReason === 'string' ? data.completionReason : undefined
+        items.push({ invitationId: document.id, pairId: context.pairId, status, terminalAt: terminalAt.toDate().toISOString(), scheduledLocalDate: data.scheduledLocalDate, startTime: data.startTime, endTime: data.endTime, topicType, ...(topicType === 'official' ? { officialTopicId: data.officialTopicId as string } : {}), ...(completionReason ? { completionReason } : {}) })
+      })
+      const lastDocument = documents.at(-1)
+      const lastTerminalAt = lastDocument ? terminalTimestamp((lastDocument.data() as Record<string, unknown>).terminalAt) : undefined
+      const nextCursor = snapshot.docs.length > pageSize && lastDocument
+        && lastTerminalAt
+        ? encodeTerminalCursor({ invitationId: lastDocument.id, snapshotSeconds: snapshotAt.seconds, snapshotNanoseconds: snapshotAt.nanoseconds, terminalSeconds: lastTerminalAt.seconds, terminalNanoseconds: lastTerminalAt.nanoseconds })
+        : undefined
+      return { items, ...(nextCursor ? { nextCursor } : {}), snapshotAt: snapshotAt.toDate().toISOString() }
     },
     async createHeartTalkInvitation(caller: VerifiedCaller, input: HeartTalkCreateInput) {
       const id = randomId()
@@ -155,13 +229,13 @@ export function createHeartTalkService(dependencies: HeartTalkDependencies) {
         const { recipient } = validInvitationRoles(data, context.callerUid, context.partnerUid)
         const updatedAt = now()
         if (data.status === 'pending' && isExpired(data, updatedAt)) {
-          transaction.update(invitationRef, { status: 'expired', updatedAt, expiredAt: updatedAt, ...redactCustom(data) })
+          transaction.update(invitationRef, { status: 'expired', updatedAt, expiredAt: updatedAt, ...terminalFields(updatedAt), ...redactCustom(data) })
           return { status: 'expired' as const }
         }
         if (data.status !== 'pending') throw new HeartTalkError('heart-talk-transition-not-allowed')
         if (context.callerUid !== recipient) throw new HeartTalkError('heart-talk-recipient-required')
         if (action === 'accept') transaction.update(invitationRef, { status: 'accepted', updatedAt, acceptedAt: updatedAt })
-        else transaction.update(invitationRef, { status: 'declined', updatedAt, declinedAt: updatedAt, ...redactCustom(data) })
+        else transaction.update(invitationRef, { status: 'declined', updatedAt, declinedAt: updatedAt, ...terminalFields(updatedAt), ...redactCustom(data) })
         return { status: action === 'accept' ? 'accepted' as const : 'declined' as const }
       })
       if (result.status === 'expired') throw new HeartTalkError('heart-talk-transition-not-allowed')
@@ -178,12 +252,12 @@ export function createHeartTalkService(dependencies: HeartTalkDependencies) {
         const { sender } = validInvitationRoles(data, context.callerUid, context.partnerUid)
         const updatedAt = now()
         if (data.status === 'pending' && isExpired(data, updatedAt)) {
-          transaction.update(invitationRef, { status: 'expired', updatedAt, expiredAt: updatedAt, ...redactCustom(data) })
+          transaction.update(invitationRef, { status: 'expired', updatedAt, expiredAt: updatedAt, ...terminalFields(updatedAt), ...redactCustom(data) })
           return { status: 'expired' as const }
         }
         if (data.status === 'pending' && context.callerUid !== sender) throw new HeartTalkError('heart-talk-transition-not-allowed')
         if (data.status !== 'pending' && data.status !== 'accepted') throw new HeartTalkError('heart-talk-transition-not-allowed')
-        transaction.update(invitationRef, { status: 'cancelled', updatedAt, cancelledAt: updatedAt, cancelReason: 'user-cancelled', ...redactCustom(data) })
+        transaction.update(invitationRef, { status: 'cancelled', updatedAt, cancelledAt: updatedAt, ...terminalFields(updatedAt), cancelReason: 'user-cancelled', ...redactCustom(data) })
         return { status: 'cancelled' as const }
       })
       if (result.status === 'expired') throw new HeartTalkError('heart-talk-transition-not-allowed')
@@ -200,7 +274,7 @@ export function createHeartTalkService(dependencies: HeartTalkDependencies) {
         validInvitationRoles(data, context.callerUid, context.partnerUid)
         if (data.status !== 'accepted') throw new HeartTalkError('heart-talk-transition-not-allowed')
         const updatedAt = now()
-        transaction.update(invitationRef, { status: 'completed', updatedAt, completedAt: updatedAt, ...redactCustom(data) })
+        transaction.update(invitationRef, { status: 'completed', updatedAt, completedAt: updatedAt, ...terminalFields(updatedAt), completionReason: 'manual', ...redactCustom(data) })
         return { status: 'completed' as const }
       })
     },

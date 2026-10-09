@@ -1,3 +1,11 @@
+# Phase 3B-2E-B1 — Heart Talk terminal model and 30-day sync API
+
+- Scope: Firebase Functions source only. Terminal transitions now atomically write `terminalAt` and `terminalExpiresAt` (30 days later) alongside their existing status-specific timestamps. Pending and accepted invitations receive neither field.
+- New callable source: `getHeartTalkTerminalHistory`. It derives the active Pair server-side, returns only recent 30-day terminal summaries, omits custom prompt text, uses a snapshot-bound opaque cursor, defaults to 25 items, and caps pages at 50.
+- A direct-subcollection composite index definition for `status`, `terminalAt`, and `__name__` is included locally for the history query. No Firebase Functions, index, TTL policy, Scheduler job, Rules, or production data has been deployed or changed.
+- Legacy documents without a valid `terminalAt` are only excluded from the new history response; they are not repaired, migrated, or deleted. Manual-completion timing rules are intentionally unchanged.
+- Deferred to Phase 3B-2E-B2: client callable integration, IndexedDB terminal cache/tombstones/retry, backup/restore schema support, six-language local-count card text, and device validation. Automatic completion, Scheduler, and Firestore TTL activation remain out of scope until B2 synchronization is proven.
+
 # Phase 3B-2B.1 — Heart Talk invitation grouping UI
 
 - Scope: front-end-only refinement of `我們的星空` active Heart Talk invitation UI; no Firebase Functions, Rules, Indexes, production data, Auth, Pair, UID, IndexedDB, Backup/Restore, QA-12, iOS build, or TestFlight upload changes.

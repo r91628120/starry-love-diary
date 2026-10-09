@@ -2,7 +2,7 @@ import { initializeApp } from 'firebase-admin/app'
 import { getFirestore } from 'firebase-admin/firestore'
 import { HttpsError, onCall } from 'firebase-functions/v2/https'
 import { PairInviteError, createPairInviteService, type VerifiedCaller } from './pairInviteService.js'
-import { HeartTalkError, createHeartTalkService, type HeartTalkCreateInput, type HeartTalkResponseAction } from './heartTalkService.js'
+import { HeartTalkError, createHeartTalkService, type HeartTalkCreateInput, type HeartTalkResponseAction, type HeartTalkTerminalHistoryInput } from './heartTalkService.js'
 
 initializeApp()
 const service = createPairInviteService({ firestore: getFirestore() })
@@ -51,6 +51,15 @@ export const createHeartTalkInvitation = onCall({ region: 'asia-east1' }, async 
 
 export const getHeartTalkState = onCall({ region: 'asia-east1' }, async (request) => {
   try { return await heartTalk.getHeartTalkState(callerFromRequest(request)) } catch (error) { return callableError(error) }
+})
+
+function terminalHistoryInput(data: unknown): HeartTalkTerminalHistoryInput {
+  const value = data && typeof data === 'object' ? data as Record<string, unknown> : {}
+  return { cursor: value.cursor === undefined ? undefined : typeof value.cursor === 'string' ? value.cursor : '', pageSize: value.pageSize === undefined ? undefined : typeof value.pageSize === 'number' ? value.pageSize : 0 }
+}
+
+export const getHeartTalkTerminalHistory = onCall({ region: 'asia-east1' }, async (request) => {
+  try { return await heartTalk.getHeartTalkTerminalHistory(callerFromRequest(request), terminalHistoryInput(request.data)) } catch (error) { return callableError(error) }
 })
 
 export const respondToHeartTalkInvitation = onCall({ region: 'asia-east1' }, async (request) => {

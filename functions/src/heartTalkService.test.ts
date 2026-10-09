@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { Timestamp } from 'firebase-admin/firestore'
+import { FieldPath, Timestamp } from 'firebase-admin/firestore'
 import { createHeartTalkService, type HeartTalkCreateInput } from './heartTalkService.js'
 import type { VerifiedCaller } from './pairInviteService.js'
 
@@ -9,13 +9,51 @@ function memoryFirestore(initial: Record<string, Data> = {}) {
   const documents = new Map(Object.entries(initial))
   const ref = (path: string) => ({ path, get: async () => snapshot(path) })
   const snapshot = (path: string) => ({ exists: documents.has(path), data: () => documents.get(path) })
+  type Query = { queryPath: string; filters: Array<{ field: string; operator: string; value: unknown }>; orders: Array<{ field: string; direction: 'asc' | 'desc' }>; after?: [Timestamp, string]; limitSize?: number; where: (field: string, operator: string, value: unknown) => Query; orderBy: (field: string | FieldPath, direction: 'asc' | 'desc') => Query; startAfter: (terminalAt: Timestamp, invitationId: string) => Query; limit: (size: number) => Query; get: () => Promise<{ docs: Array<{ id: string; ref: ReturnType<typeof ref>; data: () => Data | undefined }> }> }
+  const timestampValue = (value: unknown) => value instanceof Timestamp ? value.toMillis() : Number.NaN
+  const query = (queryPath: string): Query => {
+    const value: Query = {
+      queryPath, filters: [], orders: [],
+      where: (field, operator, filterValue) => { value.filters.push({ field, operator, value: filterValue }); return value },
+      orderBy: (field, direction) => { value.orders.push({ field: field instanceof FieldPath ? '__name__' : field, direction }); return value },
+      startAfter: (terminalAt, invitationId) => { value.after = [terminalAt, invitationId]; return value },
+      limit: (size) => { value.limitSize = size; return value },
+      get: async () => ({ docs: queryDocuments(value) }),
+    }
+    return value
+  }
+  const queryDocuments = (value: Query) => {
+    const documentsInCollection = [...documents.entries()].filter(([path]) => path.startsWith(`${value.queryPath}/`) && path.split('/').length === value.queryPath.split('/').length + 1)
+    const matches = (data: Data, filter: Query['filters'][number]) => {
+      const actual = data[filter.field]
+      if (filter.operator === 'in') return Array.isArray(filter.value) && filter.value.includes(actual)
+      const actualTimestamp = timestampValue(actual); const filterTimestamp = timestampValue(filter.value)
+      if (filter.operator === '>=') return actualTimestamp >= filterTimestamp
+      if (filter.operator === '<=') return actualTimestamp <= filterTimestamp
+      return false
+    }
+    const rows = documentsInCollection.filter(([, data]) => value.filters.every((filter) => matches(data, filter)))
+      .map(([path, data]) => ({ id: path.split('/').at(-1) as string, ref: ref(path), data: () => data }))
+    rows.sort((left, right) => {
+      for (const order of value.orders) {
+        const leftValue = order.field === '__name__' ? left.id : left.data()[order.field]
+        const rightValue = order.field === '__name__' ? right.id : right.data()[order.field]
+        const compared = leftValue instanceof Timestamp && rightValue instanceof Timestamp ? leftValue.toMillis() - rightValue.toMillis() : String(leftValue).localeCompare(String(rightValue))
+        if (compared) return order.direction === 'desc' ? -compared : compared
+      }
+      return 0
+    })
+    const afterIndex = value.after ? rows.findIndex((row) => (row.data().terminalAt as Timestamp).toMillis() === value.after![0].toMillis() && row.id === value.after![1]) : -1
+    const paged = afterIndex >= 0 ? rows.slice(afterIndex + 1) : rows
+    return value.limitSize === undefined ? paged : paged.slice(0, value.limitSize)
+  }
   const firestore = {
-    collection: (name: string) => ({ doc: (id: string) => ref(`${name}/${id}`), where: () => ({ limit: () => ({ queryPath: name }) }) }),
+    collection: (name: string) => ({ doc: (id: string) => ref(`${name}/${id}`), where: (field: string, operator: string, value: unknown) => query(name).where(field, operator, value) }),
     doc: (path: string) => ref(path),
     runTransaction: async <T>(work: (transaction: { get: (reference: { path?: string, queryPath?: string }) => Promise<unknown>; create: (reference: { path: string }, value: Data) => void; update: (reference: { path: string }, value: Data) => void }) => Promise<T>) => {
       const writes: { path: string, value: Data, create?: boolean }[] = []
       const transaction = {
-        get: async (reference: { path?: string, queryPath?: string }) => reference.queryPath ? { docs: [...documents.entries()].filter(([path]) => path.startsWith(`${reference.queryPath}/`) && path.split('/').length === 4).map(([path]) => ({ id: path.split('/').at(-1) as string, ref: ref(path), data: () => documents.get(path) })) } : snapshot(reference.path as string),
+        get: async (reference: { path?: string, queryPath?: string, get?: () => Promise<unknown> }) => reference.queryPath ? reference.get!() : snapshot(reference.path as string),
         create: (reference: { path: string }, value: Data) => writes.push({ path: reference.path, value, create: true }),
         update: (reference: { path: string }, value: Data) => writes.push({ path: reference.path, value }),
       }
@@ -39,6 +77,10 @@ const invitationPath = 'pairs/pair-alice-bob/heartTalkInvitations/invite-001'
 function pairedStore() { return memoryFirestore({ 'users/alice': { currentPairId: 'pair-alice-bob' }, 'users/bob': { currentPairId: 'pair-alice-bob' }, 'pairs/pair-alice-bob': { memberUids: ['alice', 'bob'], status: 'active' } }) }
 function service(store: ReturnType<typeof pairedStore>, at = Timestamp.fromMillis(1_700_000_000_000)) { return createHeartTalkService({ firestore: store.firestore, now: () => at, randomId: () => 'invite-001' }) }
 async function expectCode(work: () => Promise<unknown>, code: string) { await expect(work()).rejects.toMatchObject({ applicationCode: code }) }
+function terminalRecord(status: 'completed' | 'declined' | 'cancelled' | 'expired', terminalAt: Timestamp, overrides: Data = {}): Data {
+  return { createdByUid: 'alice', recipientUid: 'bob', status, topicType: 'official', officialTopicId: 'Q001', scheduledLocalDate: '2026-10-20', startTime: '20:00', endTime: '20:30', terminalAt, terminalExpiresAt: Timestamp.fromMillis(terminalAt.toMillis() + 30 * 24 * 60 * 60 * 1000), ...overrides }
+}
+function historyStore(records: Record<string, Data>) { return memoryFirestore({ 'users/alice': { currentPairId: 'pair-alice-bob' }, 'users/bob': { currentPairId: 'pair-alice-bob' }, 'pairs/pair-alice-bob': { memberUids: ['alice', 'bob'], status: 'active' }, ...records }) }
 
 describe('trusted Heart Talk lifecycle', () => {
   it('creates a Pair-scoped pending invitation with derived recipient and a start-time deadline', async () => {
@@ -47,6 +89,8 @@ describe('trusted Heart Talk lifecycle', () => {
     expect(result).toEqual({ invitationId: 'invite-001', status: 'pending' })
     expect(record).toMatchObject({ createdByUid: 'alice', recipientUid: 'bob', topicType: 'official', officialTopicId: 'Q001', status: 'pending' })
     expect((record?.expiresAt as Timestamp).toMillis()).toBe(Date.parse(official.scheduledStartAt!))
+    expect(record).not.toHaveProperty('terminalAt')
+    expect(record).not.toHaveProperty('terminalExpiresAt')
   })
 
   it('keeps Build 38 official and custom payloads on the legacy 24-hour deadline', async () => {
@@ -162,5 +206,89 @@ describe('trusted Heart Talk lifecycle', () => {
     const expired = service(store, Timestamp.fromMillis(Date.parse(official.scheduledStartAt!)))
     await expect(expired.getHeartTalkState(durable('alice'))).resolves.toEqual({ invitations: [] })
     expect(store.read(invitationPath)).toMatchObject({ status: 'expired' })
+    expect(store.read(invitationPath)?.terminalAt).toBeInstanceOf(Timestamp)
+    expect((store.read(invitationPath)?.terminalExpiresAt as Timestamp).toMillis()).toBe((store.read(invitationPath)?.terminalAt as Timestamp).toMillis() + 30 * 24 * 60 * 60 * 1000)
+  })
+
+  it('writes one authoritative terminal timestamp and 30-day retention deadline for every terminal transition without extending it on replay', async () => {
+    for (const operation of ['decline', 'cancel', 'complete', 'expire'] as const) {
+      const store = pairedStore(); const at = Timestamp.fromDate(new Date('2026-10-01T12:00:00.000Z')); const api = service(store, at)
+      await api.createHeartTalkInvitation(durable('alice'), official)
+      if (operation === 'decline') await api.respondToHeartTalkInvitation(durable('bob'), 'invite-001', 'decline')
+      if (operation === 'cancel') await api.cancelHeartTalkInvitation(durable('alice'), 'invite-001')
+      if (operation === 'complete') { await api.respondToHeartTalkInvitation(durable('bob'), 'invite-001', 'accept'); await api.completeHeartTalkInvitation(durable('alice'), 'invite-001') }
+      if (operation === 'expire') await expectCode(() => service(store, Timestamp.fromMillis(Date.parse(official.scheduledStartAt!))).respondToHeartTalkInvitation(durable('bob'), 'invite-001', 'accept'), 'heart-talk-transition-not-allowed')
+      const record = store.read(invitationPath)
+      const terminalAt = record?.terminalAt as Timestamp; const terminalExpiresAt = record?.terminalExpiresAt as Timestamp
+      expect(terminalAt).toBeInstanceOf(Timestamp)
+      expect(terminalExpiresAt.toMillis()).toBe(terminalAt.toMillis() + 30 * 24 * 60 * 60 * 1000)
+      const originalExpiry = terminalExpiresAt.toMillis()
+      await expectCode(() => api.cancelHeartTalkInvitation(durable('alice'), 'invite-001'), 'heart-talk-transition-not-allowed')
+      expect((store.read(invitationPath)?.terminalExpiresAt as Timestamp).toMillis()).toBe(originalExpiry)
+    }
+  })
+
+  it('returns the same recent terminal source to both active Pair members without custom prompt text', async () => {
+    const at = Timestamp.fromDate(new Date('2026-10-31T12:00:00.000Z'))
+    const customAt = Timestamp.fromDate(new Date('2026-10-30T12:00:00.000Z'))
+    const store = historyStore({
+      'pairs/pair-alice-bob/heartTalkInvitations/completed-001': terminalRecord('completed', at, { completionReason: 'manual' }),
+      'pairs/pair-alice-bob/heartTalkInvitations/custom-001': terminalRecord('declined', customAt, { topicType: 'custom', customTopicText: '不得回傳的私人題目', officialTopicId: undefined }),
+    })
+    const api = service(store, at)
+    const alice = await api.getHeartTalkTerminalHistory(durable('alice'))
+    const bob = await api.getHeartTalkTerminalHistory(durable('bob'))
+    expect(alice).toEqual(bob)
+    expect(alice.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({ invitationId: 'completed-001', pairId: 'pair-alice-bob', status: 'completed', completionReason: 'manual' }),
+      expect.objectContaining({ invitationId: 'custom-001', topicType: 'custom', status: 'declined' }),
+    ]))
+    expect(JSON.stringify(alice)).not.toContain('不得回傳的私人題目')
+  })
+
+  it('rejects anonymous and unpaired terminal-history readers', async () => {
+    const store = pairedStore(); const api = service(store)
+    await expectCode(() => api.getHeartTalkTerminalHistory(anonymous), 'durable-identity-required')
+    const unpaired = memoryFirestore({ 'users/mallory': {} })
+    await expectCode(() => createHeartTalkService({ firestore: unpaired.firestore }).getHeartTalkTerminalHistory(durable('mallory')), 'no-active-pair')
+  })
+
+  it('excludes old, active, malformed, and legacy terminal records without mutating them', async () => {
+    const at = Timestamp.fromDate(new Date('2026-10-31T12:00:00.000Z'))
+    const old = Timestamp.fromMillis(at.toMillis() - 30 * 24 * 60 * 60 * 1000 - 1)
+    const legacyPath = 'pairs/pair-alice-bob/heartTalkInvitations/legacy-001'
+    const store = historyStore({
+      'pairs/pair-alice-bob/heartTalkInvitations/recent-001': terminalRecord('cancelled', at),
+      'pairs/pair-alice-bob/heartTalkInvitations/old-001': terminalRecord('completed', old),
+      'pairs/pair-alice-bob/heartTalkInvitations/pending-001': { ...terminalRecord('completed', at), status: 'pending' },
+      'pairs/pair-alice-bob/heartTalkInvitations/accepted-001': { ...terminalRecord('completed', at), status: 'accepted' },
+      'pairs/pair-alice-bob/heartTalkInvitations/malformed-001': terminalRecord('completed', at, { terminalAt: 'not-a-timestamp' }),
+      [legacyPath]: { createdByUid: 'alice', recipientUid: 'bob', status: 'completed', topicType: 'official', officialTopicId: 'Q001', scheduledLocalDate: '2026-10-20', startTime: '20:00', endTime: '20:30', completedAt: old },
+    })
+    const legacyBefore = { ...store.read(legacyPath) }
+    const result = await service(store, at).getHeartTalkTerminalHistory(durable('alice'))
+    expect(result.items.map((item) => item.invitationId)).toEqual(['recent-001'])
+    expect(store.read(legacyPath)).toEqual(legacyBefore)
+  })
+
+  it('uses a stable snapshot cursor without duplicate or omitted rows while newer terminal records arrive', async () => {
+    const at = Timestamp.fromDate(new Date('2026-10-31T12:00:00.000Z'))
+    const stamp = (minutes: number) => Timestamp.fromMillis(at.toMillis() - minutes * 60_000)
+    const store = historyStore({
+      'pairs/pair-alice-bob/heartTalkInvitations/invite-001': terminalRecord('completed', stamp(1)),
+      'pairs/pair-alice-bob/heartTalkInvitations/invite-002': terminalRecord('completed', stamp(2)),
+      'pairs/pair-alice-bob/heartTalkInvitations/invite-003': terminalRecord('completed', stamp(3)),
+      'pairs/pair-alice-bob/heartTalkInvitations/invite-004': terminalRecord('completed', stamp(4)),
+      'pairs/pair-alice-bob/heartTalkInvitations/invite-new': terminalRecord('completed', Timestamp.fromMillis(at.toMillis() + 1)),
+    })
+    const api = service(store, at)
+    const first = await api.getHeartTalkTerminalHistory(durable('alice'), { pageSize: 2 })
+    const second = await api.getHeartTalkTerminalHistory(durable('alice'), { pageSize: 2, cursor: first.nextCursor })
+    expect(first.nextCursor).toBeTruthy()
+    expect(second.nextCursor).toBeUndefined()
+    expect([...first.items, ...second.items].map((item) => item.invitationId)).toEqual(['invite-001', 'invite-002', 'invite-003', 'invite-004'])
+    expect(new Set([...first.items, ...second.items].map((item) => item.invitationId)).size).toBe(4)
+    const fresh = await service(store, Timestamp.fromMillis(at.toMillis() + 1)).getHeartTalkTerminalHistory(durable('alice'), { pageSize: 5 })
+    expect(fresh.items.map((item) => item.invitationId)).toContain('invite-new')
   })
 })
