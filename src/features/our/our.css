@@ -223,8 +223,19 @@
 .starry-sky-page .starry-sky-page__content>*{min-width:0}
 .starry-sky-heart-talk-summary,.starry-sky-heart-talk-status{position:static;margin:0!important;min-width:0;padding:1rem 1.15rem!important;overflow-wrap:anywhere}
 .starry-sky-invitation-list{display:grid;gap:.85rem}
-.starry-sky-heart-talk-summary{display:grid;gap:.65rem;justify-items:center;text-align:center}
+.starry-sky-heart-talk-summary{display:grid;width:min(100%,28rem);justify-self:center;gap:.65rem;justify-items:center;text-align:center}
 .starry-sky-heart-talk-status{display:grid;gap:.75rem;justify-items:stretch}
+.starry-sky-invitation-list__items{display:grid;gap:.85rem}
+.starry-sky-invitation-group,.starry-sky-invitation-summary{box-sizing:border-box;width:100%;min-height:var(--size-touch-target);border:0;background:transparent;color:inherit;cursor:pointer;font:inherit;text-align:left}
+.starry-sky-invitation-group{display:flex;align-items:center;justify-content:space-between;gap:var(--space-2);padding:.8rem 1rem;border:1px solid rgb(91 68 139 / 18%);border-radius:var(--radius-lg);background:rgb(255 253 249 / 88%);color:#24346e;font-weight:var(--font-weight-bold)}
+.starry-sky-invitation-group b{display:grid;min-width:2rem;min-height:2rem;place-items:center;border-radius:999px;background:#ede5ff;color:#3d2a72}
+.starry-sky-invitation-summary{display:grid;gap:.35rem;padding:0;overflow-wrap:anywhere}
+.starry-sky-invitation-summary span{color:#3d2a72;font-size:var(--font-size-caption);font-weight:var(--font-weight-semibold)}
+.starry-sky-invitation-summary strong{color:#24346e;line-height:1.55}
+.starry-sky-invitation-summary small{color:var(--color-ink-500);font-size:var(--font-size-caption)}
+.starry-sky-invitation-detail{display:grid;gap:.75rem}
+.starry-sky-invitation-detail p{margin:0;color:#3d2a72;line-height:1.55;overflow-wrap:anywhere}
+.starry-sky-invitation-group:focus-visible,.starry-sky-invitation-summary:focus-visible{outline:3px solid #657aa1;outline-offset:3px}
 .starry-sky-heart-talk-status p{margin:0;color:#3d2a72;font-weight:var(--font-weight-semibold);line-height:1.55;text-align:center}
 .starry-sky-heart-talk-status h3{margin:0;color:#24346e;font-size:1.05rem;line-height:1.55}
 .starry-sky-heart-talk-status .button{width:100%;min-width:0;white-space:normal}

@@ -7,16 +7,21 @@ const api = vi.hoisted(() => ({ getHeartTalkState: vi.fn(), respondToHeartTalkIn
 vi.mock('../../lib/firebase/heartTalkClient', () => api)
 import { StarrySkyIncomingInvitationPage } from '../../pages/StarrySkyIncomingInvitationPage'
 
-function renderIncoming() { return render(<I18nProvider initialLocale="zh-TW"><MemoryRouter initialEntries={['/our/starry-sky/invitation-preview']}><Routes><Route path="/our/starry-sky/invitation-preview" element={<StarrySkyIncomingInvitationPage />} /></Routes></MemoryRouter></I18nProvider>) }
+function renderIncoming(locale = 'zh-TW') { return render(<I18nProvider initialLocale={locale as never}><MemoryRouter initialEntries={['/our/starry-sky/invitation-preview']}><Routes><Route path="/our/starry-sky/invitation-preview" element={<StarrySkyIncomingInvitationPage />} /></Routes></MemoryRouter></I18nProvider>) }
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.resetAllMocks() })
 
 describe('Heart Talk production incoming invitation', () => {
+  it.each(['zh-TW', 'en', 'ja', 'ko', 'es', 'fr'])('localizes the collapsed and expanded controls in %s', async (locale) => {
+    api.getHeartTalkState.mockResolvedValue({ invitations: [{ invitationId: 'invite-localized', viewerRole: 'recipient', topicType: 'custom', customTopicText: 'Localized prompt', scheduledLocalDate: '2026-12-22', startTime: '20:00', endTime: '20:30', status: 'pending' }] })
+    const view = renderIncoming(locale); const summary = await screen.findByRole('button', { name: /Localized prompt/u }); expect(summary).toHaveAttribute('aria-expanded', 'false'); fireEvent.click(summary); expect(view.container.textContent).not.toMatch(/our\.heartTalk\.(expand|collapse)/u)
+  })
   it('renders a callable-backed official invitation and accepts it before refreshing', async () => {
     api.getHeartTalkState.mockResolvedValueOnce({ invitations: [{ invitationId: 'invite-12345678', viewerRole: 'recipient', topicType: 'official', officialTopicId: 'Q002', scheduledLocalDate: '2026-12-22', startTime: '20:00', endTime: '20:30', status: 'pending' }] }).mockResolvedValueOnce({ invitations: [] })
     api.respondToHeartTalkInvitation.mockResolvedValue({ status: 'accepted' })
     renderIncoming()
     expect(await screen.findByText(/Q002/u)).toBeInTheDocument()
     expect(document.body).toHaveTextContent('什麼時候，你會特別感覺到「有你陪著真好」？')
+    fireEvent.click(screen.getByRole('button', { name: /Q002/u }))
     fireEvent.click(screen.getByRole('button', { name: '接受邀約' }))
     await waitFor(() => expect(api.respondToHeartTalkInvitation).toHaveBeenCalledWith('invite-12345678', 'accept'))
     expect(api.getHeartTalkState).toHaveBeenCalledTimes(2)
@@ -26,6 +31,7 @@ describe('Heart Talk production incoming invitation', () => {
     api.respondToHeartTalkInvitation.mockResolvedValue({ status: 'declined' })
     renderIncoming()
     await waitFor(() => expect(document.body).toHaveTextContent('今天最想被理解的是什麼？'))
+    fireEvent.click(screen.getByRole('button', { name: /今天最想被理解/u }))
     fireEvent.click(screen.getByRole('button', { name: '婉拒' }))
     await waitFor(() => expect(api.respondToHeartTalkInvitation).toHaveBeenCalledWith('invite-12345678', 'decline'))
   })
@@ -44,7 +50,7 @@ describe('Heart Talk production incoming invitation', () => {
     api.respondToHeartTalkInvitation.mockResolvedValue({ status: 'accepted' })
     renderIncoming()
     expect(await screen.findByText('第一筆')).toBeInTheDocument(); expect(screen.getByText('第二筆')).toBeInTheDocument(); expect(screen.getByText('第三筆')).toBeInTheDocument()
-    fireEvent.click(screen.getAllByRole('button', { name: '接受邀約' })[1])
+    fireEvent.click(screen.getByRole('button', { name: /第二筆/u })); fireEvent.click(screen.getByRole('button', { name: '接受邀約' }))
     await waitFor(() => expect(api.respondToHeartTalkInvitation).toHaveBeenCalledWith('invite-2', 'accept'))
     expect(screen.getByText('第一筆')).toBeInTheDocument(); expect(screen.queryByText('第二筆')).not.toBeInTheDocument(); expect(screen.getByText('第三筆')).toBeInTheDocument()
   })

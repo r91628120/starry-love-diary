@@ -1,3 +1,12 @@
+# Phase 3B-2B.1 — Heart Talk invitation grouping UI
+
+- Scope: front-end-only refinement of `我們的星空` active Heart Talk invitation UI; no Firebase Functions, Rules, Indexes, production data, Auth, Pair, UID, IndexedDB, Backup/Restore, QA-12, iOS build, or TestFlight upload changes.
+- Home now always presents three initially collapsed groups with loaded counts: received pending invitations, sender pending invitations, and accepted Heart Talks. Opening a group shows compact invitation summaries; opening one summary reveals its date, time, status, and existing authorized action.
+- Incoming invitation page likewise uses compact summaries and one-at-a-time detail expansion. After accept/decline or a visible refresh, locally expanded state is discarded if Firebase’s authoritative result removes the invitation or changes its applicable group.
+- The 20-loaded-invitation notice remains intentionally unchanged: this is not complete-history or pagination support. Love Delivery remains separate from this Heart Talk UI.
+- The purple Heart Talk-count card now uses the current document-flow layout with `justify-self:center` and bounded responsive width; its old hero-overlap width/margin presentation is not used for this summary card.
+- Deferred: automatic completion, overlap checks, full invitation history/pagination, new pages, star-diamond passwords, and Sweet Little Ledger remain out of scope.
+
 # Build 26 Release Handoff
 
 ## Current Release Identity
