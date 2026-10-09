@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi, type Mock } from 'vitest'
 import type { Auth, User } from 'firebase/auth'
 
 vi.mock('./firebaseAuth', () => ({ firebaseAuth: { authStateReady: vi.fn<() => Promise<void>>().mockResolvedValue(undefined) }, ensureAnonymousUser: vi.fn() }))
@@ -9,8 +9,16 @@ import { bootstrapAnonymousUser, releaseStalledAnonymousBootstrap } from './user
 
 const user = { uid: 'alice', isAnonymous: true } as User
 
-function createAuth() {
-  return { currentUser: null as User | null, authStateReady: vi.fn<() => Promise<void>>().mockResolvedValue(undefined) } as unknown as Auth
+type TestAuth = Omit<Auth, 'authStateReady' | 'currentUser'> & {
+  authStateReady: Mock<() => Promise<void>>
+  currentUser: User | null
+}
+
+function createAuth(): TestAuth {
+  return {
+    currentUser: null,
+    authStateReady: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+  } as unknown as TestAuth
 }
 
 afterEach(() => { vi.mocked(ensureAnonymousUser).mockReset() })
@@ -34,7 +42,8 @@ describe('anonymous user bootstrap', () => {
 
   it('does not create an anonymous user before persisted auth restoration settles', async () => {
     let finishRestoration: () => void = () => undefined
-    const auth = { currentUser: null as User | null, authStateReady: vi.fn(() => new Promise<void>((resolve) => { finishRestoration = resolve })) } as unknown as Auth
+    const auth = createAuth()
+    auth.authStateReady.mockImplementation(() => new Promise<void>((resolve) => { finishRestoration = resolve }))
     const ensureUser = vi.fn().mockResolvedValue(user)
 
     const pending = bootstrapAnonymousUser({ auth, ensureUser })
