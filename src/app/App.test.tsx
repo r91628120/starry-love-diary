@@ -83,6 +83,22 @@ describe('App routing', () => {
     expect(screen.queryByRole('button', { name: '建立邀請' })).not.toBeInTheDocument()
   })
 
+  it('admits a cold-start restored Apple identity without showing the Apple gate', async () => {
+    const restoredUser = { uid: 'durable-user', isAnonymous: false, providerData: [{ providerId: 'apple.com' }] } as unknown as User
+    firebaseMocks.configured = true
+    firebaseMocks.auth.authStateReady.mockImplementation(async () => { firebaseMocks.auth.currentUser = restoredUser })
+    firebaseMocks.bootstrapAnonymousUser.mockImplementation(async () => {
+      await firebaseMocks.auth.authStateReady()
+      return { uid: firebaseMocks.auth.currentUser!.uid, isAnonymous: firebaseMocks.auth.currentUser!.isAnonymous }
+    })
+    firebaseMocks.onAuthStateChanged.mockImplementation((_auth, callback: (user: User | null) => void) => { callback(null); return vi.fn() })
+
+    renderApp('/our/pair')
+
+    expect(await screen.findByText('正在讀取配對狀態')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '使用 Apple 繼續' })).not.toBeInTheDocument()
+  })
+
   it('keeps Starry Sky and Love Delivery browse routes open, and renders the inert Apple gate preview', () => {
     const starrySky = renderApp('/our/starry-sky')
     expect(screen.getByRole('heading', { name: '💕 我們的星空' })).toBeInTheDocument()

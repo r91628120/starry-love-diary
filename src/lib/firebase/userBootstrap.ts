@@ -15,6 +15,7 @@ export interface AnonymousIdentityBootstrapDependencies {
 let activeBootstrap: Promise<AnonymousIdentityBootstrapResult> | undefined
 
 async function runBootstrap(dependencies: Required<AnonymousIdentityBootstrapDependencies>): Promise<AnonymousIdentityBootstrapResult> {
+  await dependencies.auth.authStateReady()
   connectFirebaseAuthEmulator(dependencies.auth)
   const user = await dependencies.ensureUser(dependencies.auth)
   return { uid: user.uid, isAnonymous: user.isAnonymous }
