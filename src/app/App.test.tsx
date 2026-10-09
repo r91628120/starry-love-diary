@@ -13,7 +13,7 @@ import { getDailyLoveQuote } from '../features/today/dailyLoveQuoteRuntime'
 
 const firebaseMocks = vi.hoisted(() => ({
   configured: false,
-  auth: { currentUser: null as User | null },
+  auth: { currentUser: null as User | null, authStateReady: vi.fn<() => Promise<void>>().mockResolvedValue(undefined) },
   onAuthStateChanged: vi.fn(),
   bootstrapAnonymousUser: vi.fn(),
   releaseStalledAnonymousBootstrap: vi.fn(),
@@ -59,6 +59,8 @@ afterEach(() => {
   cleanup()
   firebaseMocks.configured = false
   firebaseMocks.auth.currentUser = null
+  firebaseMocks.auth.authStateReady.mockReset()
+  firebaseMocks.auth.authStateReady.mockResolvedValue(undefined)
   firebaseMocks.onAuthStateChanged.mockReset()
   firebaseMocks.bootstrapAnonymousUser.mockReset()
   firebaseMocks.releaseStalledAnonymousBootstrap.mockReset()
@@ -71,11 +73,11 @@ describe('App routing', () => {
     const anonymousUser = { uid: 'anonymous-user', isAnonymous: true, providerData: [] } as unknown as User
     firebaseMocks.configured = true
     firebaseMocks.auth.currentUser = anonymousUser
-    firebaseMocks.bootstrapAnonymousUser.mockResolvedValue({ uid: anonymousUser.uid, isAnonymous: true })
     firebaseMocks.onAuthStateChanged.mockImplementation((_auth, callback: (user: User | null) => void) => { callback(anonymousUser); return vi.fn() })
     renderApp('/our/pair')
     expect(screen.getByText('正在準備專屬配對')).toBeInTheDocument()
     expect(await screen.findByRole('button', { name: '使用 Apple 繼續' })).toBeInTheDocument()
+    expect(firebaseMocks.auth.authStateReady).toHaveBeenCalledOnce()
     expect(firebaseMocks.bootstrapAnonymousUser).toHaveBeenCalled()
     expect(firebaseMocks.upgradeAnonymousUserWithApple).not.toHaveBeenCalled()
     expect(screen.queryByRole('button', { name: '建立邀請' })).not.toBeInTheDocument()
