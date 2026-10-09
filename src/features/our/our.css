@@ -222,8 +222,10 @@
 .starry-sky-page .starry-sky-page__content{min-width:0;padding-bottom:max(7rem,calc(env(safe-area-inset-bottom) + 6rem))}
 .starry-sky-page .starry-sky-page__content>*{min-width:0}
 .starry-sky-heart-talk-summary,.starry-sky-heart-talk-status{position:static;margin:0!important;min-width:0;padding:1rem 1.15rem!important;overflow-wrap:anywhere}
+.starry-sky-invitation-list{display:grid;gap:.85rem}
 .starry-sky-heart-talk-summary{display:grid;gap:.65rem;justify-items:center;text-align:center}
 .starry-sky-heart-talk-status{display:grid;gap:.75rem;justify-items:stretch}
 .starry-sky-heart-talk-status p{margin:0;color:#3d2a72;font-weight:var(--font-weight-semibold);line-height:1.55;text-align:center}
+.starry-sky-heart-talk-status h3{margin:0;color:#24346e;font-size:1.05rem;line-height:1.55}
 .starry-sky-heart-talk-status .button{width:100%;min-width:0;white-space:normal}
 .starry-sky-history-count{color:#3d2a72!important;background:linear-gradient(135deg,#f2ebff,#eadfff)!important;line-height:1.55;overflow-wrap:anywhere}

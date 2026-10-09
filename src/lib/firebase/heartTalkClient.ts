@@ -1,6 +1,11 @@
 import { isFirebaseRuntimeConfigured } from './firebaseEnvironment'
 
 export type HeartTalkInvitation = { invitationId: string; viewerRole: 'sender' | 'recipient'; topicType: 'official' | 'custom'; officialTopicId?: string; customTopicText?: string; scheduledLocalDate: string; startTime: string; endTime: string; status: 'pending' | 'accepted' }
+export const HEART_TALK_LOADED_INVITATION_LIMIT = 20
+
+export function sortHeartTalkInvitations(invitations: HeartTalkInvitation[]): HeartTalkInvitation[] {
+  return [...invitations].sort((left, right) => `${left.scheduledLocalDate}T${left.startTime}|${left.invitationId}`.localeCompare(`${right.scheduledLocalDate}T${right.startTime}|${right.invitationId}`))
+}
 export type HeartTalkCreateInput = { topicType: 'official' | 'custom'; officialTopicId?: string; customTopicText?: string; scheduledLocalDate: string; startTime: string; endTime: string; scheduledStartAt: string; scheduledEndAt: string; scheduledTimeZone: string }
 export type HeartTalkErrorCode = 'unauthenticated' | 'durable-identity-required' | 'no-active-pair' | 'invalid-heart-talk-input' | 'heart-talk-start-time-passed' | 'heart-talk-end-time-invalid' | 'network-unavailable' | 'service-unavailable'
 
