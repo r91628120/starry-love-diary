@@ -49,7 +49,7 @@ export const createHeartTalkInvitation = onCall({ region: 'asia-east1' }, async 
   try { return await heartTalk.createHeartTalkInvitation(callerFromRequest(request), createInput(request.data)) } catch (error) { return callableError(error) }
 })
 
-export const getHeartTalkState = onCall({ region: 'asia-east1' }, async (request) => {
+export const getHeartTalkState = onCall({ region: 'asia-east1', maxInstances: 20 }, async (request) => {
   try { return await heartTalk.getHeartTalkState(callerFromRequest(request)) } catch (error) { return callableError(error) }
 })
 
@@ -62,12 +62,12 @@ export const getHeartTalkTerminalHistory = onCall({ region: 'asia-east1' }, asyn
   try { return await heartTalk.getHeartTalkTerminalHistory(callerFromRequest(request), terminalHistoryInput(request.data)) } catch (error) { return callableError(error) }
 })
 
-export const respondToHeartTalkInvitation = onCall({ region: 'asia-east1' }, async (request) => {
+export const respondToHeartTalkInvitation = onCall({ region: 'asia-east1', maxInstances: 20 }, async (request) => {
   const data = request.data && typeof request.data === 'object' ? request.data as Record<string, unknown> : {}
   try { return await heartTalk.respondToHeartTalkInvitation(callerFromRequest(request), typeof data.invitationId === 'string' ? data.invitationId : '', data.action as HeartTalkResponseAction) } catch (error) { return callableError(error) }
 })
 
-export const cancelHeartTalkInvitation = onCall({ region: 'asia-east1' }, async (request) => {
+export const cancelHeartTalkInvitation = onCall({ region: 'asia-east1', maxInstances: 20 }, async (request) => {
   const data = request.data && typeof request.data === 'object' ? request.data as Record<string, unknown> : {}
   try { return await heartTalk.cancelHeartTalkInvitation(callerFromRequest(request), typeof data.invitationId === 'string' ? data.invitationId : '') } catch (error) { return callableError(error) }
 })
