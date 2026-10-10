@@ -1,3 +1,11 @@
+# Phase 3B-2E-B4 — local-history safety fixes and controlled sync entry
+
+- Clear-all no longer compares device time with Firebase terminal timestamps. It atomically clears local records and records a `pending-clear`; the first enabled B1 terminal-history response converts it to an authoritative `all-before` boundary using the callable's `snapshotAt`. Until then, remote terminal records remain conservatively hidden so they cannot revive.
+- Restore preserves existing tombstones for old V1 backups, unions invitation tombstones, prefers the newest valid server-snapshot boundary, and treats legacy device-clock boundaries as pending protection rather than trusted server time.
+- Pair-less Build 42 completed records remain unmodified and are never attributed to a Pair. A matching cloud completion is retained as terminal metadata but is not automatically added to the local completed counter, preventing an unsafe duplicate count.
+- The history page now has a future controlled sync entry. It remains behind `HEART_TALK_TERMINAL_SYNC_ENABLED = false`; when separately authorized, it waits for restored durable Auth and an active Pair, coalesces in-flight work by Pair, and rechecks the Pair before applying each page. Foreground-wide refresh is intentionally deferred.
+- **No Firebase function, index, Rules, TTL, Scheduler, production data, TestFlight build, or feature-gate enablement occurred. B1 remains undeployed.**
+
 # Phase 3B-2E-B2 — Heart Talk terminal local sync and deletion protection
 
 - IndexedDB schema v10 adds local-only `heartTalkTerminalHistory`, `heartTalkHistoryTombstones`, and `heartTalkSyncState`; existing `completedHeartTalks` remains the sole purple-card count source.

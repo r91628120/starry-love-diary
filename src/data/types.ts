@@ -309,7 +309,15 @@ export type HeartTalkHistoryTombstone = {
 } | {
   id: string
   kind: 'all-before'
-  clearedAt: string
+  /** A B1 callable snapshot time, never a device-clock estimate. */
+  authority: 'server-snapshot'
+  snapshotAt: string
+  createdAt: string
+  updatedAt: string
+} | {
+  /** Blocks remote terminal imports until their first trusted server snapshot arrives. */
+  id: string
+  kind: 'pending-clear'
   createdAt: string
   updatedAt: string
 }

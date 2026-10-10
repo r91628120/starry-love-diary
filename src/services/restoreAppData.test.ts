@@ -98,6 +98,20 @@ describe('atomic Restore engine', () => {
     expect(await adapter.getAll('completedHeartTalks')).toEqual([])
   })
 
+  it('preserves current tombstones for an old backup and never lets an older server anchor replace a newer one', async () => {
+    const adapter = new MemoryStorageAdapter(); await adapter.open()
+    const newer = { id: 'heart-talk:all-before', kind: 'all-before' as const, authority: 'server-snapshot' as const, snapshotAt: '2026-10-10T12:00:00.000Z', createdAt: stamp, updatedAt: stamp }
+    await adapter.put('heartTalkHistoryTombstones', newer)
+    await restoreAppData({ adapter }, buildRestorePlan(backup()))
+    expect(await adapter.getAll('heartTalkHistoryTombstones')).toEqual([newer])
+    const older = { id: 'heart-talk:all-before', kind: 'all-before' as const, authority: 'server-snapshot' as const, snapshotAt: '2026-10-09T12:00:00.000Z', createdAt: stamp, updatedAt: stamp }
+    const terminal = { id: 'heart-talk:pair-alice-bob:invite-001', pairId: 'pair-alice-bob', invitationId: 'invite-001', status: 'completed' as const, terminalAt: '2026-10-09T13:00:00.000Z', scheduledLocalDate: '2026-10-09', startTime: '20:00', endTime: '20:30', topicType: 'official' as const, officialTopicId: 'Q001', createdAt: stamp, updatedAt: stamp }
+    await restoreAppData({ adapter }, buildRestorePlan(backup({ heartTalkHistoryTombstones: [older], heartTalkTerminalHistory: [terminal], completedHeartTalks: [{ id: terminal.id, sourcePairId: terminal.pairId, sourceInvitationId: terminal.invitationId, topicType: 'official', questionId: 'Q001', localDate: terminal.scheduledLocalDate, startTime: terminal.startTime, endTime: terminal.endTime, createdAt: stamp, updatedAt: stamp }] })))
+    expect(await adapter.getAll('heartTalkHistoryTombstones')).toEqual([newer])
+    expect(await adapter.getAll('heartTalkTerminalHistory')).toEqual([])
+    expect(await adapter.getAll('completedHeartTalks')).toEqual([])
+  })
+
   it('restores Mood Stars, Clarity Stars, and score awards as an authoritative snapshot', async () => {
     const adapter = new MemoryStorageAdapter(); await adapter.open()
     await adapter.put('stars', { id: 'day3-mood', type: 'mood', content: 'remove', localDate: '2026-09-03', timezone: 'UTC', createdAt: stamp, updatedAt: stamp })

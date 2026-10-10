@@ -13,6 +13,31 @@ function assertUnique(records: Array<{ id: string }>, name: string) {
   for (const record of records) { if (ids.has(record.id)) throw new Error(`Duplicate id in ${name}`); ids.add(record.id) }
 }
 
+function validTimestamp(value: unknown): value is string { return typeof value === 'string' && Number.isFinite(Date.parse(value)) }
+function isAuthoritativeClear(value: HeartTalkHistoryTombstone) {
+  return value.kind === 'all-before' && value.authority === 'server-snapshot' && validTimestamp(value.snapshotAt)
+}
+function isPendingClear(value: HeartTalkHistoryTombstone | Record<string, unknown>) {
+  return value.kind === 'pending-clear' || (value.kind === 'all-before' && !isAuthoritativeClear(value as HeartTalkHistoryTombstone))
+}
+function mergeTombstones(current: HeartTalkHistoryTombstone[], imported: HeartTalkHistoryTombstone[] | undefined) {
+  if (!imported) return current
+  const invitations = new Map<string, HeartTalkHistoryTombstone>()
+  for (const record of [...current, ...imported]) {
+    if (record.kind !== 'invitation') continue
+    const prior = invitations.get(record.id)
+    if (!prior || Date.parse(record.deletedAt) > Date.parse((prior as Extract<HeartTalkHistoryTombstone, { kind: 'invitation' }>).deletedAt)) invitations.set(record.id, record)
+  }
+  const clears = [...current, ...imported]
+  if (clears.some((record) => isPendingClear(record as HeartTalkHistoryTombstone | Record<string, unknown>))) {
+    const pending: HeartTalkHistoryTombstone = { id: 'heart-talk:pending-clear', kind: 'pending-clear', createdAt: new Date(0).toISOString(), updatedAt: new Date(0).toISOString() }
+    return [...invitations.values(), pending]
+  }
+  const anchors = clears.filter(isAuthoritativeClear)
+  const newest = anchors.sort((left, right) => Date.parse((right as Extract<HeartTalkHistoryTombstone, { kind: 'all-before' }>).snapshotAt) - Date.parse((left as Extract<HeartTalkHistoryTombstone, { kind: 'all-before' }>).snapshotAt))[0]
+  return newest ? [...invitations.values(), newest] : [...invitations.values()]
+}
+
 export function buildRestorePlan(data: AppDataExport): RestorePlan {
   const profiles = data.data.profiles
   if (profiles.length !== 2 || new Set(profiles.map((profile) => profile.kind)).size !== 2 || !profiles.some((profile) => profile.kind === 'user') || !profiles.some((profile) => profile.kind === 'partner')) throw new Error('Restore requires user and partner profiles')
@@ -34,12 +59,13 @@ export async function restoreAppData(runtime: Pick<PersistenceRuntime, 'adapter'
   const settings = await runtime.adapter.get<AppSettings>('settings', 'settings')
   const currentTombstones = await runtime.adapter.getAll<HeartTalkHistoryTombstone>('heartTalkHistoryTombstones')
   const importedTombstones = plan.replace.heartTalkHistoryTombstones as HeartTalkHistoryTombstone[] | undefined
-  const tombstones = importedTombstones ? [...new Map([...currentTombstones, ...importedTombstones].map((record) => [record.id, record])).values()] : undefined
-  const allBefore = tombstones?.find((record) => record.kind === 'all-before')
+  const tombstones = mergeTombstones(currentTombstones, importedTombstones)
+  const pendingClear = tombstones.some((record) => isPendingClear(record as HeartTalkHistoryTombstone | Record<string, unknown>))
+  const allBefore = tombstones.find(isAuthoritativeClear)
   const explicitlyDeleted = new Set((tombstones ?? []).filter((record) => record.kind === 'invitation').map((record) => `${record.pairId}:${record.invitationId}`))
-  const terminalHistory = (plan.replace.heartTalkTerminalHistory as Array<{ pairId: string; invitationId: string; terminalAt: string }> | undefined)?.filter((record) => !explicitlyDeleted.has(`${record.pairId}:${record.invitationId}`) && (!allBefore || record.terminalAt > allBefore.clearedAt))
+  const terminalHistory = (plan.replace.heartTalkTerminalHistory as Array<{ pairId: string; invitationId: string; terminalAt: string }> | undefined)?.filter((record) => !pendingClear && !explicitlyDeleted.has(`${record.pairId}:${record.invitationId}`) && (!allBefore || record.terminalAt > (allBefore as Extract<HeartTalkHistoryTombstone, { kind: 'all-before' }>).snapshotAt))
   const liveCloudIds = new Set((terminalHistory ?? []).map((record) => `${record.pairId}:${record.invitationId}`))
   const completedHeartTalks = (plan.replace.completedHeartTalks as Array<{ sourcePairId?: string; sourceInvitationId?: string }>).filter((record) => !record.sourcePairId || !record.sourceInvitationId || liveCloudIds.has(`${record.sourcePairId}:${record.sourceInvitationId}`))
-  const replace = { ...plan.replace, completedHeartTalks, ...(terminalHistory ? { heartTalkTerminalHistory: terminalHistory } : {}), ...(tombstones ? { heartTalkHistoryTombstones: tombstones } : {}), settings: [settings ?? plan.data.data.settings] }
+  const replace = { ...plan.replace, completedHeartTalks, ...(terminalHistory ? { heartTalkTerminalHistory: terminalHistory } : {}), heartTalkHistoryTombstones: tombstones, settings: [settings ?? plan.data.data.settings] }
   await runtime.adapter.restoreStoresAtomically(replace, RESTORE_CLEAR_STORES)
 }

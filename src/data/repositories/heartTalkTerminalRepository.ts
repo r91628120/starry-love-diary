@@ -18,9 +18,16 @@ function validInvitationId(value: string) { return INVITATION_ID.test(value) }
 function validTerminal(item: RemoteHeartTalkTerminal) {
   return validPairId(item.pairId) && validInvitationId(item.invitationId) && TERMINAL_STATUSES.has(item.status) && validTimestamp(item.terminalAt) && DATE.test(item.scheduledLocalDate) && TIME.test(item.startTime) && TIME.test(item.endTime) && (item.topicType === 'official' ? typeof item.officialTopicId === 'string' && /^Q\d{3}$/u.test(item.officialTopicId) : item.topicType === 'custom' && item.officialTopicId === undefined) && (item.completionReason === undefined || typeof item.completionReason === 'string')
 }
+function authoritativeClear(tombstone: HeartTalkHistoryTombstone) {
+  return tombstone.kind === 'all-before' && tombstone.authority === 'server-snapshot' && validTimestamp((tombstone as Extract<HeartTalkHistoryTombstone, { kind: 'all-before' }>).snapshotAt)
+}
+function awaitingServerAnchor(tombstone: HeartTalkHistoryTombstone | Record<string, unknown>) {
+  return tombstone.kind === 'pending-clear' || (tombstone.kind === 'all-before' && !authoritativeClear(tombstone as HeartTalkHistoryTombstone))
+}
 function hidden(item: RemoteHeartTalkTerminal, tombstones: HeartTalkHistoryTombstone[]) {
   return tombstones.some((tombstone) => tombstone.kind === 'invitation' && tombstone.pairId === item.pairId && tombstone.invitationId === item.invitationId)
-    || tombstones.some((tombstone) => tombstone.kind === 'all-before' && item.terminalAt <= tombstone.clearedAt)
+    || tombstones.some(awaitingServerAnchor)
+    || tombstones.some((tombstone) => authoritativeClear(tombstone) && item.terminalAt <= (tombstone as Extract<HeartTalkHistoryTombstone, { kind: 'all-before' }>).snapshotAt)
 }
 function completedRecord(item: RemoteHeartTalkTerminal, timestamp: string): CompletedHeartTalk {
   const shared = { id: identity(item.pairId, item.invitationId), sourcePairId: item.pairId, sourceInvitationId: item.invitationId, localDate: item.scheduledLocalDate, startTime: item.startTime, endTime: item.endTime, createdAt: timestamp, updatedAt: timestamp }
@@ -58,18 +65,27 @@ export class LocalHeartTalkTerminalRepository {
       const timestamp = now()
       const terminalById = new Map(terminalHistory.map((item) => [item.id, item]))
       const completedBySource = new Map(completed.filter((item) => item.sourcePairId && item.sourceInvitationId).map((item) => [`${item.sourcePairId}:${item.sourceInvitationId}`, item]))
+      const legacyInvitationIds = new Set(completed.filter((item) => !item.sourcePairId && item.sourceInvitationId).map((item) => item.sourceInvitationId))
+      const pendingClear = tombstones.some((item) => awaitingServerAnchor(item as HeartTalkHistoryTombstone | Record<string, unknown>))
+      const nextTombstones = pendingClear
+        ? [...tombstones.filter((item) => !awaitingServerAnchor(item as HeartTalkHistoryTombstone | Record<string, unknown>)), { id: 'heart-talk:all-before', kind: 'all-before' as const, authority: 'server-snapshot' as const, snapshotAt: page.snapshotAt, createdAt: timestamp, updatedAt: timestamp }]
+        : tombstones
       for (const item of page.items) {
-        if (hidden(item, tombstones)) continue
-        const record: HeartTalkTerminalHistory = { ...item, id: identity(item.pairId, item.invitationId), createdAt: terminalById.get(identity(item.pairId, item.invitationId))?.createdAt ?? timestamp, updatedAt: timestamp }
+        if (hidden(item, nextTombstones)) continue
+        const recordId = identity(item.pairId, item.invitationId)
+        const existingTerminal = terminalById.get(recordId)
+        const record: HeartTalkTerminalHistory = { ...item, id: recordId, createdAt: existingTerminal?.createdAt ?? timestamp, updatedAt: timestamp }
         terminalById.set(record.id, record)
-        if (item.status === 'completed' && !completedBySource.has(`${item.pairId}:${item.invitationId}`)) {
+        // Pair-less Build 42 records cannot be safely attributed. Retain them and
+        // the remote metadata, but do not add a second counter record automatically.
+        if (item.status === 'completed' && !existingTerminal && !completedBySource.has(`${item.pairId}:${item.invitationId}`) && !legacyInvitationIds.has(item.invitationId)) {
           const local = completedRecord(item, timestamp)
           completedBySource.set(`${item.pairId}:${item.invitationId}`, local)
         }
       }
       const pairId = page.items[0]?.pairId
       const nextStates = pairId ? [...syncStates.filter((state) => state.id !== pairId), { id: pairId, pairId, lastCursor: page.nextCursor, snapshotAt: page.snapshotAt, lastSuccessfulAt: timestamp, updatedAt: timestamp }] : syncStates
-      await this.storage.restoreStoresAtomically({ heartTalkTerminalHistory: [...terminalById.values()], completedHeartTalks: [...completedBySource.values(), ...completed.filter((item) => !item.sourcePairId || !item.sourceInvitationId)], heartTalkSyncState: nextStates }, [])
+      await this.storage.restoreStoresAtomically({ heartTalkTerminalHistory: [...terminalById.values()], completedHeartTalks: [...completedBySource.values(), ...completed.filter((item) => !item.sourcePairId || !item.sourceInvitationId)], heartTalkHistoryTombstones: nextTombstones, heartTalkSyncState: nextStates }, [])
     })
   }
 
@@ -90,8 +106,10 @@ export class LocalHeartTalkTerminalRepository {
     return this.exclusive(async () => {
       const tombstones = await this.storage.getAll<HeartTalkHistoryTombstone>('heartTalkHistoryTombstones')
       const timestamp = now()
-      const allBefore: HeartTalkHistoryTombstone = { id: 'heart-talk:all-before', kind: 'all-before', clearedAt: timestamp, createdAt: timestamp, updatedAt: timestamp }
-      await this.storage.restoreStoresAtomically({ completedHeartTalks: [], heartTalkTerminalHistory: [], heartTalkHistoryTombstones: [...tombstones.filter((item) => item.kind !== 'all-before'), allBefore], heartTalkSyncState: [] }, [])
+      // Do not compare the device clock with server terminalAt. The first trusted
+      // callable snapshot converts this into an authoritative all-before anchor.
+      const pending: HeartTalkHistoryTombstone = { id: 'heart-talk:pending-clear', kind: 'pending-clear', createdAt: timestamp, updatedAt: timestamp }
+      await this.storage.restoreStoresAtomically({ completedHeartTalks: [], heartTalkTerminalHistory: [], heartTalkHistoryTombstones: [...tombstones.filter((item) => item.kind === 'invitation'), pending], heartTalkSyncState: [] }, [])
     })
   }
 }
