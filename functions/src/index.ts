@@ -45,7 +45,7 @@ export const resolvePairInvite = onCall({ region: 'asia-east1' }, async (request
   try { return await service.resolvePairInvite(callerFromRequest(request), typeof request.data?.inviteId === 'string' ? request.data.inviteId : '') } catch (error) { return callableError(error) }
 })
 
-export const createHeartTalkInvitation = onCall({ region: 'asia-east1' }, async (request) => {
+export const createHeartTalkInvitation = onCall({ region: 'asia-east1', maxInstances: 20 }, async (request) => {
   try { return await heartTalk.createHeartTalkInvitation(callerFromRequest(request), createInput(request.data)) } catch (error) { return callableError(error) }
 })
 
@@ -72,7 +72,7 @@ export const cancelHeartTalkInvitation = onCall({ region: 'asia-east1', maxInsta
   try { return await heartTalk.cancelHeartTalkInvitation(callerFromRequest(request), typeof data.invitationId === 'string' ? data.invitationId : '') } catch (error) { return callableError(error) }
 })
 
-export const completeHeartTalkInvitation = onCall({ region: 'asia-east1' }, async (request) => {
+export const completeHeartTalkInvitation = onCall({ region: 'asia-east1', maxInstances: 20 }, async (request) => {
   const data = request.data && typeof request.data === 'object' ? request.data as Record<string, unknown> : {}
   try { return await heartTalk.completeHeartTalkInvitation(callerFromRequest(request), typeof data.invitationId === 'string' ? data.invitationId : '') } catch (error) { return callableError(error) }
 })
