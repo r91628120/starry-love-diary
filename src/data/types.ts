@@ -260,6 +260,8 @@ export type CompletedHeartTalk = {
   id: string
   /** Optional for records written before Firebase-backed Heart Talk delivery. */
   sourceInvitationId?: string
+  /** Present only for a cloud-synced record. Never inferred for legacy local records. */
+  sourcePairId?: string
   topicType: 'official'
   questionId: string
   localDate: string
@@ -270,10 +272,53 @@ export type CompletedHeartTalk = {
 } | {
   id: string
   sourceInvitationId?: string
+  sourcePairId?: string
   topicType: 'custom'
   localDate: string
   startTime: string
   endTime: string
   createdAt: string
+  updatedAt: string
+}
+
+export type HeartTalkTerminalStatus = 'completed' | 'declined' | 'cancelled' | 'expired'
+/** Metadata-only cache of the pair-authorized 30-day terminal API. */
+export type HeartTalkTerminalHistory = {
+  id: string
+  pairId: string
+  invitationId: string
+  status: HeartTalkTerminalStatus
+  terminalAt: string
+  scheduledLocalDate: string
+  startTime: string
+  endTime: string
+  topicType: 'official' | 'custom'
+  officialTopicId?: string
+  completionReason?: string
+  createdAt: string
+  updatedAt: string
+}
+export type HeartTalkHistoryTombstone = {
+  id: string
+  kind: 'invitation'
+  pairId: string
+  invitationId: string
+  deletedAt: string
+  createdAt: string
+  updatedAt: string
+} | {
+  id: string
+  kind: 'all-before'
+  clearedAt: string
+  createdAt: string
+  updatedAt: string
+}
+/** Optimization only. A new sync always starts from the latest page. */
+export type HeartTalkSyncState = {
+  id: string
+  pairId: string
+  lastCursor?: string
+  snapshotAt?: string
+  lastSuccessfulAt: string
   updatedAt: string
 }

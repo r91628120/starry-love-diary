@@ -14,6 +14,6 @@ export function StarrySkyHistoryPage() {
   useEffect(() => { void (async () => { setRecords(await persistence?.repositories.completedHeartTalks.list() ?? []); await persistence?.refreshHeartTalkCount() })() }, [persistence])
   return <div className="page our-page starry-sky-page starry-sky-history-page"><PageHeader titleKey="our.starrySky.historyTitle" variant="secondary" backFallback="/our/starry-sky" /><main className="our-page__content starry-sky-page__content">
     <section className="starry-sky-history-hero"><img src="/assets/starry-sky/starry-sky-hero-bg.png" alt="" /><div><h2>{t('our.starrySky.historyTitle')}</h2><p>{t('our.starrySky.historyHeroCopy')}</p></div></section>
-    <StarrySkyHistoryView records={records} onDeleteOne={async (id) => { await persistence?.repositories.completedHeartTalks.deleteOne(id); await refresh() }} onClearAll={async () => { await persistence?.repositories.completedHeartTalks.clearAll(); await refresh() }} />
+    <StarrySkyHistoryView records={records} onDeleteOne={async (id) => { await persistence?.repositories.heartTalkTerminalHistory.deleteCompletedHistory(id); await refresh() }} onClearAll={async () => { await persistence?.repositories.heartTalkTerminalHistory.clearAllHistory(); await refresh() }} />
   </main></div>
 }

@@ -1,3 +1,12 @@
+# Phase 3B-2E-B2 — Heart Talk terminal local sync and deletion protection
+
+- IndexedDB schema v10 adds local-only `heartTalkTerminalHistory`, `heartTalkHistoryTombstones`, and `heartTalkSyncState`; existing `completedHeartTalks` remains the sole purple-card count source.
+- Cloud terminal records dedupe by the reliable `(pairId, invitationId)` pair. Existing records without `sourcePairId` remain untouched and are never guessed to belong to a Pair.
+- Deleting a cloud-identified record atomically writes an invitation tombstone and removes its local records. Clear all writes an all-before tombstone, preventing all terminal records already present at the clear time from reviving on a later sync. No cloud invitation is deleted.
+- V1 backups now optionally contain terminal metadata and tombstones. Old backups preserve existing tombstones; sync cursors are not backed up and are cleared during restore.
+- **B2 local sync code is complete, but production cloud terminal synchronization remains disabled by the audited `HEART_TALK_TERMINAL_SYNC_ENABLED = false` gate. B1 API is not deployed.** No UI route invokes the source-only callable while this gate is false.
+- Deferred: separately authorized B1 deployment verification, controlled gate enablement, mobile sync/retry verification, automatic completion, Scheduler, and Firestore TTL activation.
+
 # Phase 3B-2E-B1 — Heart Talk terminal model and 30-day sync API
 
 - Scope: Firebase Functions source only. Terminal transitions now atomically write `terminalAt` and `terminalExpiresAt` (30 days later) alongside their existing status-specific timestamps. Pending and accepted invitations receive neither field.

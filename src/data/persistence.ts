@@ -5,6 +5,7 @@ import { LocalClearFreeTalkRepository, LocalClearRecordRepository, LocalLikeOrHa
 import { LocalStarDropPresentationRepository } from './repositories/starDropPresentationRepository'
 import { LocalDiaryDraftRepository } from './repositories/diaryDraftRepository'
 import { LocalCompletedHeartTalkRepository } from './repositories/heartTalkRepository'
+import { LocalHeartTalkTerminalRepository } from './repositories/heartTalkTerminalRepository'
 import { IndexedDbStorageAdapter } from './storage/IndexedDbStorageAdapter'
 import type { StorageAdapter } from './storage/StorageAdapter'
 import type { AppSettings, DiaryEntry, HeartPhrase, HeartRevealProject, ImportantDate, MemoryMoment, MessageToYou, MessageToYouEntry, MoodRecord, Profile, RememberedYouCard, Star } from './types'
@@ -37,6 +38,7 @@ export interface PersistenceRuntime {
   loveBrainAssessments: LocalLoveBrainAssessmentRepository
   likeOrHabitReflections: LocalLikeOrHabitReflectionRepository
   completedHeartTalks: LocalCompletedHeartTalkRepository
+  heartTalkTerminalHistory: LocalHeartTalkTerminalRepository
   photos: LocalPhotoRepository
   memoryWallLayouts: LocalMemoryWallLayoutRepository
   profilePhotoPlacements: LocalProfilePhotoPlacementRepository
@@ -86,6 +88,7 @@ export async function initializePersistence(options: { adapter?: StorageAdapter;
   const loveBrainAssessments = new LocalLoveBrainAssessmentRepository(adapter, starDropPresentations)
   const likeOrHabitReflections = new LocalLikeOrHabitReflectionRepository(adapter, starDropPresentations)
   const completedHeartTalks = new LocalCompletedHeartTalkRepository(adapter)
+  const heartTalkTerminalHistory = new LocalHeartTalkTerminalRepository(adapter)
   const photos = new LocalPhotoRepository(adapter, new IndexedDbPhotoContentStore(adapter), new BrowserPhotoCompressionService())
   const memoryWallLayouts = new LocalMemoryWallLayoutRepository(adapter, photos)
   const profilePhotoPlacements = new LocalProfilePhotoPlacementRepository(adapter)
@@ -103,5 +106,5 @@ export async function initializePersistence(options: { adapter?: StorageAdapter;
   // V2 writes optional metadata into the existing v5 record. Existing users
   // with seven phrases keep their ready state rather than being reset.
   const activeHeartRevealProject = await heartRevealPhotos.getCycleState(allPersistedHeartPhrases)
-  return { adapter, profiles, moods, diaries, settings, stars, starDropPresentations, diaryDrafts, scores, heartPhrases, importantDates, memoryMoments, messageToYou, rememberedYou, clearRecords, clearFreeTalkRecords, loveBoatAssessments, loveBrainAssessments, likeOrHabitReflections, completedHeartTalks, photos, memoryWallLayouts, profilePhotoPlacements, heartRevealPhotos, memoryMomentPhotoPlacements, initial: { userProfile: profileDefaults.user, partnerProfile: profileDefaults.partner, settings: appSettings, currentLocalDate: localDate, todayMood, todayDiary, starHeartTotal, stars: persistedStars, heartPhrases: allPersistedHeartPhrases, heartPhraseCount: allPersistedHeartPhrases.length, activeHeartRevealProject, importantDates: persistedImportantDates, memoryMoments: persistedMemoryMoments, messageToYou: persistedMessage, messageToYouEntries, rememberedYouCards: persistedRememberedYou, diaryCount: persistedDiaries.length, heartTalkCount } }
+  return { adapter, profiles, moods, diaries, settings, stars, starDropPresentations, diaryDrafts, scores, heartPhrases, importantDates, memoryMoments, messageToYou, rememberedYou, clearRecords, clearFreeTalkRecords, loveBoatAssessments, loveBrainAssessments, likeOrHabitReflections, completedHeartTalks, heartTalkTerminalHistory, photos, memoryWallLayouts, profilePhotoPlacements, heartRevealPhotos, memoryMomentPhotoPlacements, initial: { userProfile: profileDefaults.user, partnerProfile: profileDefaults.partner, settings: appSettings, currentLocalDate: localDate, todayMood, todayDiary, starHeartTotal, stars: persistedStars, heartPhrases: allPersistedHeartPhrases, heartPhraseCount: allPersistedHeartPhrases.length, activeHeartRevealProject, importantDates: persistedImportantDates, memoryMoments: persistedMemoryMoments, messageToYou: persistedMessage, messageToYouEntries, rememberedYouCards: persistedRememberedYou, diaryCount: persistedDiaries.length, heartTalkCount } }
 }

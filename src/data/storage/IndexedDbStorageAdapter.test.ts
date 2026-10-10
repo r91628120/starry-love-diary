@@ -73,4 +73,19 @@ describe('IndexedDbStorageAdapter stale connection recovery', () => {
 
     expect(open).toHaveBeenCalledTimes(2)
   })
+
+  it('upgrades a v9 database additively and preserves its completed Heart Talk records', async () => {
+    const name = `idb-heart-talk-v9-${crypto.randomUUID()}`
+    await new Promise<void>((resolve, reject) => {
+      const request = indexedDB.open(name, 9)
+      request.onupgradeneeded = () => request.result.createObjectStore('completedHeartTalks', { keyPath: 'id' })
+      request.onsuccess = () => { const transaction = request.result.transaction('completedHeartTalks', 'readwrite'); transaction.objectStore('completedHeartTalks').put({ id: 'legacy', topicType: 'custom' }); transaction.oncomplete = () => { request.result.close(); resolve() }; transaction.onerror = () => reject(transaction.error) }
+      request.onerror = () => reject(request.error)
+    })
+    const adapter = new IndexedDbStorageAdapter(name)
+    await adapter.open()
+    expect(await adapter.get('completedHeartTalks', 'legacy')).toMatchObject({ id: 'legacy' })
+    await adapter.put('heartTalkHistoryTombstones', { id: 'tombstone', kind: 'all-before', clearedAt: '2026-10-10T00:00:00.000Z', createdAt: '2026-10-10T00:00:00.000Z', updatedAt: '2026-10-10T00:00:00.000Z' })
+    await expect(adapter.get('heartTalkHistoryTombstones', 'tombstone')).resolves.toMatchObject({ kind: 'all-before' })
+  })
 })

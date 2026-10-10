@@ -4,10 +4,10 @@ import { Share } from '@capacitor/share'
 import type { ClearFreeTalkRecord, ClearRecord, LikeOrHabitReflection, LoveBoatAssessment, LoveBrainAssessment } from '../data/clearTypes'
 import type { PersistenceRuntime } from '../data/persistence'
 import { SCHEMA_VERSION } from '../data/storage/IndexedDbStorageAdapter'
-import type { AppSettings, CompletedHeartTalk, DiaryEntry, HeartPhrase, ImportantDate, MemoryMoment, MessageToYouEntry, MoodRecord, Profile, RememberedYouCard, ScoreAward, Star } from '../data/types'
+import type { AppSettings, CompletedHeartTalk, DiaryEntry, HeartPhrase, HeartTalkHistoryTombstone, HeartTalkTerminalHistory, ImportantDate, MemoryMoment, MessageToYouEntry, MoodRecord, Profile, RememberedYouCard, ScoreAward, Star } from '../data/types'
 import { encodeTextExportUtf8 } from './exportTextData'
 
-type ExportRepositories = Pick<PersistenceRuntime, 'profiles' | 'moods' | 'diaries' | 'settings' | 'stars' | 'scores' | 'heartPhrases' | 'importantDates' | 'memoryMoments' | 'messageToYou' | 'rememberedYou' | 'clearRecords' | 'clearFreeTalkRecords' | 'loveBoatAssessments' | 'loveBrainAssessments' | 'likeOrHabitReflections' | 'completedHeartTalks'>
+type ExportRepositories = Pick<PersistenceRuntime, 'profiles' | 'moods' | 'diaries' | 'settings' | 'stars' | 'scores' | 'heartPhrases' | 'importantDates' | 'memoryMoments' | 'messageToYou' | 'rememberedYou' | 'clearRecords' | 'clearFreeTalkRecords' | 'loveBoatAssessments' | 'loveBrainAssessments' | 'likeOrHabitReflections' | 'completedHeartTalks' | 'heartTalkTerminalHistory'>
 
 export const STARLOVE_EXPORT_FORMAT = 'starry-love-diary-data'
 export const STARLOVE_EXPORT_VERSION = 1
@@ -38,6 +38,8 @@ export interface AppDataExport {
     messageToYouEntries: MessageToYouEntry[]
     rememberedYouCards: RememberedYouCard[]
     completedHeartTalks?: CompletedHeartTalk[]
+    heartTalkTerminalHistory?: HeartTalkTerminalHistory[]
+    heartTalkHistoryTombstones?: HeartTalkHistoryTombstone[]
     settings: Pick<AppSettings, 'id' | 'locale' | 'dailyLoveQuoteActivationDate' | 'loveQuoteReminderEnabled' | 'importantDateReminderEnabled' | 'reminderTime' | 'schemaVersion' | 'createdAt' | 'updatedAt'>
   }
 }
@@ -75,7 +77,7 @@ function withoutMomentPhoto({ photoAssetId, ...moment }: MemoryMoment): Omit<Mem
 /** Builds a portable, JSON-only snapshot. Photos, blobs, asset ids, and layout metadata are deliberately excluded. */
 export async function buildAppDataExport(options: AppDataExportOptions): Promise<AppDataExport> {
   const { repositories, localDate } = options
-  const [user, partner, moods, diaries, settings, stars, scoreAwards, heartPhrases, importantDates, memoryMoments, messageToYou, messageToYouEntries, rememberedYouCards, organizeFeelings, freeTalkRecords, loveBoatAssessments, loveBrainAssessments, likeOrHabitReflections, completedHeartTalks] = await Promise.all([
+  const [user, partner, moods, diaries, settings, stars, scoreAwards, heartPhrases, importantDates, memoryMoments, messageToYou, messageToYouEntries, rememberedYouCards, organizeFeelings, freeTalkRecords, loveBoatAssessments, loveBrainAssessments, likeOrHabitReflections, completedHeartTalks, heartTalkTerminalHistory, heartTalkHistoryTombstones] = await Promise.all([
     repositories.profiles.getProfile('user'),
     repositories.profiles.getProfile('partner'),
     repositories.moods.getMoods(),
@@ -95,6 +97,8 @@ export async function buildAppDataExport(options: AppDataExportOptions): Promise
     repositories.loveBrainAssessments.listAll(),
     repositories.likeOrHabitReflections.listAll(),
     repositories.completedHeartTalks.list(),
+    repositories.heartTalkTerminalHistory.listTerminalHistory(),
+    repositories.heartTalkTerminalHistory.listTombstones(),
   ])
 
   if (!user || !partner || !settings) throw new Error('App data snapshot is incomplete')
@@ -125,6 +129,8 @@ export async function buildAppDataExport(options: AppDataExportOptions): Promise
       messageToYouEntries: sortByLocalDate(messageToYouEntries),
       rememberedYouCards: sortByLocalDate(rememberedYouCards),
       completedHeartTalks,
+      heartTalkTerminalHistory,
+      heartTalkHistoryTombstones,
       settings: {
         id: settings.id,
         locale: settings.locale,

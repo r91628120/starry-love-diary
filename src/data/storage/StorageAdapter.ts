@@ -5,7 +5,9 @@ export const DIARY_DRAFT_V7_STORE_NAMES = ['diaryDrafts'] as const
 export const FREE_TALK_V8_STORE_NAMES = ['clearFreeTalkRecords'] as const
 /** Additive v9 store: completed Heart Talk metadata only; never answers or prompt bodies. */
 export const HEART_TALK_V9_STORE_NAMES = ['completedHeartTalks'] as const
-export const STORE_NAMES = [...LEGACY_V4_STORE_NAMES, ...PHOTO_V5_STORE_NAMES, ...STAR_DROP_V6_STORE_NAMES, ...DIARY_DRAFT_V7_STORE_NAMES, ...FREE_TALK_V8_STORE_NAMES, ...HEART_TALK_V9_STORE_NAMES] as const
+/** Additive v10 stores: locally retained terminal metadata, deletion tombstones, and non-authoritative sync progress. */
+export const HEART_TALK_V10_STORE_NAMES = ['heartTalkTerminalHistory', 'heartTalkHistoryTombstones', 'heartTalkSyncState'] as const
+export const STORE_NAMES = [...LEGACY_V4_STORE_NAMES, ...PHOTO_V5_STORE_NAMES, ...STAR_DROP_V6_STORE_NAMES, ...DIARY_DRAFT_V7_STORE_NAMES, ...FREE_TALK_V8_STORE_NAMES, ...HEART_TALK_V9_STORE_NAMES, ...HEART_TALK_V10_STORE_NAMES] as const
 export type StoreName = (typeof STORE_NAMES)[number]
 
 export interface StorageAdapter {

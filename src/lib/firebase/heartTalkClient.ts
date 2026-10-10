@@ -1,4 +1,5 @@
 import { isFirebaseRuntimeConfigured } from './firebaseEnvironment'
+import { HEART_TALK_TERMINAL_SYNC_ENABLED } from './heartTalkTerminalSyncFeature'
 
 export type HeartTalkInvitation = { invitationId: string; viewerRole: 'sender' | 'recipient'; topicType: 'official' | 'custom'; officialTopicId?: string; customTopicText?: string; scheduledLocalDate: string; startTime: string; endTime: string; status: 'pending' | 'accepted' }
 export const HEART_TALK_LOADED_INVITATION_LIMIT = 20
@@ -25,3 +26,9 @@ export const createHeartTalkInvitation = (input: HeartTalkCreateInput) => call<{
 export const respondToHeartTalkInvitation = (invitationId: string, action: 'accept' | 'decline') => call<{ status: 'accepted' | 'declined' }>('respondToHeartTalkInvitation', { invitationId, action })
 export const cancelHeartTalkInvitation = (invitationId: string) => call<{ status: 'cancelled' }>('cancelHeartTalkInvitation', { invitationId })
 export const completeHeartTalkInvitation = (invitationId: string) => call<{ status: 'completed' }>('completeHeartTalkInvitation', { invitationId })
+export type HeartTalkTerminalHistoryItem = { invitationId: string; pairId: string; status: 'completed' | 'declined' | 'cancelled' | 'expired'; terminalAt: string; scheduledLocalDate: string; startTime: string; endTime: string; topicType: 'official' | 'custom'; officialTopicId?: string; completionReason?: string }
+export type HeartTalkTerminalHistoryPage = { items: HeartTalkTerminalHistoryItem[]; nextCursor?: string; snapshotAt: string }
+export const getHeartTalkTerminalHistory = (input: { cursor?: string; pageSize?: number } = {}) => {
+  if (!HEART_TALK_TERMINAL_SYNC_ENABLED) return Promise.reject(new Error('service-unavailable'))
+  return call<HeartTalkTerminalHistoryPage>('getHeartTalkTerminalHistory', input)
+}
