@@ -1,10 +1,19 @@
 import { initializeApp } from 'firebase-admin/app'
 import { getFirestore } from 'firebase-admin/firestore'
+import { setGlobalOptions } from 'firebase-functions/v2'
 import { HttpsError, onCall } from 'firebase-functions/v2/https'
 import { PairInviteError, createPairInviteService, type VerifiedCaller } from './pairInviteService.js'
 import { HeartTalkError, createHeartTalkService, type HeartTalkCreateInput, type HeartTalkResponseAction, type HeartTalkTerminalHistoryInput } from './heartTalkService.js'
 
 initializeApp()
+setGlobalOptions({
+  region: 'asia-east1',
+  memory: '256MiB',
+  timeoutSeconds: 60,
+  concurrency: 80,
+  ingressSettings: 'ALLOW_ALL',
+  serviceAccount: '487213785255-compute@developer.gserviceaccount.com',
+})
 const service = createPairInviteService({ firestore: getFirestore() })
 const heartTalk = createHeartTalkService({ firestore: getFirestore() })
 
