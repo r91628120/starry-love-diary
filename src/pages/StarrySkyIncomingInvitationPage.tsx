@@ -17,7 +17,7 @@ export function StarrySkyIncomingInvitationPage() {
   const [busyInvitationId, setBusyInvitationId] = useState<string>()
   const [openInvitationId, setOpenInvitationId] = useState<string>()
   const [error, setError] = useState('')
-  const errorMessage = (caught: unknown) => t(`our.heartTalk.${heartTalkErrorCode(caught) === 'durable-identity-required' || heartTalkErrorCode(caught) === 'unauthenticated' ? 'identity' : heartTalkErrorCode(caught) === 'no-active-pair' ? 'pair' : heartTalkErrorCode(caught) === 'invalid-heart-talk-input' ? 'invalid' : heartTalkErrorCode(caught) === 'network-unavailable' ? 'network' : 'service'}` as never)
+  const errorMessage = (caught: unknown) => { const code = heartTalkErrorCode(caught); return t(`our.heartTalk.${code === 'durable-identity-required' || code === 'unauthenticated' ? 'identity' : code === 'no-active-pair' ? 'pair' : code === 'heart-talk-not-found' || code === 'heart-talk-transition-not-allowed' || code === 'heart-talk-recipient-required' ? 'stateChanged' : code === 'invalid-heart-talk-input' ? 'invalid' : code === 'network-unavailable' ? 'network' : 'service'}` as never) }
   const updateInvitations = async (isCurrent: () => boolean) => {
     const state = await getHeartTalkState()
     if (isCurrent()) { const next = sortHeartTalkInvitations(state.invitations.filter((item) => item.viewerRole === 'recipient' && item.status === 'pending')); setInvitations(next); setOpenInvitationId((current) => current && next.some((item) => item.invitationId === current) ? current : undefined) }

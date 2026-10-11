@@ -66,4 +66,14 @@ describe('Heart Talk production incoming invitation', () => {
     fireEvent.click(screen.getByRole('button', { name: '更換題目' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('心話服務暫時無法完成操作，請稍後再試。')
   })
+  it('refreshes the authoritative list after a stale recipient action', async () => {
+    const invitation = { invitationId: 'invite-12345678', viewerRole: 'recipient' as const, topicType: 'official' as const, officialTopicId: 'Q002', scheduledLocalDate: '2026-12-22', startTime: '20:00', endTime: '20:30', status: 'pending' as const }
+    api.getHeartTalkState.mockResolvedValueOnce({ invitations: [invitation] }).mockResolvedValueOnce({ invitations: [] })
+    api.respondToHeartTalkInvitation.mockRejectedValue(new Error('heart-talk-transition-not-allowed'))
+    renderIncoming()
+    fireEvent.click(await screen.findByRole('button', { name: /Q002/u }))
+    fireEvent.click(screen.getByRole('button', { name: '接受邀約' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('這筆邀約狀態已變更，已更新為最新資料。')
+    await waitFor(() => expect(screen.queryByRole('button', { name: '接受邀約' })).not.toBeInTheDocument())
+  })
 })

@@ -9,5 +9,6 @@ describe('Heart Talk list localization', () => {
     expect(heartTalkMessages[locale]['our.heartTalk.pendingBody']).toBeTruthy()
     expect(heartTalkMessages[locale]['our.heartTalk.loadedLimit']).toBeTruthy()
     expect(heartTalkMessages[locale]['our.heartTalk.noActive']).toBeTruthy()
+    expect(heartTalkMessages[locale]['our.heartTalk.stateChanged']).toBeTruthy()
   })
 })

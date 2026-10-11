@@ -1,19 +1,43 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ModalOverlay, PageHeader, PrimaryButton, SecondaryButton, SoftCard } from '../components'
 import { starrySkyTopicById } from '../features/our/starrySkyTopics'
 import { useI18n } from '../i18n/I18nContext'
 import { usePersistence } from '../data/PersistenceStateContext'
-import { cancelHeartTalkInvitation, completeHeartTalkInvitation, getHeartTalkState, type HeartTalkInvitation } from '../lib/firebase/heartTalkClient'
+import { cancelHeartTalkInvitation, completeHeartTalkInvitation, getHeartTalkState, heartTalkErrorCode, type HeartTalkInvitation } from '../lib/firebase/heartTalkClient'
+import { useVisibleRefresh } from '../lib/firebase/useVisibleRefresh'
 import '../features/our/our.css'
 
 export function StarrySkySessionPreviewPage() {
   const { locale, t } = useI18n(); const navigate = useNavigate(); const [params] = useSearchParams()
   const persistence = usePersistence()
   const [invitation, setInvitation] = useState<HeartTalkInvitation>(); const [terminal, setTerminal] = useState<'cancelled' | 'completed'>(); const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const [confirmingCancel, setConfirmingCancel] = useState(false)
-  const refresh = async () => { setBusy(true); setError(''); try { const state = await getHeartTalkState(); const id = params.get('invitation'); const matching = state.invitations.find((item) => item.invitationId === id && (item.status === 'accepted' || (item.status === 'pending' && item.viewerRole === 'sender'))); setInvitation(matching ?? (!id ? state.invitations.find((item) => item.status === 'accepted') : undefined)) } catch { setError(t('our.starrySky.invitePreviewBody')) } finally { setBusy(false) } }
-  useEffect(() => { void refresh() }, [])
-  const mutate = async (action: 'cancel' | 'complete') => { if (!invitation) return; setBusy(true); try { if (action === 'cancel') await cancelHeartTalkInvitation(invitation.invitationId); else { await completeHeartTalkInvitation(invitation.invitationId); await persistence?.repositories.completedHeartTalks.addCompletedHeartTalk(invitation.topicType === 'official' && invitation.officialTopicId ? { sourceInvitationId: invitation.invitationId, topicType: 'official', questionId: invitation.officialTopicId, localDate: invitation.scheduledLocalDate, startTime: invitation.startTime, endTime: invitation.endTime } : { sourceInvitationId: invitation.invitationId, topicType: 'custom', localDate: invitation.scheduledLocalDate, startTime: invitation.startTime, endTime: invitation.endTime }); await persistence?.refreshHeartTalkCount() } setTerminal(action === 'cancel' ? 'cancelled' : 'completed'); await refresh() } catch { setError(t('our.starrySky.invitePreviewBody')); setBusy(false) } }
+  const errorMessage = (caught: unknown) => { const code = heartTalkErrorCode(caught); return t(`our.heartTalk.${code === 'durable-identity-required' || code === 'unauthenticated' ? 'identity' : code === 'no-active-pair' ? 'pair' : code === 'heart-talk-not-found' || code === 'heart-talk-transition-not-allowed' || code === 'heart-talk-recipient-required' ? 'stateChanged' : code === 'network-unavailable' ? 'network' : 'service'}` as never) }
+  const updateInvitation = async (isCurrent: () => boolean) => {
+    const state = await getHeartTalkState()
+    const matching = state.invitations.find((item) => item.invitationId === params.get('invitation') && (item.status === 'accepted' || (item.status === 'pending' && item.viewerRole === 'sender')))
+    if (isCurrent()) setInvitation(matching)
+  }
+  const { refresh } = useVisibleRefresh(updateInvitation, (caught) => setError(errorMessage(caught)))
+  const mutate = async (action: 'cancel' | 'complete') => {
+    if (!invitation || busy) return
+    setBusy(true); setError('')
+    try {
+      if (action === 'cancel') await cancelHeartTalkInvitation(invitation.invitationId)
+      else {
+        await completeHeartTalkInvitation(invitation.invitationId)
+        await persistence?.repositories.completedHeartTalks.addCompletedHeartTalk(invitation.topicType === 'official' && invitation.officialTopicId ? { sourceInvitationId: invitation.invitationId, topicType: 'official', questionId: invitation.officialTopicId, localDate: invitation.scheduledLocalDate, startTime: invitation.startTime, endTime: invitation.endTime } : { sourceInvitationId: invitation.invitationId, topicType: 'custom', localDate: invitation.scheduledLocalDate, startTime: invitation.startTime, endTime: invitation.endTime })
+        await persistence?.refreshHeartTalkCount()
+      }
+      setTerminal(action === 'cancel' ? 'cancelled' : 'completed')
+      await refresh({ afterCurrent: true })
+    } catch (caught) {
+      setError(errorMessage(caught))
+      await refresh({ afterCurrent: true }).catch(() => undefined)
+    } finally {
+      setBusy(false)
+    }
+  }
   const pending = invitation?.status === 'pending'
   const topic = invitation?.topicType === 'official' ? starrySkyTopicById(invitation.officialTopicId) : undefined
   const title = terminal === 'cancelled' ? t('our.starrySky.sessionCancelledTitle') : terminal === 'completed' ? t('our.starrySky.sessionCompletedTitle') : pending ? t('our.heartTalk.pendingTitle') : t('our.starrySky.sessionAcceptedTitle')
